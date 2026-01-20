@@ -1,0 +1,199 @@
+/* Fonts loaded from index.html with preload for better LCP */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Clean Light Theme based on reference */
+    --background: 240 5% 96%;
+    /* #f1f2f6 - Light grey blueish background */
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 222 47% 11%;
+    /* Dark text as primary */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 92%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 240 5% 90%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 210 100% 50%;
+    /* Simple Blue */
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 222 47% 11%;
+
+    --radius: 0.5rem;
+
+    /* Node Colors - Flat & Pastel */
+    /* Based on the reference image colors */
+
+    /* Orange/Legal */
+    --node-orange-bg: 25 95% 90%;
+    --node-orange-text: 25 100% 35%;
+    --node-orange-border: 25 95% 60%;
+
+    /* Blue/Marketing */
+    --node-blue-bg: 210 95% 90%;
+    --node-blue-text: 210 100% 35%;
+    --node-blue-border: 210 95% 60%;
+
+    /* Cyan/Design */
+    --node-cyan-bg: 180 80% 90%;
+    --node-cyan-text: 180 100% 25%;
+    --node-cyan-border: 180 80% 45%;
+
+    /* Yellow/Support */
+    --node-yellow-bg: 45 95% 90%;
+    --node-yellow-text: 45 100% 30%;
+    --node-yellow-border: 45 95% 55%;
+
+    /* Grey/DevOps */
+    --node-grey-bg: 220 15% 90%;
+    --node-grey-text: 220 20% 30%;
+    --node-grey-border: 220 15% 60%;
+
+    /* Purple */
+    --node-purple-bg: 270 80% 92%;
+    --node-purple-text: 270 80% 35%;
+    --node-purple-border: 270 80% 60%;
+
+    /* Black/Root */
+    --node-black-bg: 222 47% 11%;
+    --node-black-text: 0 0% 100%;
+    --node-black-border: 222 47% 11%;
+
+    /* Canvas */
+    --canvas-bg: 240 5% 96%;
+    --canvas-dot: 220 10% 85%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .canvas-dots {
+    background-image: radial-gradient(circle, hsl(var(--canvas-dot)) 1.5px, transparent 1.5px);
+    background-size: 24px 24px;
+  }
+
+  /* Simple button styles */
+  .btn-primary {
+    @apply bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply bg-white border border-border text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted transition-colors shadow-sm;
+  }
+
+  /* Heart breathing animation */
+  .heart-beat {
+    animation: heartbeat 2s ease-in-out infinite;
+  }
+
+  @keyframes heartbeat {
+
+    0%,
+    100% {
+      opacity: 1;
+    }
+
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  /* Flow animation for connection lines - Optimized for smooth performance */
+  .flow {
+    animation: flow-forward 1s linear infinite;
+    will-change: stroke-dashoffset;
+  }
+
+  .flow-reverse {
+    animation: flow-backward 1s linear infinite;
+    will-change: stroke-dashoffset;
+  }
+
+  @keyframes flow-forward {
+    from {
+      stroke-dashoffset: 0;
+    }
+
+    to {
+      stroke-dashoffset: -15;
+    }
+  }
+
+  @keyframes flow-backward {
+    from {
+      stroke-dashoffset: 0;
+    }
+
+    to {
+      stroke-dashoffset: 15;
+    }
+  }
+
+  /* Node Animations */
+  .animate-ring {
+    animation: ring-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes ring-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 0px hsl(var(--primary) / 0.5);
+    }
+    50% {
+      box-shadow: 0 0 0 6px hsl(var(--primary) / 0);
+    }
+  }
+
+  .animate-blink {
+    animation: border-blink 1.5s ease-in-out infinite;
+  }
+
+  @keyframes border-blink {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.6;
+      transform: scale(0.98);
+    }
+  }
+
+  .animate-snake {
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Standard rotate animation for components */
+  .animate-spin-slow {
+    animation: spin 3s linear infinite;
+  }
+}
