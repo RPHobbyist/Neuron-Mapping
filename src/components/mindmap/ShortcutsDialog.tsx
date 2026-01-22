@@ -20,6 +20,7 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
         { key: "Ctrl + Y", action: "Redo" },
         { key: "Shift + Click", action: "Select Multiple Nodes" },
         { key: "Shift + Drag", action: "Box Selection" },
+        { key: "Escape", action: "Exit Drawing Mode" },
         { key: "Shift + ?", action: "Show Shortcuts" },
     ];
 
@@ -32,12 +33,9 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
 
                     <div className="mb-2">
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center shrink-0 border border-gray-100">
-                                <Keyboard className="w-4 h-4 text-gray-700" />
-                            </div>
                             <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">Keyboard Shortcuts</DialogTitle>
                         </div>
-                        <p className="text-gray-500 text-sm ml-11">
+                        <p className="text-gray-500 text-sm">
                             Essential keys for a faster workflow.
                         </p>
                     </div>

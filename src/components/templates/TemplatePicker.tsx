@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { WhatsNewDialog } from '../mindmap/WhatsNewDialog';
+
 import { Footer } from '@/components/layout/Footer';
 
 // Icon mapping for templates
@@ -65,6 +66,7 @@ export const TemplatePicker = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 

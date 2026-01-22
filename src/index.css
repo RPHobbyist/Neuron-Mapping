@@ -164,9 +164,12 @@
   }
 
   @keyframes ring-pulse {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 0 0px hsl(var(--primary) / 0.5);
     }
+
     50% {
       box-shadow: 0 0 0 6px hsl(var(--primary) / 0);
     }
@@ -177,10 +180,13 @@
   }
 
   @keyframes border-blink {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
       transform: scale(1);
     }
+
     50% {
       opacity: 0.6;
       transform: scale(0.98);
@@ -195,5 +201,19 @@
   /* Standard rotate animation for components */
   .animate-spin-slow {
     animation: spin 3s linear infinite;
+  }
+
+  /* Cloud Shape - SVG Mask for smooth, complex shape */
+  .shape-cloud {
+    -webkit-mask-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 4 23 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.132 20.177 10.244 17.819 10.041C17.433 6.643 14.535 4 11 4C7.027 4 3.737 6.913 3.111 10.822C1.332 11.458 0.003 13.113 0 15C0 17.618 2.003 19.78 4.606 19.996L17.5 19Z' fill='black'/%3E%3C/svg%3E");
+    mask-image: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 4 23 16' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.132 20.177 10.244 17.819 10.041C17.433 6.643 14.535 4 11 4C7.027 4 3.737 6.913 3.111 10.822C1.332 11.458 0.003 13.113 0 15C0 17.618 2.003 19.78 4.606 19.996L17.5 19Z' fill='black'/%3E%3C/svg%3E");
+    -webkit-mask-position: center;
+    mask-position: center;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    border: none !important;
+    box-shadow: none !important;
   }
 }

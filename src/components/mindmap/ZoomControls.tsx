@@ -14,24 +14,24 @@ export const ZoomControls = ({
   onZoomIn,
   onZoomOut,
   onReset,
-}: ZoomControlsProps) => {
+  children
+}: ZoomControlsProps & { children?: React.ReactNode }) => {
   const zoomPercentage = Math.round(zoom * 100);
 
   return (
     <motion.div
-      className="absolute bottom-12 right-6 z-40"
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
     >
-      <div className="flex items-center gap-1 p-1.5 glass-toolbar rounded-xl shadow-xl">
+      <div className="flex items-center gap-1 p-1.5 glass-toolbar rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-border">
         {/* Zoom Out */}
         <button
           onClick={onZoomOut}
           disabled={zoom <= 0.25}
           className={cn(
             "p-2 rounded-lg text-foreground transition-all",
-            "hover:bg-secondary hover:scale-105",
+            "hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
           )}
           title="Zoom Out"
@@ -52,7 +52,7 @@ export const ZoomControls = ({
           disabled={zoom >= 2}
           className={cn(
             "p-2 rounded-lg text-foreground transition-all",
-            "hover:bg-secondary hover:scale-105",
+            "hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105",
             "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
           )}
           title="Zoom In"
@@ -61,16 +61,23 @@ export const ZoomControls = ({
         </button>
 
         {/* Divider */}
-        <div className="w-px h-6 bg-border/50 mx-0.5" />
+        <div className="w-px h-6 bg-border mx-0.5" />
 
         {/* Fit to Screen */}
         <button
           onClick={onReset}
-          className="p-2 rounded-lg text-foreground hover:bg-secondary hover:scale-105 transition-all"
+          className="p-2 rounded-lg text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all"
           title="Fit to Screen"
         >
           <Maximize className="w-4 h-4" />
         </button>
+
+        {children && (
+          <>
+            <div className="w-px h-6 bg-border mx-0.5" />
+            {children}
+          </>
+        )}
       </div>
     </motion.div>
   );

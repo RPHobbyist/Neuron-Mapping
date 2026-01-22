@@ -8,6 +8,7 @@ const AUTOSAVE_DELAY = 2000; // 2 seconds debounce
 export interface AutoSaveData {
   nodes: MindMapNode[];
   connectionStyle: ConnectionStyle;
+  drawings?: any[];
   lastModified: number;
 }
 
@@ -19,6 +20,7 @@ export const clearAutoSave = () => {
 export const useAutoSave = (
   nodes: MindMapNode[],
   connectionStyle: ConnectionStyle = 'curved',
+  drawings: any[] = [],
   onLoad?: (data: AutoSaveData) => void
 ) => {
   // Load from storage on mount
@@ -46,6 +48,7 @@ export const useAutoSave = (
       const data: AutoSaveData = {
         nodes,
         connectionStyle,
+        drawings,
         lastModified: Date.now(),
       };
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
@@ -53,7 +56,7 @@ export const useAutoSave = (
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(handler);
-  }, [nodes, connectionStyle]);
+  }, [nodes, connectionStyle, drawings]);
 
   return { clearAutoSave };
 };

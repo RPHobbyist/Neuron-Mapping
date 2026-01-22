@@ -243,14 +243,14 @@ const MindMapNodeBase = ({
           'relative px-4 py-2 overflow-hidden transition-shadow',
           // Only apply standard node styles if NOT in icon-only mode
           !isIconOnly && [
-            'border shadow-sm',
-            style.bg,
-            style.border,
+            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && 'border shadow-sm',
+            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && style.bg,
+            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && style.border,
             'hover:shadow-md',
             shapeStyles.className,
           ],
           style.text, // Text color for icon
-          isSelected && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          (isSelected && !['cloud', 'hexagon', 'diamond'].includes(node.shape || '')) && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
           isHighlighted && 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-background z-10 shadow-[0_0_15px_rgba(250,204,21,0.5)]',
           node.nodeAnimation === 'ring' && 'animate-ring',
           node.nodeAnimation === 'blink' && 'animate-blink',
@@ -273,6 +273,47 @@ const MindMapNodeBase = ({
             {/* Inner Mask - creates the border effect by covering the center */}
             <div className={cn("absolute inset-[3px] rounded-[3px] z-0", style.bg)} />
           </>
+        )}
+
+        {/* Unified SVG Background for Irregular Shapes (Cloud, Hexagon, Diamond) */}
+        {['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && (
+          <div className="absolute inset-[-4px] z-0 pointer-events-none drop-shadow-sm">
+            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+              {/* Main Shape Path */}
+              <path
+                d={
+                  node.shape === 'cloud'
+                    ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
+                    : node.shape === 'hexagon'
+                      ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
+                      : "M50,5 L95,50 L50,95 L5,50 Z"
+                }
+                fill={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-bg))`}
+                stroke={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-border))`}
+                strokeWidth="2.5"
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
+              {/* Selection Ring (Shape-matched) */}
+              {isSelected && (
+                <path
+                  d={
+                    node.shape === 'cloud'
+                      ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
+                      : node.shape === 'hexagon'
+                        ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
+                        : "M50,5 L95,50 L50,95 L5,50 Z"
+                  }
+                  fill="none"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth="4"
+                  vectorEffect="non-scaling-stroke"
+                  strokeLinejoin="round"
+                  className="opacity-40 animate-pulse"
+                />
+              )}
+            </svg>
+          </div>
         )}
 
         {/* Content Wrapper to stay above background animations */}

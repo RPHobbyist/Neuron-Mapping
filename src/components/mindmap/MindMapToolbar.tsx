@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, Sparkles } from 'lucide-react';
+import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, Sparkles, PenTool, Eraser } from 'lucide-react';
 import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import { LineTypeSelector } from './LineTypeSelector';
@@ -17,6 +17,10 @@ interface MindMapToolbarProps {
     selectedNodeIds: Set<string>;
     zoom: number;
     connectionStyle: ConnectionStyle;
+
+    // Drawing Mode
+    drawingMode: 'none' | 'pen' | 'eraser';
+    setDrawingMode: (mode: 'none' | 'pen' | 'eraser') => void;
 
     // Actions
     onBack?: () => void;
@@ -87,16 +91,16 @@ export function MindMapToolbar({
     showShortcuts,
     setShowShortcuts,
     is3DMode = false,
-    onToggle3DMode
-}: MindMapToolbarProps & { showShortcuts: boolean; setShowShortcuts: (show: boolean) => void }) {
+    onToggle3DMode,
+    onSmartAdd,
+}: MindMapToolbarProps & {
+    showShortcuts: boolean;
+    setShowShortcuts: (show: boolean) => void;
+    onSmartAdd: () => void;
+}) {
     const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
     const [showWhatsNew, setShowWhatsNew] = useState(false);
-    const [localName, setLocalName] = useState(mapName);
 
-    // Sync local name if mapName changes (e.g. after save)
-    useEffect(() => {
-        setLocalName(mapName);
-    }, [mapName]);
 
     return (
         <div className="h-14 border-b bg-white flex items-center justify-between px-4 z-50 shrink-0 shadow-sm gap-4">
@@ -104,23 +108,6 @@ export function MindMapToolbar({
                 <button onClick={onBack} className="p-2 hover:bg-muted rounded text-muted-foreground transition-colors shrink-0">
                     <ArrowLeft className="w-5 h-5" />
                 </button>
-                {/* Auto-sizing Input: Grid layout with hidden span mirroring content */}
-                <div className="grid items-center min-w-0 max-w-[300px]">
-                    <span
-                        className="invisible col-start-1 row-start-1 font-semibold text-lg px-2 py-1 whitespace-pre min-w-[50px] truncate"
-                        aria-hidden="true"
-                    >
-                        {mapName || 'Untitled Map'}
-                    </span>
-                    <input
-                        type="text"
-                        value={mapName || ''}
-                        onChange={(e) => onNameChange?.(e.target.value)}
-                        placeholder="Untitled Map"
-                        className="col-start-1 row-start-1 w-full font-semibold text-lg bg-transparent border border-transparent hover:border-border hover:bg-muted/30 focus:bg-white focus:border-primary rounded px-2 py-1 outline-none transition-all truncate"
-                        title="Rename Map"
-                    />
-                </div>
             </div>
 
             {/* Action Bar (Moved to Properties Panel) */}
@@ -207,6 +194,17 @@ export function MindMapToolbar({
                             </>
                         )}
                     </div>
+
+                    <div className="w-px h-6 bg-border mx-1" />
+
+                    {/* Smart Add Button */}
+                    <button
+                        onClick={onSmartAdd}
+                        className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap hover:bg-muted text-muted-foreground hover:text-foreground"
+                        title="Smart Add (AI Placement)"
+                    >
+                        <span className="hidden lg:inline">Smart Add</span>
+                    </button>
                 </div>
 
                 <div className="w-px h-6 bg-border mx-1" />

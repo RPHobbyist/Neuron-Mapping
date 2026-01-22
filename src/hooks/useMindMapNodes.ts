@@ -60,7 +60,7 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = []) => {
     }, [set]);
 
     // Actions
-    const addChildNode = useCallback((parentId: string) => {
+    const addChildNode = useCallback((parentId: string, initialText: string = 'New Item') => {
         const parent = nodes.find((n) => n.id === parentId);
         if (!parent) return;
 
@@ -79,7 +79,7 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = []) => {
 
         const newNode: MindMapNode = {
             id: generateId(),
-            text: 'New Item',
+            text: initialText,
             x: parent.x + Math.cos(angle) * distance,
             y: parent.y + Math.sin(angle) * distance,
             color: newColor,

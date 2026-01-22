@@ -77,9 +77,9 @@ const shapes: { value: NodeShape; label: string; icon: React.ReactNode }[] = [
     { value: 'pill', label: 'Pill', icon: <div className="w-4 h-4 rounded-full border-2 border-current" /> },
     { value: 'circle', label: 'Circle', icon: <div className="w-5 h-3 rounded-full border-2 border-current" /> },
     { value: 'diamond', label: 'Diamond', icon: <div className="w-3 h-3 border-2 border-current rotate-45" /> },
-    { value: 'hexagon', label: 'Hexagon', icon: <div className="w-4 h-4 border-2 border-current" style={{ clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)' }} /> },
+    { value: 'hexagon', label: 'Hexagon', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2L2 7V17L12 22L22 17V7L12 2Z" /></svg> },
     { value: 'parallelogram', label: 'Parallelogram', icon: <div className="w-4 h-3 border-2 border-current" style={{ transform: 'skewX(-10deg)' }} /> },
-    { value: 'cloud', label: 'Cloud', icon: <div className="w-4 h-3 border-2 border-current rounded-full" /> }, // Placeholder icon for cloud
+    { value: 'cloud', label: 'Cloud', icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M17.5 19C19.9853 19 22 16.9853 22 14.5C22 12.132 20.177 10.244 17.819 10.041C17.433 6.643 14.535 4 11 4C7.027 4 3.737 6.913 3.111 10.822C1.332 11.458 0.003 13.113 0 15C0 17.618 2.003 19.78 4.606 19.996L17.5 19Z" /></svg> },
 ];
 
 const priorities: { value: NodePriority; label: string }[] = [
@@ -96,9 +96,10 @@ export const PropertiesPanel = ({
     onNodeUpdate,
     onDelete,
     onClose,
-    is3DMode = false
+    is3DMode = false,
+    position // Destructure position
 }: PropertiesPanelProps) => {
-    const [position, setPosition] = useState({ x: 0, y: 0 });
+    const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
 
@@ -108,15 +109,15 @@ export const PropertiesPanel = ({
         dragRef.current = {
             startX: e.clientX,
             startY: e.clientY,
-            startPosX: position.x,
-            startPosY: position.y,
+            startPosX: dragPosition.x,
+            startPosY: dragPosition.y,
         };
 
         const handleMouseMove = (moveEvent: MouseEvent) => {
             if (!dragRef.current) return;
             const deltaX = moveEvent.clientX - dragRef.current.startX;
             const deltaY = moveEvent.clientY - dragRef.current.startY;
-            setPosition({
+            setDragPosition({
                 x: dragRef.current.startPosX + deltaX,
                 y: dragRef.current.startPosY + deltaY,
             });
@@ -515,9 +516,10 @@ export const PropertiesPanel = ({
         <div
             className="fixed bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border p-3 z-50 w-[300px]"
             style={{
-                left: `calc(50% + ${position.x}px)`,
-                bottom: `calc(1rem - ${position.y}px)`,
-                transform: 'translateX(-50%)',
+                left: position ? `${position.x - 170 + dragPosition.x}px` : `calc(50% + ${dragPosition.x}px)`,
+                top: position ? `${position.y - 100 + dragPosition.y}px` : undefined,
+                bottom: position ? undefined : `calc(1rem - ${dragPosition.y}px)`,
+                transform: position ? 'translateX(-100%)' : 'translateX(-50%)',
                 cursor: isDragging ? 'grabbing' : 'default',
             }}
         >

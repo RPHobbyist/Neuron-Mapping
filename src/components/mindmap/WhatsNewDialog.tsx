@@ -6,7 +6,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Zap, Play, Boxes, RefreshCw, Palette, Video, Globe, Droplet, Rocket } from 'lucide-react';
+import { Zap, Play, Boxes, RefreshCw, Palette, Video, Globe, Droplet, Rocket, Wand2, Focus, History } from 'lucide-react';
 
 interface WhatsNewDialogProps {
     open: boolean;
@@ -21,7 +21,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                 <div className="p-6 pb-2 relative">
                     <div className="mb-4">
                         <div className="inline-flex items-center px-2 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-medium mb-3">
-                            Update 1.4.0
+                            Update 1.5.0
                         </div>
                         <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">What's New</DialogTitle>
                         <DialogDescription className="text-gray-500 text-sm mt-1">
@@ -32,6 +32,19 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
 
                 {/* Content Section */}
                 <div className="px-6 py-2 space-y-5 max-h-[400px] overflow-y-auto">
+                    {/* NEW: Smart Add */}
+                    <div className="flex gap-4 items-start">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
+                            <Wand2 className="w-4 h-4 text-emerald-600" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <h3 className="font-semibold text-sm text-gray-900">Smart Add</h3>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                                Type anything, and our intelligent algorithm finds the best spot for it in your map automatically.
+                            </p>
+                        </div>
+                    </div>
+
                     {/* NEW: 3D Galaxy View */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
@@ -45,15 +58,28 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: Custom Colors */}
+                    {/* NEW: Focus Mode */}
                     <div className="flex gap-4 items-start">
-                        <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center shrink-0 border border-pink-100">
-                            <Droplet className="w-4 h-4 text-pink-600" />
+                        <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
+                            <Focus className="w-4 h-4 text-amber-600" />
                         </div>
                         <div className="space-y-0.5">
-                            <h3 className="font-semibold text-sm text-gray-900">Custom Colors</h3>
+                            <h3 className="font-semibold text-sm text-gray-900">Focus Mode</h3>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                                Pick any color for your nodes with the new color picker. Works in both 2D and 3D views.
+                                Select a node and enter Focus Mode to hide everything else and concentrate on one branch.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* NEW: History Snapshots */}
+                    <div className="flex gap-4 items-start">
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
+                            <History className="w-4 h-4 text-slate-600" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <h3 className="font-semibold text-sm text-gray-900">History Snapshots</h3>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                                Travel back in time. View and restore previous versions of your mind map with visual snapshots.
                             </p>
                         </div>
                     </div>

@@ -30,7 +30,8 @@ export const useSavedMaps = () => {
     connectionStyle: ConnectionStyle,
     templateId?: string,
     existingId?: string,
-    thumbnail?: string
+    thumbnail?: string,
+    drawings?: any[]
   ): SavedMindMap => {
     const now = new Date().toISOString();
 
@@ -38,7 +39,7 @@ export const useSavedMaps = () => {
       // Update existing map
       const updated = savedMaps.map(map =>
         map.id === existingId
-          ? { ...map, name, nodes, connectionStyle, updatedAt: now, thumbnail: thumbnail || map.thumbnail }
+          ? { ...map, name, nodes, connectionStyle, updatedAt: now, thumbnail: thumbnail || map.thumbnail, drawings }
           : map
       );
       persistMaps(updated);
@@ -54,6 +55,7 @@ export const useSavedMaps = () => {
         createdAt: now,
         updatedAt: now,
         thumbnail,
+        drawings,
       };
       persistMaps([newMap, ...savedMaps]);
       return newMap;

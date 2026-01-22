@@ -10,7 +10,7 @@ import { NodeActionDialog } from './NodeActionDialog';
 import { useMindMapNodes } from '@/hooks/useMindMapNodes';
 import { useAutoSave, AutoSaveData } from '@/hooks/useAutoSave';
 import { toast } from 'sonner';
-import { LayoutGrid, Save, ArrowLeft, Trash2, Undo2, Redo2, Link, CircleHelp, Focus, Play, History } from 'lucide-react';
+import { LayoutGrid, Save, ArrowLeft, Trash2, Undo2, Redo2, Link, CircleHelp, Focus, Play, History, Pencil, Eraser } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PropertiesPanel, LineSettings } from './LinePropertiesPanel';
 import { MindMapToolbar } from './MindMapToolbar';
@@ -18,15 +18,18 @@ import { SnapshotPanel } from './SnapshotPanel';
 import { usePlayMode } from '@/hooks/usePlayMode';
 import { AnimatePresence } from 'framer-motion';
 import { IconLibraryDialog } from './IconLibraryDialog';
+import { SmartAddPanel } from './SmartAddPanel';
+import { findBestParent } from '@/utils/smartPlacement';
 
 // Lazy load GalaxyView to split Three.js chunk
 const GalaxyView = lazy(() => import('./GalaxyView').then(module => ({ default: module.GalaxyView })));
 
 interface MindMapCanvasProps {
   initialNodes?: NodeType[];
+  initialDrawings?: any[];
   onBack?: () => void;
   connectionStyle?: ConnectionStyle;
-  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle) => void;
+  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: any[]) => void;
   onNameChange?: (name: string) => void;
   mapName?: string;
   mapId?: string;
@@ -36,10 +39,12 @@ const defaultNodes: NodeType[] = [
   { id: 'root', text: 'Product Launch\nChecklist', x: 0, y: 0, color: 'root' as NodeColor, parentId: null },
 ];
 
-
+const PEN_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>') 0 24, crosshair`;
+const ERASER_CURSOR = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 12 12, cell`;
 
 export const MindMapCanvas = ({
   initialNodes = defaultNodes,
+  initialDrawings = [],
   onBack,
   connectionStyle = 'orthogonal', // Default to orthogonal (step) lines
   onSave,
@@ -93,6 +98,45 @@ export const MindMapCanvas = ({
   }>({ isOpen: false, nodeId: null, type: null });
 
   const [showIconLibrary, setShowIconLibrary] = useState<{ isOpen: boolean, nodeId: string | null }>({ isOpen: false, nodeId: null });
+  const [isSmartAddOpen, setIsSmartAddOpen] = useState(false);
+
+  // Drawing State
+  const [drawingMode, setDrawingMode] = useState<'none' | 'pen' | 'eraser'>('none');
+  const [drawings, setDrawings] = useState<{ id: string, points: { x: number, y: number }[], color: string }[]>(initialDrawings);
+  const [currentPath, setCurrentPath] = useState<{ x: number, y: number }[]>([]);
+
+  // ESC key to exit drawing mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && drawingMode !== 'none') {
+        setDrawingMode('none');
+        toast.info("Exit drawing mode");
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawingMode]);
+
+
+  // Drawing Helpers
+  const getMousePos = (e: React.MouseEvent) => {
+    if (!contentRef.current) return { x: 0, y: 0 };
+    const rect = contentRef.current.getBoundingClientRect();
+    return {
+      x: (e.clientX - rect.left) / zoom,
+      y: (e.clientY - rect.top) / zoom
+    };
+  };
+
+  /** Improved distance check from point to a line segment */
+  const distToSegment = (p: { x: number, y: number }, a: { x: number, y: number }, b: { x: number, y: number }) => {
+    const l2 = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
+    if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    const q = { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) };
+    return Math.hypot(p.x - q.x, p.y - q.y);
+  };
 
   // Focus Mode Logic
   const getDescendants = useCallback((nodeId: string, currentNodes: NodeType[]): Set<string> => {
@@ -141,10 +185,13 @@ export const MindMapCanvas = ({
     if (data.connectionStyle) {
       setConnectionStyle(data.connectionStyle);
     }
-  }, [setNodes, setConnectionStyle]);
+    if (data.drawings) {
+      setDrawings(data.drawings);
+    }
+  }, [setNodes, setConnectionStyle, setDrawings]);
 
   // Auto-save integration (must be after state declarations)
-  useAutoSave(nodes, hookConnectionStyle, handleAutoLoad);
+  useAutoSave(nodes, hookConnectionStyle, drawings, handleAutoLoad);
 
   // Sync connectionStyle prop only on mount/change if provided, but hook manages source of truth
   useEffect(() => {
@@ -154,6 +201,28 @@ export const MindMapCanvas = ({
   }, [connectionStyle, setConnectionStyle]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (drawingMode !== 'none') {
+      const pos = getMousePos(e);
+      if (drawingMode === 'pen') {
+        setIsDragging(true); // Re-use isDragging to track 'drawing active'
+        setCurrentPath([pos]);
+      } else if (drawingMode === 'eraser') {
+        // Click to erase
+        setIsDragging(true);
+        const eraserRadius = 15 / zoom;
+        setDrawings(prev => prev.filter(d => {
+          for (let i = 0; i < d.points.length - 1; i++) {
+            if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
+          }
+          if (d.points.length === 1) {
+            return Math.hypot(d.points[0].x - pos.x, d.points[0].y - pos.y) >= eraserRadius;
+          }
+          return true;
+        }));
+      }
+      return;
+    }
+
     // Determine if we should close the properties panel
     // Keep open if clicking inside it? No, it catches its own events usually.
     // If clicking canvas directly:
@@ -176,6 +245,25 @@ export const MindMapCanvas = ({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (drawingMode !== 'none' && isDragging) {
+      const pos = getMousePos(e);
+      if (drawingMode === 'pen') {
+        setCurrentPath(prev => [...prev, pos]);
+      } else if (drawingMode === 'eraser') {
+        const eraserRadius = 15 / zoom;
+        setDrawings(prev => prev.filter(d => {
+          for (let i = 0; i < d.points.length - 1; i++) {
+            if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
+          }
+          if (d.points.length === 1) {
+            return Math.hypot(d.points[0].x - pos.x, d.points[0].y - pos.y) >= eraserRadius;
+          }
+          return true;
+        }));
+      }
+      return;
+    }
+
     if (selectionBox) { // Box Selection
       const currentX = e.clientX;
       const currentY = e.clientY;
@@ -192,6 +280,19 @@ export const MindMapCanvas = ({
   };
 
   const handleCanvasMouseUp = () => {
+    if (drawingMode !== 'none' && isDragging) {
+      if (drawingMode === 'pen' && currentPath.length > 1) {
+        setDrawings(prev => [...prev, {
+          id: Math.random().toString(36).substr(2, 9),
+          points: currentPath,
+          color: '#EF4444' // Fixed Red
+        }]);
+      }
+      setCurrentPath([]);
+      setIsDragging(false);
+      return;
+    }
+
     if (selectionBox) {
       // Finalize Box Selection (Screen -> Node coordinates)
       const rect = canvasRef.current?.getBoundingClientRect();
@@ -242,7 +343,7 @@ export const MindMapCanvas = ({
           console.warn('Thumbnail generation failed', e);
         }
       }
-      onSave?.(name, nodes, thumbnail, hookConnectionStyle);
+      onSave?.(name, nodes, thumbnail, hookConnectionStyle, drawings);
       toast.success('Saved!');
       setShowSaveDialog(false);
     } catch {
@@ -469,6 +570,32 @@ export const MindMapCanvas = ({
         setShowShortcuts={setShowShortcuts}
         is3DMode={is3DMode}
         onToggle3DMode={() => setIs3DMode(!is3DMode)}
+        onSmartAdd={() => setIsSmartAddOpen(true)}
+        drawingMode={drawingMode}
+        setDrawingMode={setDrawingMode}
+      />
+
+      {/* Smart Add Panel */}
+      <SmartAddPanel
+        isOpen={isSmartAddOpen}
+        onClose={() => setIsSmartAddOpen(false)}
+        onAdd={(text) => {
+          // 1. Find best parent
+          const parentId = findBestParent(nodes, text, selectedNodeIds);
+          const parentNode = nodes.find(n => n.id === parentId);
+
+          // 2. Add child
+          addChildNode(parentId, text);
+
+          // 3. Feedback
+          if (parentNode) {
+            toast.success(`Added to "${parentNode.text.split('\n')[0].substring(0, 20)}..."`);
+            // Optional: Select the new node? addChildNode already does this.
+            // Optional: Pan to new node?
+          } else {
+            toast.success("Added new node");
+          }
+        }}
       />
 
       {/* Canvas Area */}
@@ -480,7 +607,7 @@ export const MindMapCanvas = ({
               selectedNodeIds={selectedNodeIds}
               onExit={() => setIs3DMode(false)}
               onNodeMove={updateNodePosition}
-              onNodeClick={(id, e) => handleNodeSelect(e, id)}
+              onNodeClick={(id, e) => handleNodeSelect(e as unknown as React.MouseEvent, id)}
               onNodeDoubleClick={(id) => {
                 // Focus on Double Click or trigger edit?
                 // For now, toggle Focus Mode as a power user feature, OR just select.
@@ -509,7 +636,13 @@ export const MindMapCanvas = ({
         <div className="flex-1 relative overflow-hidden bg-canvas">
           <div
             ref={canvasRef}
-            className="w-full h-full canvas-dots canvas-area cursor-grab active:cursor-grabbing"
+            className={cn(
+              "w-full h-full canvas-dots canvas-area",
+              drawingMode === 'none' ? "cursor-grab active:cursor-grabbing" : ""
+            )}
+            style={{
+              cursor: drawingMode === 'pen' ? PEN_CURSOR : drawingMode === 'eraser' ? ERASER_CURSOR : undefined
+            }}
             onMouseDown={handleCanvasMouseDown}
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
@@ -566,6 +699,38 @@ export const MindMapCanvas = ({
                   );
                 })}
               </AnimatePresence>
+
+              {/* Drawing Layer - Use Fixed Large Size to match Coordinate System */}
+              <svg
+                className="absolute pointer-events-none overflow-visible"
+                style={{ left: -5000, top: -5000, width: 10000, height: 10000, zIndex: 5 }}
+              >
+                <g transform={`translate(5000, 5000)`}>
+                  {/* Saved paths */}
+                  {drawings.map(d => (
+                    <polyline
+                      key={d.id}
+                      points={d.points.map(p => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke={d.color}
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  ))}
+                  {/* Current path being drawn */}
+                  {currentPath.length > 0 && (
+                    <polyline
+                      points={currentPath.map(p => `${p.x},${p.y}`).join(' ')}
+                      fill="none"
+                      stroke="#EF4444"
+                      strokeWidth={3}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  )}
+                </g>
+              </svg>
             </div>
 
             {selectionBox && (
@@ -581,13 +746,63 @@ export const MindMapCanvas = ({
             )}
           </div>
 
-          {/* Zoom Controls */}
-          <ZoomControls
-            zoom={zoom}
-            onZoomIn={() => setZoom(z => Math.min(2, z + 0.1))}
-            onZoomOut={() => setZoom(z => Math.max(0.1, z - 0.1))}
-            onReset={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
-          />
+          {/* Floating Map Name (Bottom Left) */}
+          <div className="absolute bottom-0 left-0 z-40 bg-white/90 backdrop-blur-sm border-t border-r border-border/50 shadow-sm rounded-tr-lg p-0.5 flex items-center group hover:bg-white transition-colors">
+            <div className="grid items-center min-w-[50px] max-w-[300px]">
+              <span
+                className="invisible col-start-1 row-start-1 font-semibold text-sm px-1.5 py-0.5 whitespace-pre min-w-[20px] truncate"
+                aria-hidden="true"
+              >
+                {mapName || 'Untitled Map'}
+              </span>
+              <input
+                type="text"
+                value={mapName || ''}
+                onChange={(e) => onNameChange?.(e.target.value)}
+                placeholder="Untitled Map"
+                className="col-start-1 row-start-1 w-full font-semibold text-sm bg-transparent border border-transparent hover:border-border/50 rounded px-1.5 py-0.5 outline-none transition-all truncate text-foreground/90 placeholder:text-muted-foreground/50"
+                title="Rename Map"
+              />
+            </div>
+          </div>
+
+          {/* Bottom Right Controls - Stacked */}
+          {/* Bottom Right Controls - Unified */}
+          <div className="absolute bottom-6 right-6 z-50">
+            <ZoomControls
+              zoom={zoom}
+              onZoomIn={() => setZoom(z => Math.min(2, z + 0.1))}
+              onZoomOut={() => setZoom(z => Math.max(0.1, z - 0.1))}
+              onReset={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
+            >
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setDrawingMode(drawingMode === 'pen' ? 'none' : 'pen')}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    drawingMode === 'pen'
+                      ? "bg-red-50 text-red-500"
+                      : "text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105"
+                  )}
+                  title="Pencil (Red)"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setDrawingMode(drawingMode === 'eraser' ? 'none' : 'eraser')}
+                  className={cn(
+                    "p-2 rounded-lg transition-all",
+                    drawingMode === 'eraser'
+                      ? "bg-blue-50 text-blue-500"
+                      : "text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105"
+                  )}
+                  title="Eraser"
+                >
+                  <Eraser className="w-4 h-4" />
+                </button>
+              </div>
+            </ZoomControls>
+          </div>
         </div>
       )}
 
@@ -600,11 +815,30 @@ export const MindMapCanvas = ({
 
       {/* Properties Panel (Line or Node) */}
       {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen && !is3DMode) && (() => {
+        // Calculate screen coordinates for positioning
+        const getScreenPos = (x: number, y: number) => {
+          // Canvas center is 50% 50%
+          const centerX = window.innerWidth / 2;
+          const centerY = window.innerHeight / 2;
+          return {
+            x: centerX + pan.x + (x * zoom),
+            y: centerY + pan.y + (y * zoom)
+          };
+        };
+
         if (selectedLineId) {
           if (selectedLineId.startsWith('rel::')) {
             const [, sourceId, targetId] = selectedLineId.split('::');
             const sourceNode = nodes.find(n => n.id === sourceId);
-            if (!sourceNode) return null;
+            const targetNode = nodes.find(n => n.id === targetId);
+
+            if (!sourceNode || !targetNode) return null;
+
+            // Position at midpoint of line
+            const midX = (sourceNode.x + targetNode.x) / 2;
+            const midY = (sourceNode.y + targetNode.y) / 2;
+            const pos = getScreenPos(midX, midY);
+
             const relation = sourceNode.relations?.find(r => r.targetId === targetId);
 
             const values: LineSettings = {
@@ -620,6 +854,7 @@ export const MindMapCanvas = ({
             return (
               <PropertiesPanel
                 mode="line"
+                position={pos}
                 lineValues={values}
                 onLineUpdate={(updates) => {
                   const newRelations = sourceNode.relations?.map(r =>
@@ -634,6 +869,9 @@ export const MindMapCanvas = ({
             const [, childId] = selectedLineId.split('::');
             const childNode = nodes.find(n => n.id === childId);
             if (!childNode) return null;
+
+            // For child lines, position near child or midpoint? Let's use child node for valid ref
+            const pos = getScreenPos(childNode.x, childNode.y - 50); // Slightly above child
 
             const values: LineSettings = {
               type: childNode.lineType || hookConnectionStyle,
@@ -650,6 +888,7 @@ export const MindMapCanvas = ({
             return (
               <PropertiesPanel
                 mode="line"
+                position={pos}
                 lineValues={values}
                 onLineUpdate={(updates) => {
                   const nodeUpdates: Partial<NodeType> = {};
@@ -673,9 +912,12 @@ export const MindMapCanvas = ({
           const node = nodes.find(n => n.id === nodeId);
           if (!node) return null;
 
+          const pos = getScreenPos(node.x, node.y);
+
           return (
             <PropertiesPanel
               mode="node"
+              position={pos}
               nodeValues={{
                 color: node.color,
                 shape: node.shape,

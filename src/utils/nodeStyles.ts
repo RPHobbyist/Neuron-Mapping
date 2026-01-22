@@ -107,20 +107,18 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
             return { className: `rounded-full px-6 ${rootClass}`.trim() };
         case 'diamond':
             return {
-                className: `px-8 py-4 border-0 ${rootClass}`.trim(),
+                className: `px-10 py-6 border-0 ${rootClass}`.trim(),
                 style: {
-                    clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
-                    minWidth: '80px',
-                    minHeight: '80px'
+                    minWidth: '100px',
+                    minHeight: '100px'
                 }
             };
         case 'hexagon':
             return {
-                className: `px-6 py-3 border-0 ${rootClass}`.trim(),
+                className: `px-10 py-6 border-0 ${rootClass}`.trim(),
                 style: {
-                    clipPath: 'polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%)',
-                    minWidth: '80px',
-                    minHeight: '60px'
+                    minWidth: '120px',
+                    minHeight: '80px'
                 }
             };
         case 'circle':
@@ -135,7 +133,8 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
                 className: `px-6 ${rootClass}`.trim(),
                 style: { transform: 'skewX(-10deg)' }
             };
-        case 'isometric':
+        case 'iso-cube': // Renaming isometric to iso-cube for clarity if needed, but keeping switch case
+        case 'isometric': // Keep backward compatibility
             return {
                 className: 'px-8 py-4 shadow-xl',
                 style: {
@@ -143,6 +142,14 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
                     boxShadow: '-4px 4px 0px rgba(0,0,0,0.2), -8px 8px 10px rgba(0,0,0,0.1)',
                     borderRadius: '4px',
                     border: '1px solid rgba(255,255,255,0.4)',
+                }
+            };
+        case 'cloud':
+            return {
+                className: `px-10 py-6 border-0 ${rootClass}`.trim(),
+                style: {
+                    minWidth: '120px',
+                    minHeight: '80px'
                 }
             };
         case 'rounded':

@@ -71,6 +71,7 @@ export interface SavedMindMap {
   createdAt: string;
   updatedAt: string;
   thumbnail?: string; // Base64 image data
+  drawings?: Drawing[];
 }
 
 export interface MindMapState {
@@ -80,4 +81,11 @@ export interface MindMapState {
   panX: number;
   panY: number;
   connectionStyle?: ConnectionStyle;
+  drawings?: Drawing[];
+}
+
+export interface Drawing {
+  id: string;
+  points: { x: number, y: number }[];
+  color: string;
 }

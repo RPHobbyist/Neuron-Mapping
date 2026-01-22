@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 interface ActiveMap {
   nodes: MindMapNode[];
   connectionStyle: ConnectionStyle;
+  drawings?: any[];
   name?: string;
   id?: string;
   templateId?: string;
@@ -38,6 +39,7 @@ const Index = () => {
     setActiveMap({
       nodes: map.nodes,
       connectionStyle: map.connectionStyle,
+      drawings: map.drawings,
       name: map.name,
       id: map.id,
       templateId: map.templateId,
@@ -53,11 +55,12 @@ const Index = () => {
     setActiveMap(null);
   }, []);
 
-  const handleLoadFromFile = useCallback((nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle) => {
+  const handleLoadFromFile = useCallback((nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: any[]) => {
     clearAutoSave();
     setActiveMap({
       nodes,
       connectionStyle: connectionStyle || 'curved',
+      drawings,
       name,
     });
   }, []);
@@ -66,7 +69,7 @@ const Index = () => {
     setActiveMap(prev => prev ? { ...prev, name } : null);
   }, []);
 
-  const handleSave = useCallback((name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle) => {
+  const handleSave = useCallback((name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: any[]) => {
     if (!activeMap) return;
 
     const saved = saveMap(
@@ -75,11 +78,12 @@ const Index = () => {
       connectionStyle,
       activeMap.templateId,
       activeMap.id,
-      thumbnail
+      thumbnail,
+      drawings
     );
 
     // Update active map with saved id and style
-    setActiveMap(prev => prev ? { ...prev, id: saved.id, name: saved.name, connectionStyle } : null);
+    setActiveMap(prev => prev ? { ...prev, id: saved.id, name: saved.name, connectionStyle, drawings } : null);
   }, [activeMap, saveMap]);
 
   return (
@@ -95,6 +99,7 @@ const Index = () => {
           >
             <MindMapCanvas
               initialNodes={activeMap.nodes}
+              initialDrawings={activeMap.drawings}
               onBack={handleBackToTemplates}
               connectionStyle={activeMap.connectionStyle}
               onSave={handleSave}

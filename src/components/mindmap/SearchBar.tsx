@@ -181,7 +181,7 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                             setIsOpen(true);
                         }
                     }}
-                    className={`flex items-center gap-2 px-3 py-1.5 text-sm font-medium hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors ${isOpen ? 'bg-muted text-foreground' : ''}`}
+                    className={`flex items-center gap-2 px-2 py-1.5 text-xs font-medium hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors ${isOpen ? 'bg-muted text-foreground' : ''}`}
                     title="Search nodes (Ctrl+F)"
                 >
                     <Search className="w-4 h-4" />
