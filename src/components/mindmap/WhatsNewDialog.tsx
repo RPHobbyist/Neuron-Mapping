@@ -32,6 +32,19 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
 
                 {/* Content Section */}
                 <div className="px-6 py-2 space-y-5 max-h-[400px] overflow-y-auto">
+                    {/* NEW: Drawing Canvas */}
+                    <div className="flex gap-4 items-start">
+                        <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0 border border-purple-100">
+                            <Zap className="w-4 h-4 text-purple-600" />
+                        </div>
+                        <div className="space-y-0.5">
+                            <h3 className="font-semibold text-sm text-gray-900">Drawing Canvas</h3>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                                Freehand drawing support! Use the pencil and eraser tools to annotate your mind maps directly.
+                            </p>
+                        </div>
+                    </div>
+
                     {/* NEW: Smart Add */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
