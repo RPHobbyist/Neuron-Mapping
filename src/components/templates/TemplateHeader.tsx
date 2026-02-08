@@ -1,15 +1,20 @@
 import { Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-export const TemplateHeader = () => {
+interface TemplateHeaderProps {
+  onBack?: () => void;
+}
+
+export const TemplateHeader = ({ onBack }: TemplateHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-border/40 glass-toolbar">
       {/* Logo */}
       <motion.div
-        className="flex items-center gap-3"
+        className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.4 }}
+        onClick={onBack}
       >
         <div className="relative">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">

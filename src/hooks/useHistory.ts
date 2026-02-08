@@ -47,14 +47,12 @@ export function useHistory<T>(initialState: T, maxHistory: number = 50) {
     const undo = useCallback(() => {
         setHistory((current) => {
             if (current.past.length === 0) {
-                console.log('Cannot undo: no past states');
                 return current;
             }
 
             const previous = current.past[current.past.length - 1];
             const newPast = current.past.slice(0, -1);
 
-            console.log('Undo: restoring to previous state');
             return {
                 past: newPast,
                 present: previous,
@@ -66,14 +64,12 @@ export function useHistory<T>(initialState: T, maxHistory: number = 50) {
     const redo = useCallback(() => {
         setHistory((current) => {
             if (current.future.length === 0) {
-                console.log('Cannot redo: no future states');
                 return current;
             }
 
             const next = current.future[0];
             const newFuture = current.future.slice(1);
 
-            console.log('Redo: restoring to next state');
             return {
                 past: [...current.past, current.present],
                 present: next,

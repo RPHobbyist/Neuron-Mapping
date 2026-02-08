@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Link, Image as ImageIcon } from "lucide-react";
+import { MAX_FILE_SIZE } from '@/lib/constants';
+import { toast } from 'sonner';
 
 interface NodeActionDialogProps {
     isOpen: boolean;
@@ -45,6 +47,19 @@ export const NodeActionDialog = ({
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
+            if (file.size > MAX_FILE_SIZE) {
+                toast.error(`File is too large. Maximum size is 100MB.`);
+                return;
+            }
+
+            // Storage quota check (roughly 5MB limit)
+            const currentSize = new Blob(Object.values(localStorage)).size;
+            if (currentSize + file.size > 4.5 * 1024 * 1024) { // 4.5MB threshold
+                toast.warning('Warning: You are approaching the browser storage limit. Large images may not be saved permanently.', {
+                    duration: 5000
+                });
+            }
+
             setFileName(file.name);
             const reader = new FileReader();
             reader.onloadend = () => {

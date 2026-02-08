@@ -195,6 +195,8 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <input
+                                id="node-search-input"
+                                name="node-search"
                                 type="text"
                                 value={query}
                                 onChange={(e) => handleSearch(e.target.value)}
@@ -228,6 +230,8 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground w-14">Color:</span>
                                     <select
+                                        id="color-filter-select"
+                                        name="color-filter"
                                         value={colorFilter}
                                         onChange={(e) => handleColorFilter(e.target.value as NodeColor | 'all')}
                                         className="flex-1 text-xs px-2 py-1 border rounded"
@@ -240,6 +244,8 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground w-14">Priority:</span>
                                     <select
+                                        id="priority-filter-select"
+                                        name="priority-filter"
                                         value={priorityFilter || 'all'}
                                         onChange={(e) => handlePriorityFilter(e.target.value === 'all' ? 'all' : e.target.value as NodePriority)}
                                         className="flex-1 text-xs px-2 py-1 border rounded"

@@ -756,6 +756,8 @@ export const MindMapCanvas = ({
                 {mapName || 'Untitled Map'}
               </span>
               <input
+                id="map-name-input"
+                name="map-name"
                 type="text"
                 value={mapName || ''}
                 onChange={(e) => onNameChange?.(e.target.value)}

@@ -202,6 +202,8 @@ export const PropertiesPanel = ({
                         ))}
                         <div className="relative">
                             <input
+                                id="line-color-custom"
+                                name="line-color-custom"
                                 type="color"
                                 value={lineValues.color || '#f97316'}
                                 onChange={(e) => onLineUpdate({ color: e.target.value })}
@@ -220,6 +222,8 @@ export const PropertiesPanel = ({
                             <Type className="w-3 h-3" /> Label
                         </label>
                         <input
+                            id="line-label-input"
+                            name="line-label"
                             type="text"
                             value={lineValues.label || ''}
                             onChange={(e) => onLineUpdate({ label: e.target.value })}
@@ -235,6 +239,8 @@ export const PropertiesPanel = ({
                             </label>
                             <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
                                 <input
+                                    id="line-animated-checkbox"
+                                    name="line-animated"
                                     type="checkbox"
                                     checked={lineValues.animated || false}
                                     onChange={(e) => onLineUpdate({ animated: e.target.checked })}
@@ -346,6 +352,8 @@ export const PropertiesPanel = ({
                         ))}
                         <div className="relative">
                             <input
+                                id="node-color-custom"
+                                name="node-color-custom"
                                 type="color"
                                 value={nodeValues.color?.startsWith('#') ? nodeValues.color : '#6366f1'}
                                 onChange={(e) => {

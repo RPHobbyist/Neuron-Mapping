@@ -24,14 +24,16 @@ export const LicenseUpdateAnnouncement = ({ onAcknowledge }: { onAcknowledge?: (
                 <DialogHeader>
                     <DialogTitle>License Update: GNU AGPLv3</DialogTitle>
                 </DialogHeader>
-                <DialogDescription className="text-left space-y-4">
-                    <p className="text-justify">
-                        We have updated our license to the <strong>GNU Affero General Public License v3 (AGPLv3)</strong>.
-                    </p>
-                    <p className="text-justify">
-                        This change ensures that the project remains open and free forever.
-                        It guarantees that anyone who builds upon this project, whether as a downloadable tool or a web service, must also share their improvements with the community.
-                    </p>
+                <DialogDescription asChild className="text-left space-y-4">
+                    <div className="text-foreground">
+                        <p className="text-justify text-foreground">
+                            We have updated our license to the <strong className="text-foreground">GNU Affero General Public License v3 (AGPLv3)</strong>.
+                        </p>
+                        <p className="text-justify text-foreground">
+                            This change ensures that the project remains open and free forever.
+                            It guarantees that anyone who builds upon this project, whether as a downloadable tool or a web service, must also share their improvements with the community.
+                        </p>
+                    </div>
                 </DialogDescription>
                 <DialogFooter>
                     <Button onClick={handleClose}>I Understand</Button>

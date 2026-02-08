@@ -95,6 +95,8 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
             <div className="p-4 border-b">
                 <div className="flex gap-2">
                     <input
+                        id="snapshot-name-input"
+                        name="snapshot-name"
                         type="text"
                         value={snapshotName}
                         onChange={(e) => setSnapshotName(e.target.value)}

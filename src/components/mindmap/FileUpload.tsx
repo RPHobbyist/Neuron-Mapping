@@ -5,6 +5,7 @@ import { autoLayoutNodes } from '@/utils/layoutUtils';
 import { MindMapNode } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { MAX_FILE_SIZE } from '@/lib/constants';
 import {
     Dialog,
     DialogContent,
@@ -49,6 +50,10 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
     };
 
     const processFile = async (file: File) => {
+        if (file.size > MAX_FILE_SIZE) {
+            toast.error(`File is too large. Maximum size is 100MB.`);
+            return;
+        }
         setIsParsing(true);
         try {
             const nodes = await parseFile(file);
@@ -238,6 +243,8 @@ Vegetables,Carrot,Broccoli,Spinach`}
                         onClick={() => fileInputRef.current?.click()}
                     >
                         <input
+                            id="file-upload-input"
+                            name="file-upload"
                             type="file"
                             ref={fileInputRef}
                             className="hidden"

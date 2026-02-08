@@ -641,3 +641,5 @@ copy of the Program in return for a fee.
                      END OF TERMS AND CONDITIONS`;
 
 export const GITHUB_URL = "https://github.com/RPHobbyist/3D-Print-Price-Calculator.git";
+
+export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes

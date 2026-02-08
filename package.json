@@ -1,7 +1,7 @@
 {
   "name": "neuron-mapping",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A powerful mind mapping tool",
   "author": "RP Hobbyist",
   "license": "AGPL-3.0-only",
@@ -91,6 +91,7 @@
     "concurrently": "^9.2.1",
     "electron": "^39.2.7",
     "electron-builder": "^26.0.12",
+    "electron-packager": "^17.1.2",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
@@ -108,7 +109,7 @@
   "build": {
     "appId": "com.rphobbyist.neuronmapping",
     "productName": "Neuron Mapping",
-    "copyright": "Copyright © 2025 RP Hobbyist. All rights reserved.",
+    "copyright": "Copyright © 2026 Rp Hobbyist. All rights reserved.",
     "files": [
       "dist/**/*",
       "electron/**/*",

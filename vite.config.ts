@@ -20,8 +20,11 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           vendor: ["react", "react-dom", "react-router-dom"],
-          ui: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "@radix-ui/react-dropdown-menu"],
-          utils: ["date-fns", "clsx", "tailwind-merge"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-slot", "@radix-ui/react-dropdown-menu", "sonner"],
+          icons: ["lucide-react"],
+          animation: ["framer-motion"],
+          three: ["three", "@react-three/fiber", "@react-three/drei"],
+          utils: ["date-fns", "clsx", "tailwind-merge", "@tanstack/react-query"],
         },
       },
     },

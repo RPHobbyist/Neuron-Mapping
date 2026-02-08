@@ -263,16 +263,26 @@ const MindMapNodeBase = ({
           ...(!isIconOnly && customColorStyle ? customColorStyle : {}),
         }}
       >
-        {/* Snake Animation Layer */}
-        {node.nodeAnimation === 'snake' && (
-          <>
-            {/* Spinning Gradient - larger to cover corners during spin */}
-            <div className="absolute inset-[-50%] z-0 overflow-hidden pointer-events-none">
-              <div className="absolute inset-0 animate-spin-slow bg-[conic-gradient(transparent_0deg,transparent_180deg,currentColor_360deg)] opacity-100" />
-            </div>
-            {/* Inner Mask - creates the border effect by covering the center */}
-            <div className={cn("absolute inset-[3px] rounded-[3px] z-0", style.bg)} />
-          </>
+        {/* Snake Animation Layer for Standard Shapes */}
+        {node.nodeAnimation === 'snake' && !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && (
+          <div className="absolute inset-0 z-0 pointer-events-none">
+            <svg width="100%" height="100%" className="overflow-visible">
+              <rect
+                x="0"
+                y="0"
+                width="100%"
+                height="100%"
+                rx={node.shape === 'pill' ? '999px' : node.shape === 'circle' ? '50%' : '8px'}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="4"
+                strokeLinecap="round"
+                pathLength="100"
+                className="animate-snake-stroke"
+                style={{ strokeDasharray: '20 80' }}
+              />
+            </svg>
+          </div>
         )}
 
         {/* Unified SVG Background for Irregular Shapes (Cloud, Hexagon, Diamond) */}
@@ -294,6 +304,25 @@ const MindMapNodeBase = ({
                 vectorEffect="non-scaling-stroke"
                 strokeLinejoin="round"
               />
+              {/* Snake Animation Path (Irregular Shapes) */}
+              {node.nodeAnimation === 'snake' && (
+                <path
+                  d={
+                    node.shape === 'cloud'
+                      ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
+                      : node.shape === 'hexagon'
+                        ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
+                        : "M50,5 L95,50 L50,95 L5,50 Z"
+                  }
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="5"
+                  strokeLinecap="round"
+                  pathLength="100"
+                  className="animate-snake-stroke"
+                  style={{ strokeDasharray: '20 80' }}
+                />
+              )}
               {/* Selection Ring (Shape-matched) */}
               {isSelected && (
                 <path

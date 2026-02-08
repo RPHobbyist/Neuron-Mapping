@@ -99,6 +99,8 @@ export const IconLibraryDialog = ({
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
+                            id="icon-search-input"
+                            name="icon-search"
                             placeholder="Search icons..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}

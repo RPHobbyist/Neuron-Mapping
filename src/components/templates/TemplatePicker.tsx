@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { WhatsNewDialog } from '../mindmap/WhatsNewDialog';
 
 import { Footer } from '@/components/layout/Footer';
+import { MAX_FILE_SIZE } from '@/lib/constants';
 
 // Icon mapping for templates
 const templateIcons: Record<string, LucideIcon> = {
@@ -97,6 +98,11 @@ export const TemplatePicker = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`File is too large. Maximum size is 100MB.`);
+      return;
+    }
+
     try {
       const data: NeuronMindMapFile = await loadFromFile(file);
       onLoadFromFile?.(data.nodes, data.name, data.connectionStyle);
@@ -115,7 +121,14 @@ export const TemplatePicker = ({
     <div className="h-screen w-screen bg-gray-50 flex flex-col">
       {/* Simple Header */}
       <header className="bg-white border-b px-8 py-4 flex items-center justify-between flex-shrink-0">
-        <a href="https://linktr.ee/RPHobbyist" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            window.location.reload(); // Simplest way to "return home" and clear any state in the picker
+          }}
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+        >
           <img src="./logo.svg" alt="Neuron Mapping Logo" className="w-11 h-11 rounded-xl shadow-sm" />
           <div className="flex flex-col gap-0.5">
             <h1 className="text-xl font-bold text-gray-900 leading-none">Neuron Mapping</h1>
@@ -125,6 +138,8 @@ export const TemplatePicker = ({
         <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input
+            id="template-file-input"
+            name="template-file"
             type="file"
             ref={fileInputRef}
             onChange={handleFileSelect}
@@ -202,6 +217,8 @@ export const TemplatePicker = ({
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
+                  id="template-search-input"
+                  name="template-search"
                   type="text"
                   placeholder="Search templates..."
                   className="pl-9 pr-4 py-2 rounded-lg border bg-white text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
