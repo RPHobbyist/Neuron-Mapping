@@ -144,3 +144,7 @@ wheels/
 # Misc
 .gemini/
 dist-electron
+electron/
+temp-build/
+.electron-builder-cache/
+.vscode/
