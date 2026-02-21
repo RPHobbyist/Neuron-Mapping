@@ -340,7 +340,7 @@ export const MindMapCanvas = ({
         try {
           thumbnail = await generateThumbnail(canvasRef.current);
         } catch (e) {
-          console.warn('Thumbnail generation failed', e);
+          // Silent catch for thumbnail generation
         }
       }
       onSave?.(name, nodes, thumbnail, hookConnectionStyle, drawings);

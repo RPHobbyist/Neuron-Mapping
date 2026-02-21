@@ -52,7 +52,6 @@ export const useAutoSave = (
         lastModified: Date.now(),
       };
       localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
-      // Optional: console.log('Auto-saved');
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(handler);
