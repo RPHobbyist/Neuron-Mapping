@@ -15,7 +15,6 @@ Official Link : [https://neuron-mapping.rphobbyist.com/](https://neuron-mapping.
 - **Auto-save:** Never lose your progress with built-in auto-saving.
 - **Customization:** Color-coded nodes, adjustable connection styles (curved, straight, stepped), and freehand drawing support directly on the canvas.
 - **Export Options:** Export your mind maps as high-quality images or PDFs.
-- **Cross-Platform:** Available as a web app and a Desktop application (via Electron).
 
 ## License
 
