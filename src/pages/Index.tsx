@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Template } from '@/types/templates';
-import { SavedMindMap, MindMapNode, ConnectionStyle } from '@/types/mindmap';
+import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { TemplatePicker } from '@/components/templates/TemplatePicker';
 import { MindMapCanvas } from '@/components/mindmap/MindMapCanvas';
 import { templateConfigs } from '@/data/templates';
@@ -12,7 +12,7 @@ import { toast } from 'sonner';
 interface ActiveMap {
   nodes: MindMapNode[];
   connectionStyle: ConnectionStyle;
-  drawings?: any[];
+  drawings?: Drawing[];
   name?: string;
   id?: string;
   templateId?: string;
@@ -55,7 +55,7 @@ const Index = () => {
     setActiveMap(null);
   }, []);
 
-  const handleLoadFromFile = useCallback((nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: any[]) => {
+  const handleLoadFromFile = useCallback((nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: Drawing[]) => {
     clearAutoSave();
     setActiveMap({
       nodes,
@@ -69,7 +69,7 @@ const Index = () => {
     setActiveMap(prev => prev ? { ...prev, name } : null);
   }, []);
 
-  const handleSave = useCallback((name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: any[]) => {
+  const handleSave = useCallback((name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => {
     if (!activeMap) return;
 
     const saved = saveMap(

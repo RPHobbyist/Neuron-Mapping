@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { MindMapNode as NodeType, NodeColor, NodeShape, ConnectionStyle } from '@/types/mindmap';
+import { MindMapNode as NodeType, NodeColor, NodeShape, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { MindMapNode } from './MindMapNode';
 import { ConnectionLines } from './ConnectionLines';
 import { SaveDialog } from './SaveDialog';
@@ -26,10 +26,10 @@ const GalaxyView = lazy(() => import('./GalaxyView').then(module => ({ default: 
 
 interface MindMapCanvasProps {
   initialNodes?: NodeType[];
-  initialDrawings?: any[];
+  initialDrawings?: Drawing[];
   onBack?: () => void;
   connectionStyle?: ConnectionStyle;
-  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: any[]) => void;
+  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => void;
   onNameChange?: (name: string) => void;
   mapName?: string;
   mapId?: string;
@@ -102,7 +102,7 @@ export const MindMapCanvas = ({
 
   // Drawing State
   const [drawingMode, setDrawingMode] = useState<'none' | 'pen' | 'eraser'>('none');
-  const [drawings, setDrawings] = useState<{ id: string, points: { x: number, y: number }[], color: string }[]>(initialDrawings);
+  const [drawings, setDrawings] = useState<Drawing[]>(initialDrawings);
   const [currentPath, setCurrentPath] = useState<{ x: number, y: number }[]>([]);
 
   // ESC key to exit drawing mode

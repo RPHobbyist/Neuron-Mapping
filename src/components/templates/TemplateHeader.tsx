@@ -18,14 +18,14 @@ export const TemplateHeader = ({ onBack }: TemplateHeaderProps) => {
       >
         <div className="relative">
           <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center shadow-lg shadow-primary/30">
-            <img src="./logo.svg" alt="Neuron Mapping Logo" className="w-7 h-7" />
+            <img src="./logo.svg" alt="Nexus Mind Mapper Logo" className="w-7 h-7" />
           </div>
           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-accent border-2 border-card flex items-center justify-center">
             <span className="text-[8px] font-bold text-accent-foreground">+</span>
           </div>
         </div>
         <div>
-          <h1 className="text-xl font-bold text-foreground tracking-tight">Neuron Mapping</h1>
+          <h1 className="text-xl font-bold text-foreground tracking-tight">Nexus Mind Mapper</h1>
           <p className="text-[10px] text-muted-foreground font-medium -mt-0.5">Create • Organize • Visualize</p>
         </div>
       </motion.div>

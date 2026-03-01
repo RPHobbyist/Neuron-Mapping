@@ -7,6 +7,8 @@ import { NodeToolbar } from './NodeToolbar';
 import { toast } from 'sonner';
 import { colorStyles, getShapeStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
+import { sanitizeUrl } from '@/utils/common';
+import DOMPurify from 'dompurify';
 
 interface MindMapNodeProps {
   node: NodeType;
@@ -443,16 +445,26 @@ const MindMapNodeBase = ({
               )}
 
               {/* Link Rendering */}
-              {node.link && (
+              {node.link && sanitizeUrl(node.link) && (
                 <a
-                  href={node.link}
+                  href={sanitizeUrl(node.link)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1 bg-white/80 px-1.5 py-0.5 rounded"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div onClick={(e) => { e.preventDefault(); window.open(node.link, '_blank'); }}>
-                    🔗 {new URL(node.link).hostname.replace('www.', '')}
+                  <div onClick={(e) => {
+                    e.preventDefault();
+                    const safeUrl = sanitizeUrl(node.link);
+                    if (safeUrl) window.open(safeUrl, '_blank');
+                  }}>
+                    🔗 {(() => {
+                      try {
+                        return new URL(node.link).hostname.replace('www.', '');
+                      } catch (e) {
+                        return 'Link';
+                      }
+                    })()}
                   </div>
                 </a>
               )}

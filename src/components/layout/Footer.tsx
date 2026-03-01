@@ -13,7 +13,7 @@ export const Footer = () => {
                 <LicenseDialog />
 
                 <a
-                    href="https://github.com/RPHobbyist/neuron-mapping/releases/latest"
+                    href="https://github.com/RPHobbyist/nexus-mind-mapper/releases/latest"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"
@@ -23,7 +23,7 @@ export const Footer = () => {
                 </a>
 
                 <a
-                    href="https://github.com/RPHobbyist/neuron-mapping"
+                    href="https://github.com/RPHobbyist/nexus-mind-mapper"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"

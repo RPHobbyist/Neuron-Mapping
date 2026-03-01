@@ -1,14 +1,65 @@
 import { useEffect, useCallback } from 'react';
-import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
+import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { toast } from 'sonner';
+import { z } from 'zod';
+import { sanitizeUrl } from '@/utils/common';
 
 const AUTOSAVE_KEY = 'neuron-mapping-autosave';
 const AUTOSAVE_DELAY = 2000; // 2 seconds debounce
 
+const NodeSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  x: z.number(),
+  y: z.number(),
+  color: z.string(),
+  parentId: z.string().nullable(),
+  shape: z.string().optional(),
+  nodeAnimation: z.string().optional(),
+  lineType: z.string().optional(),
+  lineThickness: z.string().optional(),
+  lineColor: z.string().optional(),
+  lineLabel: z.string().optional(),
+  lineAnimated: z.boolean().optional(),
+  lineDouble: z.boolean().optional(),
+  lineGradient: z.boolean().optional(),
+  lineTension: z.number().optional(),
+  lineAnimationDirection: z.string().optional(),
+  lineAnimationType: z.string().optional(),
+  relations: z.array(z.unknown()).optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  measuredWidth: z.number().optional(),
+  measuredHeight: z.number().optional(),
+  image: z.string().optional().transform(v => sanitizeUrl(v)),
+  icon: z.string().optional(),
+  iconStyle: z.string().optional(),
+  link: z.string().optional().transform(v => sanitizeUrl(v)),
+  notes: z.string().optional(),
+  priority: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+const DrawingSchema = z.object({
+  id: z.string(),
+  points: z.array(z.object({
+    x: z.number(),
+    y: z.number(),
+  })),
+  color: z.string(),
+});
+
+const AutoSaveSchema = z.object({
+  nodes: z.array(NodeSchema),
+  connectionStyle: z.string(),
+  drawings: z.array(DrawingSchema).optional(),
+  lastModified: z.number(),
+});
+
 export interface AutoSaveData {
   nodes: MindMapNode[];
   connectionStyle: ConnectionStyle;
-  drawings?: any[];
+  drawings?: Drawing[];
   lastModified: number;
 }
 
@@ -20,7 +71,7 @@ export const clearAutoSave = () => {
 export const useAutoSave = (
   nodes: MindMapNode[],
   connectionStyle: ConnectionStyle = 'curved',
-  drawings: any[] = [],
+  drawings: Drawing[] = [],
   onLoad?: (data: AutoSaveData) => void
 ) => {
   // Load from storage on mount
@@ -28,14 +79,15 @@ export const useAutoSave = (
     const saved = localStorage.getItem(AUTOSAVE_KEY);
     if (saved) {
       try {
-        const data = JSON.parse(saved) as AutoSaveData;
-        // Only load if it looks valid
-        if (Array.isArray(data.nodes) && data.nodes.length > 0) {
+        const parsed = JSON.parse(saved);
+        const data = AutoSaveSchema.parse(parsed) as AutoSaveData;
+
+        if (data.nodes.length > 0) {
           onLoad?.(data);
           toast.info('Restored unsaved session');
         }
       } catch (e) {
-        // Silent fail
+        console.error('Failed to validate auto-save data:', e);
       }
     }
   }, [onLoad]); // Run once on mount (and if onLoad changes)

@@ -1,4 +1,59 @@
-import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
+import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
+import { z } from 'zod';
+import { sanitizeUrl } from '@/utils/common';
+
+const DrawingSchema = z.object({
+    id: z.string(),
+    points: z.array(z.object({
+        x: z.number(),
+        y: z.number(),
+    })),
+    color: z.string(),
+});
+
+const NodeSchema = z.object({
+    // ... rest of schema
+    id: z.string(),
+    text: z.string(),
+    x: z.number(),
+    y: z.number(),
+    color: z.string(),
+    parentId: z.string().nullable(),
+    shape: z.string().optional(),
+    nodeAnimation: z.string().optional(),
+    lineType: z.string().optional(),
+    lineThickness: z.string().optional(),
+    lineColor: z.string().optional(),
+    lineLabel: z.string().optional(),
+    lineAnimated: z.boolean().optional(),
+    lineDouble: z.boolean().optional(),
+    lineGradient: z.boolean().optional(),
+    lineTension: z.number().optional(),
+    lineAnimationDirection: z.string().optional(),
+    lineAnimationType: z.string().optional(),
+    relations: z.array(z.unknown()).optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+    measuredWidth: z.number().optional(),
+    measuredHeight: z.number().optional(),
+    image: z.string().optional().transform(v => sanitizeUrl(v)),
+    icon: z.string().optional(),
+    iconStyle: z.string().optional(),
+    link: z.string().optional().transform(v => sanitizeUrl(v)),
+    notes: z.string().optional(),
+    priority: z.string().nullable().optional(),
+    tags: z.array(z.string()).optional(),
+});
+
+const MindMapFileSchema = z.object({
+    version: z.literal('1.0'),
+    name: z.string(),
+    nodes: z.array(NodeSchema),
+    connectionStyle: z.string().optional(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+    drawings: z.array(DrawingSchema).optional(),
+});
 
 // File format for saving mind maps
 export interface NeuronMindMapFile {
@@ -8,6 +63,7 @@ export interface NeuronMindMapFile {
     connectionStyle?: ConnectionStyle;
     createdAt: string;
     updatedAt: string;
+    drawings?: Drawing[];
 }
 
 /**
@@ -16,7 +72,8 @@ export interface NeuronMindMapFile {
 export const saveToFile = (
     nodes: MindMapNode[],
     mapName: string,
-    connectionStyle?: ConnectionStyle
+    connectionStyle?: ConnectionStyle,
+    drawings?: Drawing[]
 ): void => {
     const fileData: NeuronMindMapFile = {
         version: '1.0',
@@ -25,6 +82,7 @@ export const saveToFile = (
         connectionStyle,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
+        drawings,
     };
 
     const blob = new Blob([JSON.stringify(fileData, null, 2)], {
@@ -49,12 +107,8 @@ export const loadFromFile = (file: File): Promise<NeuronMindMapFile> => {
         reader.onload = (e) => {
             try {
                 const content = e.target?.result as string;
-                const data = JSON.parse(content) as NeuronMindMapFile;
-
-                // Validate file format
-                if (!data.version || !data.nodes || !Array.isArray(data.nodes)) {
-                    throw new Error('Invalid file format');
-                }
+                const parsed = JSON.parse(content);
+                const data = MindMapFileSchema.parse(parsed) as NeuronMindMapFile;
 
                 resolve(data);
             } catch (error) {

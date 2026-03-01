@@ -5,7 +5,41 @@ import { MindMapNode } from '@/types/mindmap';
  * Uses a combination of timestamp and random characters for uniqueness.
  */
 export const generateId = (): string => {
+    // Prefer crypto.randomUUID if available for better collision resistance
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
     return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
+};
+
+/**
+ * Sanitize a URL to prevent javascript: and other dangerous protocols.
+ * Also ensures it's a valid URL or a relative path.
+ */
+export const sanitizeUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
+
+    const trimmed = url.trim();
+
+    // Allow relative paths starting with /
+    if (trimmed.startsWith('/') && !trimmed.startsWith('//')) {
+        return trimmed;
+    }
+
+    try {
+        const parsed = new URL(trimmed);
+        const allowedProtocols = ['http:', 'https:', 'mailto:', 'tel:'];
+        if (allowedProtocols.includes(parsed.protocol)) {
+            return trimmed;
+        }
+    } catch (e) {
+        // Not a valid absolute URL, check if it's a valid relative path without protocol
+        if (/^[a-zA-Z0-9.\-_~+/?#&%=]+$/.test(trimmed) && !trimmed.includes(':')) {
+            return trimmed;
+        }
+    }
+
+    return undefined;
 };
 
 /**

@@ -121,20 +121,19 @@ export const TemplatePicker = ({
     <div className="h-screen w-screen bg-gray-50 flex flex-col">
       {/* Simple Header */}
       <header className="bg-white border-b px-8 py-4 flex items-center justify-between flex-shrink-0">
-        <a
-          href="#"
+        <div
           onClick={(e) => {
             e.preventDefault();
             window.location.reload(); // Simplest way to "return home" and clear any state in the picker
           }}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="./logo.svg" alt="Neuron Mapping Logo" className="w-11 h-11 rounded-xl shadow-sm" />
+          <img src="./logo.svg" alt="Nexus Mind Mapper Logo" className="w-11 h-11 rounded-xl shadow-sm" />
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold text-gray-900 leading-none">Neuron Mapping</h1>
-            <span className="text-xs text-gray-500 font-medium">by <span className="text-blue-600">Rp Hobbyist</span> • Visualize Your Thoughts & Ideas</span>
+            <h1 className="text-xl font-bold text-gray-900 leading-none">Nexus Mind Mapper</h1>
+            <span className="text-xs text-gray-500 font-medium">by <a href="https://www.rphobbyist.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline relative z-10" onClick={(e) => e.stopPropagation()}>RP Hobbyist</a> • Visualize Your Thoughts & Ideas</span>
           </div>
-        </a>
+        </div>
         <div className="flex items-center gap-2">
           {/* Hidden file input */}
           <input

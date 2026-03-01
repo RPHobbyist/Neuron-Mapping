@@ -1,6 +1,6 @@
 /*
- * Neuron Mapping
- * Copyright (C) 2025 Rp Hobbyist
+ * Nexus Mind Mapper
+ * Copyright (C) 2026 RP Hobbyist
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -640,6 +640,6 @@ copy of the Program in return for a fee.
 
                      END OF TERMS AND CONDITIONS`;
 
-export const GITHUB_URL = "https://github.com/RPHobbyist/3D-Print-Price-Calculator.git";
+export const GITHUB_URL = "https://github.com/RPHobbyist/nexus-mind-mapper.git";
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
