@@ -11,6 +11,7 @@ import { parseMarkdown } from './markdownParser';
 import { parseJSON } from './jsonParser';
 import { parseCSV } from './csvParser';
 import { parseXML } from './xmlParser';
+import { parseNMM } from './nmmParser';
 
 // Re-export individual parsers for direct access
 export { parseTextFile } from './textParser';
@@ -18,11 +19,12 @@ export { parseMarkdown } from './markdownParser';
 export { parseJSON } from './jsonParser';
 export { parseCSV } from './csvParser';
 export { parseXML } from './xmlParser';
+export { parseNMM } from './nmmParser';
 
 /**
  * Supported file extensions
  */
-export const SUPPORTED_EXTENSIONS = ['txt', 'md', 'markdown', 'json', 'csv', 'xml', 'opml'] as const;
+export const SUPPORTED_EXTENSIONS = ['txt', 'md', 'markdown', 'json', 'csv', 'xml', 'opml', 'nmm'] as const;
 export type SupportedExtension = typeof SUPPORTED_EXTENSIONS[number];
 
 /**
@@ -66,6 +68,8 @@ export function parseContent(content: string, format: SupportedExtension): MindM
         case 'xml':
         case 'opml':
             return parseXML(content);
+        case 'nmm':
+            return parseNMM(content);
         default:
             // TypeScript ensures exhaustiveness, but just in case
             throw new Error(`Unsupported format: ${format}`);

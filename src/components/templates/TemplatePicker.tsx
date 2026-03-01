@@ -20,6 +20,7 @@ import { WhatsNewDialog } from '../mindmap/WhatsNewDialog';
 
 import { Footer } from '@/components/layout/Footer';
 import { MAX_FILE_SIZE } from '@/lib/constants';
+import { NeuronLogo } from '../common/NeuronLogo';
 
 // Icon mapping for templates
 const templateIcons: Record<string, LucideIcon> = {
@@ -128,9 +129,9 @@ export const TemplatePicker = ({
           }}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
-          <img src="./logo.svg" alt="Nexus Mind Mapper Logo" className="w-11 h-11 rounded-xl shadow-sm" />
+          <NeuronLogo className="w-11 h-11 rounded-xl shadow-sm" />
           <div className="flex flex-col gap-0.5">
-            <h1 className="text-xl font-bold text-gray-900 leading-none">Nexus Mind Mapper</h1>
+            <h1 className="text-xl font-bold text-gray-900 leading-none">Neuron Mapping</h1>
             <span className="text-xs text-gray-500 font-medium">by <a href="https://www.rphobbyist.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline relative z-10" onClick={(e) => e.stopPropagation()}>RP Hobbyist</a> • Visualize Your Thoughts & Ideas</span>
           </div>
         </div>

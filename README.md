@@ -1,7 +1,7 @@
-# Nexus Mind Mapper
+# Neuron Mapping
 
 A powerful and intuitive visual mind mapping tool designed for organizing ideas, brainstorming, and structuring complex thoughts by **RP Hobbyist**.
-Nexus Mind Mapper allows users to create customizable mind maps, utilize templates, and save their progress seamlessly.
+Neuron Mapping allows users to create customizable mind maps, utilize templates, and save their progress seamlessly.
 
 Official Link : [https://neuron-mapping.rphobbyist.com/](https://neuron-mapping.rphobbyist.com/)
 
@@ -15,6 +15,21 @@ Official Link : [https://neuron-mapping.rphobbyist.com/](https://neuron-mapping.
 - **Auto-save:** Never lose your progress with built-in auto-saving.
 - **Customization:** Color-coded nodes, adjustable connection styles (curved, straight, stepped), and freehand drawing support directly on the canvas.
 - **Export Options:** Export your mind maps as high-quality images or PDFs.
+
+## Backup & Updates
+Your data safety is our priority. Here is how we handle updates:
+
+### Automatic Persistence
+Neuron Mapping stores your mind maps in the system's application data folder, independent of where the software is installed.
+- **Windows**: `%APPDATA%\Neuron Mapping`
+- **When you update**: Simply replace the old application files with the new version. The new version will automatically detect and load your existing maps from the data folder.
+
+### Manual Backups
+For extra safety, or to move your maps to another computer:
+1. Open your mind map.
+2. Click the **Export** button in the top toolbar.
+3. Select **Save to File (.nmm)**.
+4. To restore, use the **Open File** or **Import** buttons on the home screen.
 
 ## License
 

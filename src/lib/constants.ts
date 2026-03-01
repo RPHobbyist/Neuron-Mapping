@@ -1,5 +1,5 @@
 /*
- * Nexus Mind Mapper
+ * Neuron Mapping
  * Copyright (C) 2026 RP Hobbyist
  *
  * This program is free software: you can redistribute it and/or modify
@@ -640,6 +640,6 @@ copy of the Program in return for a fee.
 
                      END OF TERMS AND CONDITIONS`;
 
-export const GITHUB_URL = "https://github.com/RPHobbyist/nexus-mind-mapper.git";
+export const GITHUB_URL = "https://github.com/RPHobbyist/neuron-mapping.git";
 
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes

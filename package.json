@@ -1,14 +1,18 @@
 {
-  "name": "nexus-mind-mapper",
+  "name": "neuron-mapping",
   "private": true,
   "version": "1.0.1",
   "description": "A powerful mind mapping tool",
   "author": "RP Hobbyist",
   "license": "AGPL-3.0-only",
+  "main": "electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:dev": "vite build --mode development",
+    "electron:dev": "concurrently \"vite\" \"wait-on tcp:8080 && electron .\"",
+    "electron:build": "vite build --mode electron && electron-builder",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -84,15 +88,40 @@
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "autoprefixer": "^10.4.21",
+    "concurrently": "^9.2.1",
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "electron-packager": "^17.1.2",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
+    "rcedit": "^5.0.2",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.38.0",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "wait-on": "^9.0.3"
+  },
+  "build": {
+    "appId": "com.rphobbyist.neuronmapping",
+    "productName": "Neuron Mapping",
+    "copyright": "Copyright © 2026 RP Hobbyist. All rights reserved.",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "public/**/*"
+    ],
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "dir",
+      "icon": "build/icon.ico"
+    }
   }
 }
