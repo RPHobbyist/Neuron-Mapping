@@ -12,7 +12,7 @@ export const Footer = () => {
                 </span>
                 <LicenseDialog />
                 <a
-                    href="https://github.com/RPHobbyist/neuron-mapping/releases/latest"
+                    href="https://github.com/RPHobbyist/Neuron-Mapping/releases/download/Software/Neuron_Mapping_v.1.5.0.zip"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"
