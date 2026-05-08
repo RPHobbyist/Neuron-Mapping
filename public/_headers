@@ -3,7 +3,7 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(), microphone=(), camera=()
-  Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: *; connect-src 'self' *; frame-ancestors 'self'; require-trusted-types-for 'script';
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-uyHSLTF3+0mQXC7qJNwtcNvjw/F8Vq8xUYQ7jabjbpc=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: *; connect-src 'self' *; frame-ancestors 'self'; require-trusted-types-for 'script';
   Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 
 # Block sensitive directories at the edge

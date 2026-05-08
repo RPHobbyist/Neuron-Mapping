@@ -1,11 +1,12 @@
 import { MindMapNode } from '@/types/mindmap';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { sanitizeText } from './parserUtils';
 
 // Re-use NodeSchema from exportUtils for consistency
 const NodeSchema = z.object({
     id: z.string(),
-    text: z.string(),
+    text: z.string().transform(v => sanitizeText(v)),
     x: z.number(),
     y: z.number(),
     color: z.string(),

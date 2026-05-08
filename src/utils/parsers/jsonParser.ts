@@ -1,5 +1,5 @@
 import { MindMapNode } from '@/types/mindmap';
-import { createRootNode, createChildNode, generateId, getColorByDepth } from './parserUtils';
+import { createRootNode, createChildNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
 /**
  * Parse JSON content recursively into mind map nodes.
@@ -45,7 +45,7 @@ function processArray(arr: unknown[], parentId: string, depth: number, nodes: Mi
 
         nodes.push({
             id: nodeId,
-            text: isLeaf ? String(item) : `[${index}]`,
+            text: sanitizeText(isLeaf ? String(item) : `[${index}]`),
             x: 0,
             y: 0,
             color: getColorByDepth(depth),
@@ -64,7 +64,7 @@ function processObject(obj: Record<string, unknown>, parentId: string, depth: nu
 
         nodes.push({
             id: nodeId,
-            text: key,
+            text: sanitizeText(key),
             x: 0,
             y: 0,
             color: getColorByDepth(depth),
@@ -78,7 +78,7 @@ function processObject(obj: Record<string, unknown>, parentId: string, depth: nu
             const leafId = generateId();
             nodes.push({
                 id: leafId,
-                text: String(value),
+                text: sanitizeText(String(value)),
                 x: 0,
                 y: 0,
                 color: getColorByDepth(depth + 1),

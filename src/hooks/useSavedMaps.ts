@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { get, set } from 'idb-keyval';
 
 const STORAGE_KEY = 'neuron_saved_maps';
 
@@ -84,23 +85,36 @@ export const useSavedMaps = () => {
   const [savedMaps, setSavedMaps] = useState<SavedMindMap[]>([]);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
+    const loadData = async () => {
       try {
-        const parsed = JSON.parse(stored);
-        // Validate and sanitize the entire array
-        const validated = SavedMapsArraySchema.parse(parsed) as SavedMindMap[];
-        setSavedMaps(validated);
+        let parsed: any;
+        const idbData = await get(STORAGE_KEY);
+        
+        if (idbData) {
+          parsed = typeof idbData === 'string' ? JSON.parse(idbData) : idbData;
+        } else {
+          const localData = localStorage.getItem(STORAGE_KEY);
+          if (localData) {
+            parsed = JSON.parse(localData);
+            // Migrate to IndexedDB
+            await set(STORAGE_KEY, parsed);
+          }
+        }
+
+        if (parsed) {
+          const validated = SavedMapsArraySchema.parse(parsed) as SavedMindMap[];
+          setSavedMaps(validated);
+        }
       } catch (e) {
         console.error('Failed to parse or validate saved maps:', e);
-        // If it fails validation, we might want to try to recover what we can
-        // but for now, we just log and fall back to empty to be safe
       }
-    }
+    };
+
+    loadData();
   }, []);
 
   const persistMaps = useCallback((maps: SavedMindMap[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(maps));
+    set(STORAGE_KEY, maps).catch(e => console.error('Failed to save maps to IndexedDB:', e));
     setSavedMaps(maps);
   }, []);
 

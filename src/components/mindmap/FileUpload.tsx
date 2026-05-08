@@ -51,7 +51,7 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
 
     const processFile = async (file: File) => {
         if (file.size > MAX_FILE_SIZE) {
-            toast.error(`File is too large. Maximum size is 100MB.`);
+            toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
             return;
         }
         setIsParsing(true);

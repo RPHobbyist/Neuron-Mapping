@@ -642,4 +642,4 @@ copy of the Program in return for a fee.
 
 export const GITHUB_URL = "https://github.com/RPHobbyist/neuron-mapping.git";
 
-export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes to prevent resource exhaustion

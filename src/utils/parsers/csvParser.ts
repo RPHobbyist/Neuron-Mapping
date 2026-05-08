@@ -1,5 +1,5 @@
 import { MindMapNode } from '@/types/mindmap';
-import { createRootNode, generateId, getColorByDepth } from './parserUtils';
+import { createRootNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
 /**
  * Parse CSV content into mind map nodes.
@@ -27,7 +27,7 @@ export function parseCSV(content: string): MindMapNode[] {
 
         nodes.push({
             id: rowId,
-            text: rowText,
+            text: sanitizeText(rowText),
             x: 0,
             y: 0,
             color: getColorByDepth(0),
@@ -41,7 +41,7 @@ export function parseCSV(content: string): MindMapNode[] {
 
             nodes.push({
                 id: generateId(),
-                text: cellText,
+                text: sanitizeText(cellText),
                 x: 0,
                 y: 0,
                 color: getColorByDepth(1),

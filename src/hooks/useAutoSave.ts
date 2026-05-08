@@ -1,8 +1,9 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { get, set, del } from 'idb-keyval';
 
 const AUTOSAVE_KEY = 'neuron-mapping-autosave';
 const AUTOSAVE_DELAY = 2000; // 2 seconds debounce
@@ -64,8 +65,13 @@ export interface AutoSaveData {
 }
 
 // Utility to clear auto-save (call before loading a new template)
-export const clearAutoSave = () => {
-  localStorage.removeItem(AUTOSAVE_KEY);
+export const clearAutoSave = async () => {
+  try {
+    await del(AUTOSAVE_KEY);
+    localStorage.removeItem(AUTOSAVE_KEY); // Clean up legacy data
+  } catch (e) {
+    console.error('Failed to clear auto-save', e);
+  }
 };
 
 export const useAutoSave = (
@@ -76,20 +82,34 @@ export const useAutoSave = (
 ) => {
   // Load from storage on mount
   useEffect(() => {
-    const saved = localStorage.getItem(AUTOSAVE_KEY);
-    if (saved) {
+    const loadData = async () => {
       try {
-        const parsed = JSON.parse(saved);
-        const data = AutoSaveSchema.parse(parsed) as AutoSaveData;
+        let parsed: any;
+        const idbData = await get(AUTOSAVE_KEY);
+        
+        if (idbData) {
+          parsed = typeof idbData === 'string' ? JSON.parse(idbData) : idbData;
+        } else {
+          // Fallback to legacy localStorage
+          const localData = localStorage.getItem(AUTOSAVE_KEY);
+          if (localData) {
+            parsed = JSON.parse(localData);
+          }
+        }
 
-        if (data.nodes.length > 0) {
-          onLoad?.(data);
-          toast.info('Restored unsaved session');
+        if (parsed) {
+          const data = AutoSaveSchema.parse(parsed) as AutoSaveData;
+          if (data.nodes.length > 0) {
+            onLoad?.(data);
+            toast.info('Restored unsaved session');
+          }
         }
       } catch (e) {
         console.error('Failed to validate auto-save data:', e);
       }
-    }
+    };
+    
+    loadData();
   }, [onLoad]); // Run once on mount (and if onLoad changes)
 
   // Save to storage on change (debounced)
@@ -103,7 +123,7 @@ export const useAutoSave = (
         drawings,
         lastModified: Date.now(),
       };
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(data));
+      set(AUTOSAVE_KEY, data).catch(e => console.error('AutoSave failed:', e));
     }, AUTOSAVE_DELAY);
 
     return () => clearTimeout(handler);

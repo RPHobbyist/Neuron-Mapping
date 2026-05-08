@@ -1,90 +1,84 @@
 import { MindMapNode } from '@/types/mindmap';
-import { createRootNode, generateId, getColorByDepth } from './parserUtils';
+import { createRootNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
 /**
- * Parse XML content into mind map nodes.
- * Automatically detects and handles OPML format.
+ * Parse XML or OPML format.
  */
 export function parseXML(content: string): MindMapNode[] {
-    const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(content, 'text/xml');
+    try {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(content, "text/xml");
+        
+        // Check for parse errors
+        const parseError = xmlDoc.getElementsByTagName("parsererror");
+        if (parseError.length > 0) {
+            console.error('XML Parse Error', parseError[0].textContent);
+            return [];
+        }
 
-    // Check for parse errors
-    const parseError = xmlDoc.querySelector('parsererror');
-    if (parseError) {
-        console.error('XML Parse Error:', parseError.textContent);
-        return [];
-    }
+        const nodes: MindMapNode[] = [];
 
-    // Check for OPML structure
-    const opmlBody = xmlDoc.querySelector('body');
-    if (opmlBody) {
-        return parseOPML(opmlBody);
-    }
+        // Check for OPML structure
+        const opmlBody = xmlDoc.querySelector('body');
+        if (opmlBody) {
+            return parseOPML(opmlBody);
+        }
 
-    // Generic XML parsing
-    return parseGenericXML(xmlDoc);
-}
+        const rootElement = xmlDoc.documentElement;
+        if (!rootElement) return [];
 
-/**
- * Parse generic XML document.
- */
-function parseGenericXML(xmlDoc: Document): MindMapNode[] {
-    const nodes: MindMapNode[] = [];
-    const rootElement = xmlDoc.documentElement;
-
-    if (!rootElement) return [];
-
-    const rootId = generateId();
-    nodes.push({
-        ...createRootNode(rootElement.tagName),
-        id: rootId
-    });
-
-    processXmlNode(rootElement, rootId, 0, nodes);
-    return nodes;
-}
-
-function processXmlNode(element: Element, parentId: string, depth: number, nodes: MindMapNode[]): void {
-    Array.from(element.children).forEach(child => {
-        const nodeId = generateId();
-
-        // Prefer semantic attributes for text
-        const text = child.getAttribute('text')
-            || child.getAttribute('name')
-            || child.getAttribute('title')
-            || child.tagName;
-
+        const rootId = generateId();
         nodes.push({
-            id: nodeId,
-            text,
-            x: 0,
-            y: 0,
-            color: getColorByDepth(depth),
-            parentId
+            ...createRootNode(rootElement.tagName),
+            id: rootId
         });
 
-        if (child.children.length > 0) {
-            processXmlNode(child, nodeId, depth + 1, nodes);
-        } else {
-            // Check for text content
-            const textContent = child.textContent?.trim();
-            if (textContent && textContent.length > 0 && textContent !== text) {
+        const processNode = (xmlNode: Element, parentId: string, depth: number) => {
+            Array.from(xmlNode.children).forEach(child => {
+                const nodeId = generateId();
+                const text = child.getAttribute('text') || 
+                            child.getAttribute('name') || 
+                            child.getAttribute('title') || 
+                            child.tagName;
+
                 nodes.push({
-                    id: generateId(),
-                    text: textContent,
+                    id: nodeId,
+                    text: sanitizeText(text),
                     x: 0,
                     y: 0,
-                    color: getColorByDepth(depth + 1),
-                    parentId: nodeId
+                    color: getColorByDepth(depth),
+                    parentId
                 });
-            }
-        }
-    });
+
+                if (child.children.length > 0) {
+                    processNode(child, nodeId, depth + 1);
+                } else if (child.textContent && child.textContent.trim()) {
+                    const contentStr = child.textContent.trim();
+                    if (contentStr.length > 0) {
+                        const textId = generateId();
+                        nodes.push({
+                            id: textId,
+                            text: sanitizeText(contentStr),
+                            x: 0,
+                            y: 0,
+                            color: getColorByDepth(depth + 1),
+                            parentId: nodeId
+                        });
+                    }
+                }
+            });
+        };
+
+        processNode(rootElement, rootId, 0);
+        return nodes;
+    } catch (e) {
+        console.error('XML Parse Error', e);
+        return [];
+    }
 }
 
 /**
- * Parse OPML format (commonly used for outlines).
+ * Dedicated OPML parser logic
  */
 function parseOPML(body: Element): MindMapNode[] {
     const nodes: MindMapNode[] = [];
@@ -95,28 +89,28 @@ function parseOPML(body: Element): MindMapNode[] {
         id: rootId
     });
 
-    processOutline(body, rootId, 0, nodes);
-    return nodes;
-}
+    const processOutline = (element: Element, parentId: string, depth: number) => {
+        Array.from(element.children).forEach(child => {
+            if (child.tagName.toLowerCase() === 'outline') {
+                const nodeId = generateId();
+                const text = child.getAttribute('text') || 
+                            child.getAttribute('title') || 
+                            'Untitled';
 
-function processOutline(element: Element, parentId: string, depth: number, nodes: MindMapNode[]): void {
-    Array.from(element.children).forEach(child => {
-        if (child.tagName.toLowerCase() !== 'outline') return;
+                nodes.push({
+                    id: nodeId,
+                    text: sanitizeText(text),
+                    x: 0,
+                    y: 0,
+                    color: getColorByDepth(depth),
+                    parentId
+                });
 
-        const nodeId = generateId();
-        const text = child.getAttribute('text')
-            || child.getAttribute('title')
-            || 'Untitled';
-
-        nodes.push({
-            id: nodeId,
-            text,
-            x: 0,
-            y: 0,
-            color: getColorByDepth(depth),
-            parentId
+                processOutline(child, nodeId, depth + 1);
+            }
         });
+    };
 
-        processOutline(child, nodeId, depth + 1, nodes);
-    });
+    processOutline(body, rootId, 0);
+    return nodes;
 }
