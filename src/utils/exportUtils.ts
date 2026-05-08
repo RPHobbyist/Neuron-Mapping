@@ -1,6 +1,7 @@
 import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { sanitizeText } from '@/utils/parsers/parserUtils';
 
 const DrawingSchema = z.object({
     id: z.string(),
@@ -14,7 +15,7 @@ const DrawingSchema = z.object({
 const NodeSchema = z.object({
     // ... rest of schema
     id: z.string(),
-    text: z.string(),
+    text: z.string().transform(v => sanitizeText(v)),
     x: z.number(),
     y: z.number(),
     color: z.string(),
@@ -40,7 +41,7 @@ const NodeSchema = z.object({
     icon: z.string().optional(),
     iconStyle: z.string().optional(),
     link: z.string().optional().transform(v => sanitizeUrl(v)),
-    notes: z.string().optional(),
+    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
     priority: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
 });
@@ -103,6 +104,11 @@ export const saveToFile = (
  */
 export const loadFromFile = (file: File): Promise<NeuronMindMapFile> => {
     return new Promise((resolve, reject) => {
+        if (file.size > 5 * 1024 * 1024) {
+            reject(new Error('File exceeds the 5MB size limit.'));
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
