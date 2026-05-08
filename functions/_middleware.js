@@ -39,7 +39,7 @@ export async function onRequest(context) {
   newHeaders.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
   newHeaders.set(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: *; connect-src 'self' *; frame-ancestors 'self'; require-trusted-types-for 'script';"
+    "default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: *; connect-src 'self' *; frame-ancestors 'self'; require-trusted-types-for 'script';"
   );
   newHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
 
