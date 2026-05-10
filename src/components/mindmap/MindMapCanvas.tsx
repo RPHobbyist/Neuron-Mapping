@@ -64,7 +64,7 @@ export const MindMapCanvas = ({
     updateSelectedNodesColor, updateSelectedNodesShape, updateSelectedNodesLineType, updateSelectedNodesPriority,
     deleteNode, deleteSelectedNodes, deleteRelation,
     connectionStyle: hookConnectionStyle, setConnectionStyle
-  } = useMindMapNodes(initialNodes);
+  } = useMindMapNodes(initialNodes, connectionStyle);
 
 
 
@@ -193,12 +193,6 @@ export const MindMapCanvas = ({
   // Auto-save integration (must be after state declarations)
   useAutoSave(nodes, hookConnectionStyle, drawings, handleAutoLoad);
 
-  // Sync connectionStyle prop only on mount/change if provided, but hook manages source of truth
-  useEffect(() => {
-    if (connectionStyle) {
-      setConnectionStyle(connectionStyle);
-    }
-  }, [connectionStyle, setConnectionStyle]);
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
     if (drawingMode !== 'none') {
@@ -379,7 +373,7 @@ export const MindMapCanvas = ({
 
   const handleExportToFile = () => {
     try {
-      saveToFile(nodes, mapName || 'mindmap', connectionStyle);
+      saveToFile(nodes, mapName || 'mindmap', hookConnectionStyle);
       toast.success('Mind map saved to file!');
     } catch {
       toast.error('Failed to save file');
@@ -521,7 +515,6 @@ export const MindMapCanvas = ({
     // 2. Select the node to ensure panel shows correct data
     setSelectedNodeIds(new Set([id]));
     // 3. Open panel
-    setIsNotesOpen(true);
     setIsNotesOpen(true);
   }, [nodes, updateNode, setSelectedNodeIds]);
 

@@ -4,7 +4,7 @@ import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority } from
 import { toast } from 'sonner';
 import { generateId, getDescendantIds } from '@/utils/common';
 
-export const useMindMapNodes = (initialNodes: MindMapNode[] = []) => {
+export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnectionStyle: ConnectionStyle = 'curved') => {
     // History & State
     interface MindMapHistoryState {
         nodes: MindMapNode[];
@@ -22,7 +22,7 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = []) => {
         canRedo
     } = useHistory<MindMapHistoryState>({
         nodes: initialNodes,
-        connectionStyle: 'curved'
+        connectionStyle: initialConnectionStyle
     }, 20);
 
     const nodes = historyState.nodes;
