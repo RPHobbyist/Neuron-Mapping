@@ -8,10 +8,16 @@ export async function onRequest(context) {
     '/.github',
     '/.vscode',
     '/.env',
+    '/env',
     '/package.json',
     '/package-lock.json',
     '/tsconfig.json',
-    '/vite.config.ts'
+    '/vite.config.ts',
+    '/docker-compose',
+    '/profiler',
+    '/actuator',
+    '/heapdump',
+    '/configprops'
   ];
 
   if (blockedPaths.some(p => path.startsWith(p))) {

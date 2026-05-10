@@ -15,3 +15,12 @@
 
 /.vscode/*
   X-Robots-Tag: noindex
+
+/actuator/*
+  X-Robots-Tag: noindex
+
+/profiler/*
+  X-Robots-Tag: noindex
+
+/docker-compose*
+  X-Robots-Tag: noindex
