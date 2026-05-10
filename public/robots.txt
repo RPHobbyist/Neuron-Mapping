@@ -3,4 +3,4 @@ User-agent: *
 Allow: /
 
 # Sitemaps
-Sitemap: https://neuron-mapping.pages.dev/sitemap.xml
+Sitemap: https://neuron-mapping.rphobbyist.com/sitemap.xml
