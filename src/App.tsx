@@ -3,7 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { LicenseUpdateAnnouncement } from "@/components/feedback/LicenseUpdateAnnouncement";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { HashRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
@@ -12,6 +12,14 @@ import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
 
 const queryClient = new QueryClient();
 
+// Detect if the app is running in an Electron desktop environment or local file:// environment
+const isElectron = 
+  typeof window !== "undefined" && 
+  (window.navigator.userAgent.toLowerCase().includes("electron") || 
+   window.location.protocol === "file:");
+
+const RouterComponent = isElectron ? HashRouter : BrowserRouter;
+
 const App = () => (
   <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
@@ -19,14 +27,14 @@ const App = () => (
         <Toaster />
         <Sonner />
         <LicenseUpdateAnnouncement />
-        <HashRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <RouterComponent future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/workspace" element={<Index />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </HashRouter>
+        </RouterComponent>
       </TooltipProvider>
     </QueryClientProvider>
   </ErrorBoundary>
