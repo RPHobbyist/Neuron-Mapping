@@ -142,7 +142,7 @@ export const projectTemplates: Template[] = [
         id: 'project-management',
         name: 'Project Management',
         category: 'project-management',
-        description: 'Board to Financial Director approval workflow',
+        description: 'Project lifecycle from initiation to closure',
         nodes: projectManagementNodes,
         preview: 'organigram',
     },

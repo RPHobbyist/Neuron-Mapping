@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Link, Image as ImageIcon } from "lucide-react";
 import { MAX_FILE_SIZE } from '@/lib/constants';
 import { toast } from 'sonner';
+import { sanitizeUrl } from '@/utils/common';
 
 interface NodeActionDialogProps {
     isOpen: boolean;
@@ -40,24 +41,43 @@ export const NodeActionDialog = ({
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(value);
+        if (type === 'link') {
+            const safeUrl = sanitizeUrl(value);
+            if (!safeUrl && value.trim()) {
+                toast.error('Invalid URL. Only http, https, mailto, and tel links are allowed.');
+                return;
+            }
+            onSubmit(safeUrl || '');
+        } else {
+            onSubmit(value);
+        }
         onClose();
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (file) {
             if (file.size > MAX_FILE_SIZE) {
-                toast.error(`File is too large. Maximum size is 100MB.`);
+                toast.error(`File is too large. Maximum size is 5MB.`);
                 return;
             }
 
-            // Storage quota check (roughly 5MB limit)
-            const currentSize = new Blob(Object.values(localStorage)).size;
-            if (currentSize + file.size > 4.5 * 1024 * 1024) { // 4.5MB threshold
-                toast.warning('Warning: You are approaching the browser storage limit. Large images may not be saved permanently.', {
-                    duration: 5000
-                });
+            // Storage quota check using modern StorageManager API
+            if (navigator.storage && navigator.storage.estimate) {
+                try {
+                    const { usage, quota } = await navigator.storage.estimate();
+                    if (usage !== undefined && quota !== undefined) {
+                        const remaining = quota - usage;
+                        // Warning if remaining storage is less than 10MB or less than the file size + small buffer
+                        if (remaining < Math.max(10 * 1024 * 1024, file.size * 2)) {
+                            toast.warning('Warning: You are approaching the browser storage limit. Large images may not be saved permanently.', {
+                                duration: 5000
+                            });
+                        }
+                    }
+                } catch (err) {
+                    console.error('Failed to estimate storage quota:', err);
+                }
             }
 
             setFileName(file.name);

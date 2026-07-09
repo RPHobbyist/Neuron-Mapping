@@ -17,6 +17,8 @@ const colorOptions: { value: NodeColor | 'all'; label: string; color: string }[]
     { value: 'purple', label: 'Purple', color: '#a855f7' },
     { value: 'green', label: 'Green', color: '#22c55e' },
     { value: 'red', label: 'Red', color: '#ef4444' },
+    { value: 'teal', label: 'Teal', color: '#14b8a6' },
+    { value: 'pink', label: 'Pink', color: '#ec4899' },
     { value: 'grey', label: 'Grey', color: '#6b7280' },
 ];
 

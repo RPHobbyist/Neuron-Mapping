@@ -122,7 +122,7 @@ export const planningTemplates: Template[] = [
         id: 'cycle-diagram',
         name: 'Cycle Diagram',
         category: 'planning',
-        description: '5-Step Process for Effective Time Management',
+        description: 'Plan-Do-Check-Act-Review continuous improvement cycle',
         nodes: cycleDiagramNodes,
         preview: 'cycleDiagram',
     },

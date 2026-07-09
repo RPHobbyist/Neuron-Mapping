@@ -11,7 +11,8 @@ import {
     Clock,
     Plus,
     ChevronRight,
-    Sparkles
+    Zap,
+    Lightbulb
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,7 +25,7 @@ interface TemplateSidebarNavProps {
 
 const categories = [
     { id: null, name: 'All Templates', icon: LayoutGrid, color: 'primary' },
-    { id: 'quick-diagrams', name: 'Quick Diagrams', icon: Sparkles, color: 'teal' },
+    { id: 'quick-diagrams', name: 'Quick Diagrams', icon: Zap, color: 'teal' },
     { id: 'business-analysis', name: 'Business Analysis', icon: Briefcase, color: 'purple' },
     { id: 'project-management', name: 'Project Management', icon: Target, color: 'blue' },
     { id: 'planning', name: 'Planning', icon: Calendar, color: 'green' },
@@ -141,7 +142,7 @@ export const TemplateSidebarNav = ({
             <div className="p-4 border-t border-border/40">
                 <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-secondary/30">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                        <Sparkles className="w-5 h-5 text-primary" />
+                        <Lightbulb className="w-5 h-5 text-primary" />
                     </div>
                     <div>
                         <p className="text-xs font-semibold text-foreground">Pro Tip</p>

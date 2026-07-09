@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { sanitizeText } from '@/utils/parsers/parserUtils';
 import { get, set } from 'idb-keyval';
 
 const STORAGE_KEY = 'neuron_saved_maps';
@@ -9,7 +10,7 @@ const STORAGE_KEY = 'neuron_saved_maps';
 // Zod schemas for validation and sanitization
 const NodeSchema = z.object({
   id: z.string(),
-  text: z.string(),
+  text: z.string().transform(v => sanitizeText(v)),
   x: z.number(),
   y: z.number(),
   color: z.string(),
@@ -46,7 +47,7 @@ const NodeSchema = z.object({
   icon: z.string().optional(),
   iconStyle: z.string().optional(),
   link: z.string().optional().transform(v => sanitizeUrl(v)),
-  notes: z.string().optional(),
+  notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
   priority: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
 });
@@ -87,7 +88,7 @@ export const useSavedMaps = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        let parsed: any;
+        let parsed: unknown;
         const idbData = await get(STORAGE_KEY);
         
         if (idbData) {

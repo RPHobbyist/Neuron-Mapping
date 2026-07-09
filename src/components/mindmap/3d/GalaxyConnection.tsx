@@ -25,6 +25,7 @@ export const GalaxyConnection = ({
     const currentStart = useRef(startPos.clone());
     const currentEnd = useRef(endPos.clone());
     const controlPoint = useMemo(() => new THREE.Vector3(), []);
+    const tempDir = useMemo(() => new THREE.Vector3(), []);
     const curvePoints = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
 
     useFrame((state) => {
@@ -40,11 +41,11 @@ export const GalaxyConnection = ({
         const bulge = len * 0.25; // 25% curve
 
         // Direction from center
-        const dir = controlPoint.clone().normalize();
+        tempDir.copy(controlPoint).normalize();
         // If close to center, default to up?
-        if (dir.lengthSq() < 0.01) dir.set(0, 1, 0);
+        if (tempDir.lengthSq() < 0.01) tempDir.set(0, 1, 0);
 
-        controlPoint.add(dir.multiplyScalar(bulge));
+        controlPoint.addScaledVector(tempDir, bulge);
 
         // Update curve visual (if we used a meshLine, we'd update it here. 
         // For now, we update the dots to follow the bezier path)
@@ -92,11 +93,13 @@ export const GalaxyConnection = ({
 
     // Calculate static curve for the faint line (using raw props so it renders initially)
     // For smooth update, we'd need to re-render. Since props change, it re-renders.
-    const mid = startPos.clone().add(endPos).multiplyScalar(0.5);
-    const len = startPos.distanceTo(endPos);
-    const dir = mid.clone().normalize();
-    if (dir.lengthSq() < 0.001) dir.set(0, 1, 0); // fallback
-    const cp = mid.add(dir.multiplyScalar(len * 0.25));
+    const cp = useMemo(() => {
+        const mid = startPos.clone().add(endPos).multiplyScalar(0.5);
+        const len = startPos.distanceTo(endPos);
+        const dir = mid.clone().normalize();
+        if (dir.lengthSq() < 0.001) dir.set(0, 1, 0); // fallback
+        return mid.add(dir.multiplyScalar(len * 0.25));
+    }, [startPos, endPos]);
 
     return (
         <group>

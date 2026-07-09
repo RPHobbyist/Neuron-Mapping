@@ -1,7 +1,7 @@
 {
   "name": "neuron-mapping",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.5.0",
   "description": "A powerful mind mapping tool",
   "author": "RP Hobbyist",
   "license": "AGPL-3.0-only",
@@ -97,7 +97,6 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
-    "lovable-tagger": "^1.1.13",
     "postcss": "^8.5.6",
     "rcedit": "^5.0.2",
     "sharp": "^0.34.5",

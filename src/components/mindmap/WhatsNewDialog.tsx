@@ -7,6 +7,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { Zap, Play, Boxes, RefreshCw, Palette, Video, Globe, Droplet, Rocket, Wand2, Focus, History } from 'lucide-react';
+import { SYSTEM_CONFIG } from '@/lib/core/core-system';
 
 interface WhatsNewDialogProps {
     open: boolean;
@@ -153,7 +154,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         <div className="space-y-0.5">
                             <h3 className="font-semibold text-sm text-gray-900">YouTube Tutorials</h3>
                             <p className="text-xs text-gray-500 leading-relaxed">
-                                Watch our <a href="https://www.youtube.com/playlist?list=PLwLQ_Xr7StXi2H1R3ZEGeMu5MX3V3ZXqD" target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">video tutorials</a> to master all features.
+                                Watch our <a href={SYSTEM_CONFIG.youtubePlaylistUrl} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-700 underline">video tutorials</a> to master all features.
                             </p>
                         </div>
                     </div>

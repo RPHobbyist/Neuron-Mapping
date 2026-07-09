@@ -24,7 +24,7 @@ export const hrTemplates: Template[] = [
         id: 'employee-onboarding',
         name: 'Employee Onboarding',
         category: 'hr',
-        description: 'HR, IT, Manager, Acquisitions swimlane workflow',
+        description: 'HR, IT, Manager, Day 1 Training swimlane workflow',
         nodes: employeeOnboardingNodes,
         preview: 'organigram',
     },

@@ -1,9 +1,9 @@
 # Neuron Mapping v1.5.0
 
 <div align="center">
-  <img src="public/readme-assets/icon.png" alt="Neuron Mapping Logo" width="128" style="border-radius: 10px; margin-bottom: 20px;">
+  <img src="public/readme-assets/icon.webp" alt="Neuron Mapping Logo" width="128" style="border-radius: 10px; margin-bottom: 20px;">
   <br>
-  <img src="public/readme-assets/promo_main_white_1767271626514.png" alt="Neuron Mapping Dashboard Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
+  <img src="public/readme-assets/promo-main-white.webp" alt="Neuron Mapping Dashboard Banner" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
 
   [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
   [![Version](https://img.shields.io/badge/version-1.5.0-green.svg)](https://github.com/RPHobbyist/NeuronMapping/releases)
@@ -24,7 +24,7 @@
   <strong>Neuron Mapping</strong> is a powerful and intuitive visual <strong>mind mapping tool</strong> designed for professionals, students, and creative thinkers. It allows you to organize ideas, brainstorm complex projects, and structure thoughts with ease. Whether you're planning a new business venture or mapping out a research paper, Neuron Mapping provides the canvas you need to bring clarity to chaos.
 </p>
 
-<img src="public/readme-assets/mindmap_organized_thoughts.png" alt="Mind Map Example" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
+<img src="public/readme-assets/mindmap-organized-thoughts.webp" alt="Mind Map Example" width="100%" style="border-radius: 10px; margin-bottom: 20px;">
 
 ---
 
@@ -41,8 +41,8 @@ Watch the official tutorial to learn how to master Neuron Mapping:
 The v1.5 update enhances the core mapping engine and introduces new customization options for a more fluid creative experience.
 
 <p align="center">
-  <img src="public/readme-assets/promo_2_productivity.png" alt="Enhanced Productivity" width="48%" style="border-radius: 10px;">
-  <img src="public/readme-assets/promo_styling_white_1767316065807.png" alt="Advanced Styling" width="48%" style="border-radius: 10px;">
+  <img src="public/readme-assets/promo-productivity.webp" alt="Enhanced Productivity" width="48%" style="border-radius: 10px;">
+  <img src="public/readme-assets/promo-styling-white.webp" alt="Advanced Styling" width="48%" style="border-radius: 10px;">
 </p>
 
 ### 🛠️ Key Capabilities

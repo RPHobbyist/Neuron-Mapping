@@ -53,7 +53,7 @@ export const Footer = () => {
                     <div className="flex gap-3">
                         <Info className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
                         <p className="text-gray-600 leading-relaxed">
-                            Your privacy matters — No user data is collected or stored on external servers. All data remains in your local storage.
+                            Your privacy matters - No user data is collected or stored on external servers. All data remains in your local storage.
                         </p>
                     </div>
                 </HoverCardContent>

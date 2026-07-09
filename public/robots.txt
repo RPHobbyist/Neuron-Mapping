@@ -1,6 +1,7 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
 Allow: /
+Disallow: /workspace
 
 # Sitemaps
 Sitemap: https://neuron-mapping.rphobbyist.com/sitemap.xml

@@ -2,6 +2,52 @@ import { useState, useCallback } from 'react';
 import { MindMapNode } from '@/types/mindmap';
 import { History, Save, Trash2, RotateCcw, X, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { z } from 'zod';
+import { sanitizeUrl } from '@/utils/common';
+import { sanitizeText } from '@/utils/parsers/parserUtils';
+
+// Zod schema to validate and sanitize snapshot node data from localStorage
+const SnapshotNodeSchema = z.object({
+    id: z.string(),
+    text: z.string().transform(v => sanitizeText(v)),
+    x: z.number(),
+    y: z.number(),
+    color: z.string(),
+    parentId: z.string().nullable(),
+    shape: z.string().optional(),
+    nodeAnimation: z.string().optional(),
+    lineType: z.string().optional(),
+    lineThickness: z.string().optional(),
+    lineColor: z.string().optional(),
+    lineLabel: z.string().optional(),
+    lineAnimated: z.boolean().optional(),
+    lineDouble: z.boolean().optional(),
+    lineGradient: z.boolean().optional(),
+    lineTension: z.number().optional(),
+    lineAnimationDirection: z.string().optional(),
+    lineAnimationType: z.string().optional(),
+    relations: z.array(z.unknown()).optional(),
+    width: z.number().optional(),
+    height: z.number().optional(),
+    measuredWidth: z.number().optional(),
+    measuredHeight: z.number().optional(),
+    image: z.string().optional().transform(v => sanitizeUrl(v)),
+    icon: z.string().optional(),
+    iconStyle: z.string().optional(),
+    link: z.string().optional().transform(v => sanitizeUrl(v)),
+    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
+    priority: z.string().nullable().optional(),
+    tags: z.array(z.string()).optional(),
+}).passthrough();
+
+const SnapshotSchema = z.object({
+    id: z.string(),
+    name: z.string(),
+    timestamp: z.number(),
+    nodes: z.array(SnapshotNodeSchema),
+});
+
+const SnapshotsArraySchema = z.array(SnapshotSchema);
 
 interface Snapshot {
     id: string;
@@ -23,7 +69,9 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
     const [snapshots, setSnapshots] = useState<Snapshot[]>(() => {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
-            return saved ? JSON.parse(saved) : [];
+            if (!saved) return [];
+            const parsed = JSON.parse(saved);
+            return SnapshotsArraySchema.parse(parsed) as Snapshot[];
         } catch {
             return [];
         }

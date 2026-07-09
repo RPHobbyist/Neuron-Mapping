@@ -8,6 +8,7 @@ import { templateConfigs } from '@/data/templates';
 import { useSavedMaps } from '@/hooks/useSavedMaps';
 import { clearAutoSave } from '@/hooks/useAutoSave';
 import { toast } from 'sonner';
+import { useDocumentSEO } from '@/hooks/useDocumentSEO';
 
 interface ActiveMap {
   nodes: MindMapNode[];
@@ -19,6 +20,13 @@ interface ActiveMap {
 }
 
 const Index = () => {
+  useDocumentSEO({
+    title: "Mind Map Workspace | Neuron Mapping",
+    description: "Design and organize your thoughts, workflows, and projects inside the local mind mapping workspace.",
+    robots: "noindex, nofollow",
+    canonical: "/workspace"
+  });
+
   const [activeMap, setActiveMap] = useState<ActiveMap | null>(null);
   const { savedMaps, saveMap, deleteMap } = useSavedMaps();
 

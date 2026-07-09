@@ -5,7 +5,7 @@ import path from "path";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "localhost",
     port: 8080,
   },
   plugins: [react()],
@@ -16,7 +16,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    sourcemap: true,
+    sourcemap: mode !== "production",
     rollupOptions: {
       output: {
         manualChunks: {

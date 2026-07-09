@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, Sparkles, PenTool, Eraser, Monitor, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, PenTool, Eraser, Monitor, ChevronDown } from 'lucide-react';
 import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import {

@@ -33,7 +33,9 @@ export function parseXML(content: string): MindMapNode[] {
             id: rootId
         });
 
+        const MAX_DEPTH = 50;
         const processNode = (xmlNode: Element, parentId: string, depth: number) => {
+            if (depth > MAX_DEPTH) return;
             Array.from(xmlNode.children).forEach(child => {
                 const nodeId = generateId();
                 const text = child.getAttribute('text') || 
@@ -89,7 +91,9 @@ function parseOPML(body: Element): MindMapNode[] {
         id: rootId
     });
 
+    const MAX_DEPTH = 50;
     const processOutline = (element: Element, parentId: string, depth: number) => {
+        if (depth > MAX_DEPTH) return;
         Array.from(element.children).forEach(child => {
             if (child.tagName.toLowerCase() === 'outline') {
                 const nodeId = generateId();

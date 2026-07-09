@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Sparkles, Send } from 'lucide-react';
+import { X, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 

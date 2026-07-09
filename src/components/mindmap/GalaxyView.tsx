@@ -34,8 +34,15 @@ export function GalaxyView({
 }: GalaxyViewProps) {
     const [layoutMode, setLayoutMode] = useState<LayoutType>('2d-projection');
 
+    const origin = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+
     const targetPositions = useMemo(() => {
-        return calculateLayout(nodes, layoutMode, SCALE_FACTOR);
+        const layouts = calculateLayout(nodes, layoutMode, SCALE_FACTOR);
+        const vectorMap: Record<string, THREE.Vector3> = {};
+        for (const [id, pos] of Object.entries(layouts)) {
+            vectorMap[id] = new THREE.Vector3(...pos);
+        }
+        return vectorMap;
     }, [nodes, layoutMode]);
 
     return (
@@ -82,12 +89,12 @@ export function GalaxyView({
                 <group>
                     {/* Nodes */}
                     {nodes.map(node => {
-                        const pos = targetPositions[node.id] || [0, 0, 0];
+                        const pos = targetPositions[node.id] || origin;
                         return (
                             <GalaxyNode
                                 key={node.id}
                                 node={node}
-                                targetPosition={new THREE.Vector3(...pos)}
+                                targetPosition={pos}
                                 isSelected={selectedNodeIds?.has(node.id)}
                                 onClick={(e) => onNodeClick?.(node.id, e)}
                                 onDoubleClick={onNodeDoubleClick ? (e) => onNodeDoubleClick(node.id) : undefined}
@@ -102,8 +109,8 @@ export function GalaxyView({
                         const parent = nodes.find(n => n.id === node.parentId);
                         if (!parent) return null;
 
-                        const startPos = new THREE.Vector3(...(targetPositions[parent.id] || [0, 0, 0]));
-                        const endPos = new THREE.Vector3(...(targetPositions[node.id] || [0, 0, 0]));
+                        const startPos = targetPositions[parent.id] || origin;
+                        const endPos = targetPositions[node.id] || origin;
 
                         return (
                             <GalaxyConnection
@@ -121,8 +128,8 @@ export function GalaxyView({
                             const target = nodes.find(n => n.id === relation.targetId);
                             if (!target) return null;
 
-                            const startPos = new THREE.Vector3(...(targetPositions[node.id] || [0, 0, 0]));
-                            const endPos = new THREE.Vector3(...(targetPositions[target.id] || [0, 0, 0]));
+                            const startPos = targetPositions[node.id] || origin;
+                            const endPos = targetPositions[target.id] || origin;
 
                             return (
                                 <GalaxyConnection

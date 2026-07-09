@@ -11,3 +11,4 @@ export { useAutoSave } from './useAutoSave';
 export { useSavedMaps } from './useSavedMaps';
 export { useToast, toast } from './use-toast';
 export { useIsMobile } from './use-mobile';
+export { useDocumentSEO } from './useDocumentSEO';

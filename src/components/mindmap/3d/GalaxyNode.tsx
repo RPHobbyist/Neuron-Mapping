@@ -125,12 +125,9 @@ export const GalaxyNode = ({
     return (
         <group
             ref={groupRef}
-            onPointerDown={(e) => {
-                e.stopPropagation();
-                setActive(true);
-                onClick?.(e as unknown as ThreeEvent<MouseEvent>);
-            }}
-            onPointerUp={() => setActive(false)}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onPointerMove={handlePointerMove}
             onDoubleClick={handleDoubleClick}
             onPointerOver={() => setHovered(true)}
             onPointerOut={() => setHovered(false)}

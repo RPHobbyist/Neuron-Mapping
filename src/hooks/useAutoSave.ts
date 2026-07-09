@@ -3,6 +3,7 @@ import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { toast } from 'sonner';
 import { z } from 'zod';
 import { sanitizeUrl } from '@/utils/common';
+import { sanitizeText } from '@/utils/parsers/parserUtils';
 import { get, set, del } from 'idb-keyval';
 
 const AUTOSAVE_KEY = 'neuron-mapping-autosave';
@@ -10,7 +11,7 @@ const AUTOSAVE_DELAY = 2000; // 2 seconds debounce
 
 const NodeSchema = z.object({
   id: z.string(),
-  text: z.string(),
+  text: z.string().transform(v => sanitizeText(v)),
   x: z.number(),
   y: z.number(),
   color: z.string(),
@@ -36,7 +37,7 @@ const NodeSchema = z.object({
   icon: z.string().optional(),
   iconStyle: z.string().optional(),
   link: z.string().optional().transform(v => sanitizeUrl(v)),
-  notes: z.string().optional(),
+  notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
   priority: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
 });
@@ -84,7 +85,7 @@ export const useAutoSave = (
   useEffect(() => {
     const loadData = async () => {
       try {
-        let parsed: any;
+        let parsed: unknown;
         const idbData = await get(AUTOSAVE_KEY);
         
         if (idbData) {

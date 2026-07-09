@@ -32,7 +32,7 @@ const NodeSchema = z.object({
     icon: z.string().optional(),
     iconStyle: z.string().optional(),
     link: z.string().optional().transform(v => sanitizeUrl(v)),
-    notes: z.string().optional(),
+    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
     priority: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
 });
@@ -52,11 +52,11 @@ export function parseNMM(content: string): MindMapNode[] {
         return data.nodes as MindMapNode[];
     } catch (error) {
         console.error('NMM Parse Error:', error);
-        // Fallback: If it's a valid JSON array of nodes, return it
+        // Fallback: If it's a valid JSON array of nodes, validate through Zod schema
         try {
             const parsed = JSON.parse(content);
             if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-                return parsed as MindMapNode[];
+                return z.array(NodeSchema).parse(parsed) as MindMapNode[];
             }
         } catch (e) {
             // Ignore fallback error
