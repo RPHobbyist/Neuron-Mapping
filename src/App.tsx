@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { LicenseUpdateAnnouncement } from "@/components/feedback/LicenseUpdateAnnouncement";
@@ -5,10 +6,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, HashRouter, Routes, Route } from "react-router-dom";
 import Landing from "./pages/Landing";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
 
 import { ErrorBoundary } from "@/components/feedback/ErrorBoundary";
+
+// Lazy-load heavy pages so Three.js (~906KB), jsPDF (~386KB), and html2canvas (~201KB)
+// are only downloaded when the user navigates to /workspace — not on the landing page.
+const Index = lazy(() => import("./pages/Index"));
+const TemplatesIndex = lazy(() => import("./pages/TemplatesIndex"));
+const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -28,12 +34,20 @@ const App = () => (
         <Sonner />
         <LicenseUpdateAnnouncement />
         <RouterComponent future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-          <Routes>
-            <Route path="/" element={<Landing />} />
-            <Route path="/workspace" element={<Index />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <Suspense fallback={
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f8fafc' }}>
+              <div style={{ width: 40, height: 40, border: '3px solid #e2e8f0', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Landing />} />
+              <Route path="/templates" element={<TemplatesIndex />} />
+              <Route path="/templates/:templateId" element={<TemplateDetail />} />
+              <Route path="/workspace" element={<Index />} />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
         </RouterComponent>
       </TooltipProvider>
     </QueryClientProvider>

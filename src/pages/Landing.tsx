@@ -78,12 +78,12 @@ const faqs = [
     a: "Absolutely. You can export your maps as `.nmm` files (our native, local JSON structure) for backups or sharing. You can also export high-resolution PNG images or vector PDF files directly from the browser or desktop app to include in slides, papers, or printouts."
   },
   {
-    q: "Is Neuron Mapping really a free brain mapping tool?",
-    a: "Yes. Neuron Mapping is a 100% free, open-source brain mapping tool licensed under the GNU AGPLv3. There are no paywalls, no recurring monthly subscriptions, and no map size limitations. You can run it online, install the desktop app on Windows, macOS, or Linux, or host it on your own server."
+    q: "Is Neuron Mapping really a free mind mapping tool?",
+    a: "Yes. Neuron Mapping is a 100% free, open-source mind mapping tool licensed under the GNU AGPLv3. There are no paywalls, no recurring monthly subscriptions, and no map size limitations. You can run it online, install the desktop app on Windows, macOS, or Linux, or host it on your own server."
   },
   {
-    q: "Can I do brain mapping online with complete privacy?",
-    a: "Absolutely. Neuron Mapping is designed as a local-first online brain mapping tool. All your mind maps, data, and configurations are stored securely inside your browser's IndexedDB. We have no tracking cookies, no server uploads, and no analytics - meaning your ideas remain completely private even while doing brain mapping online."
+    q: "Can I do mind mapping online with complete privacy?",
+    a: "Absolutely. Neuron Mapping is designed as a local-first online mind mapping tool. All your mind maps, data, and configurations are stored securely inside your browser's IndexedDB. We have no tracking cookies, no server uploads, and no analytics - meaning your ideas remain completely private even while doing mind mapping online."
   },
   {
     q: "How does this compare to other open source mind mapping tools?",
@@ -97,11 +97,11 @@ const faqs = [
 
 export default function Landing() {
   useDocumentSEO({
-    title: "Free Open-Source Brain Mapping Tool Online | Neuron Mapping",
-    description: "Neuron Mapping is a free, open-source brain mapping tool by RP Hobbyist. Create unlimited mind maps online with 20+ templates, 3D Galaxy View, and 100% local data privacy. Local-first, offline-capable, no account required.",
+    title: "Free Mind Mapping Tool Online (No Signup) | Neuron Mapping",
+    description: "Free open-source mind mapping tool. 20+ templates, 3D Galaxy View, PDF export — 100% private, no signup needed. Works offline.",
     canonical: "/",
-    ogTitle: "Free Open-Source Brain Mapping Tool Online | Neuron Mapping",
-    ogDescription: "Create unlimited mind maps online with 20+ templates, 3D Galaxy View, and 100% local data privacy. Free, open-source brain mapping tool - no account required.",
+    ogTitle: "Neuron Mapping — Free Mind Mapping Tool Online (No Signup)",
+    ogDescription: "Create unlimited mind maps with 20+ templates, 3D Galaxy View, and 100% local privacy. Free, open-source — no signup needed.",
     ogImage: "/readme-assets/promo-productivity.webp",
     jsonLd: [
       {
@@ -166,6 +166,7 @@ export default function Landing() {
 
           {/* Navigation Links */}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-bold text-slate-600">
+            <Link to="/templates" className="text-indigo-600 hover:text-indigo-700 transition-all flex items-center gap-1 font-bold">Templates (20+)</Link>
             <button onClick={() => handleScroll("features")} className="hover:text-slate-900 transition-all">Features</button>
             <button onClick={() => handleScroll("how-it-works")} className="hover:text-slate-900 transition-all">How It Works</button>
             <button onClick={() => handleScroll("tutorials")} className="hover:text-slate-900 transition-all">Tutorials</button>

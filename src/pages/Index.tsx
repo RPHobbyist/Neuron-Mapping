@@ -1,10 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Template } from '@/types/templates';
 import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { TemplatePicker } from '@/components/templates/TemplatePicker';
 import { MindMapCanvas } from '@/components/mindmap/MindMapCanvas';
-import { templateConfigs } from '@/data/templates';
+import { templateConfigs, templates } from '@/data/templates';
 import { useSavedMaps } from '@/hooks/useSavedMaps';
 import { clearAutoSave } from '@/hooks/useAutoSave';
 import { toast } from 'sonner';
@@ -20,6 +21,9 @@ interface ActiveMap {
 }
 
 const Index = () => {
+  const [searchParams] = useSearchParams();
+  const templateQuery = searchParams.get('template');
+
   useDocumentSEO({
     title: "Mind Map Workspace | Neuron Mapping",
     description: "Design and organize your thoughts, workflows, and projects inside the local mind mapping workspace.",
@@ -29,6 +33,22 @@ const Index = () => {
 
   const [activeMap, setActiveMap] = useState<ActiveMap | null>(null);
   const { savedMaps, saveMap, deleteMap } = useSavedMaps();
+
+  // Pre-populate template if requested via URL query param e.g. /workspace?template=swot-analysis
+  useEffect(() => {
+    if (templateQuery && !activeMap) {
+      const targetTemplate = templates.find((t) => t.id === templateQuery);
+      if (targetTemplate) {
+        clearAutoSave();
+        const config = templateConfigs[targetTemplate.id];
+        setActiveMap({
+          nodes: targetTemplate.nodes || [],
+          connectionStyle: config?.connectionStyle || 'curved',
+          templateId: targetTemplate.id,
+        });
+      }
+    }
+  }, [templateQuery]);
 
   const handleSelectTemplate = useCallback((template: Template) => {
     // Clear auto-save so the new template isn't overwritten by old data
