@@ -25,76 +25,82 @@ export default function TemplateDetail() {
     return templates.find((t) => t.id === templateId);
   }, [templateId]);
 
+  const seoTitle = template
+    ? `Free ${template.name} Mind Map Template (Online & Private) | Neuron Mapping`
+    : "Mind Map Template | Neuron Mapping";
+  const seoDesc = template
+    ? `Create a ${template.name} mind map online for free. Pre-built template with ${template.nodes.length} nodes for visual brainstorming. 100% local privacy, no account required.`
+    : "Explore free mind map templates in Neuron Mapping.";
+
+  useDocumentSEO({
+    title: seoTitle,
+    description: seoDesc,
+    canonical: template ? `/templates/${template.id}` : "/templates",
+    ogTitle: seoTitle,
+    ogDescription: seoDesc,
+    ogImage: "/readme-assets/promo-productivity.webp",
+    jsonLd: template
+      ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "HowTo",
+            "name": `How to Create a ${template.name} Mind Map`,
+            "description": template.description,
+            "step": [
+              {
+                "@type": "HowToStep",
+                "position": 1,
+                "name": "Open Template",
+                "text": `Click 'Launch Template in Editor' to pre-load the ${template.name} framework.`
+              },
+              {
+                "@type": "HowToStep",
+                "position": 2,
+                "name": "Customize Nodes",
+                "text": "Add your ideas, customize branch colors, edit markdown notes, and format connectors."
+              },
+              {
+                "@type": "HowToStep",
+                "position": 3,
+                "name": "Export & Save",
+                "text": "Export your completed mind map as a PDF, high-resolution PNG image, or local .nmm backup file."
+              }
+            ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+              {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "Home",
+                "item": "https://neuron-mapping.rphobbyist.com/"
+              },
+              {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "Templates",
+                "item": "https://neuron-mapping.rphobbyist.com/templates"
+              },
+              {
+                "@type": "ListItem",
+                "position": 3,
+                "name": template.name,
+                "item": `https://neuron-mapping.rphobbyist.com/templates/${template.id}`
+              }
+            ]
+          }
+        ]
+      : undefined
+  });
+
   if (!template) {
     return <Navigate to="/templates" replace />;
   }
 
   const rootNode = template.nodes.find((n) => !n.parentId);
   const childNodes = template.nodes.filter((n) => n.parentId === rootNode?.id);
-
-  const seoTitle = `Free ${template.name} Mind Map Template (Online & Private) | Neuron Mapping`;
-  const seoDesc = `Create a ${template.name} mind map online for free. Pre-built template with ${template.nodes.length} nodes for visual brainstorming. 100% local privacy, no account required.`;
-
-  useDocumentSEO({
-    title: seoTitle,
-    description: seoDesc,
-    canonical: `/templates/${template.id}`,
-    ogTitle: seoTitle,
-    ogDescription: seoDesc,
-    ogImage: "/readme-assets/promo-productivity.webp",
-    jsonLd: [
-      {
-        "@context": "https://schema.org",
-        "@type": "HowTo",
-        "name": `How to Create a ${template.name} Mind Map`,
-        "description": template.description,
-        "step": [
-          {
-            "@type": "HowToStep",
-            "position": 1,
-            "name": "Open Template",
-            "text": `Click 'Launch Template in Editor' to pre-load the ${template.name} framework.`
-          },
-          {
-            "@type": "HowToStep",
-            "position": 2,
-            "name": "Customize Nodes",
-            "text": "Add your ideas, customize branch colors, edit markdown notes, and format connectors."
-          },
-          {
-            "@type": "HowToStep",
-            "position": 3,
-            "name": "Export & Save",
-            "text": "Export your completed mind map as a PDF, high-resolution PNG image, or local .nmm backup file."
-          }
-        ]
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://neuron-mapping.rphobbyist.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Templates",
-            "item": "https://neuron-mapping.rphobbyist.com/templates"
-          },
-          {
-            "@type": "ListItem",
-            "position": 3,
-            "name": template.name,
-            "item": `https://neuron-mapping.rphobbyist.com/templates/${template.id}`
-          }
-        ]
-      }
-    ]
-  });
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500/20 selection:text-indigo-900">

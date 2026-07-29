@@ -2,7 +2,28 @@
   "name": "neuron-mapping",
   "private": true,
   "version": "1.5.0",
-  "description": "A powerful mind mapping tool",
+  "description": "Free and open-source mind mapping and visual brainstorming tool built with React, Three.js, and Electron.",
+  "keywords": [
+    "mindmap",
+    "mind-mapping",
+    "brainstorming",
+    "visual-thinking",
+    "diagramming",
+    "concept-map",
+    "react",
+    "threejs",
+    "electron",
+    "canvas",
+    "productivity"
+  ],
+  "homepage": "https://neuron-mapping.rphobbyist.com/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/RPHobbyist/Neuron-Mapping.git"
+  },
+  "bugs": {
+    "url": "https://github.com/RPHobbyist/Neuron-Mapping/issues"
+  },
   "author": "RP Hobbyist",
   "license": "AGPL-3.0-only",
   "main": "electron/main.cjs",
