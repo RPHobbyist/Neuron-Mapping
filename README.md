@@ -123,7 +123,7 @@ Contributions are welcome! Feel free to open an issue or submit a pull request.
 Distributed under the GNU AGPL v3 License. See [`LICENSE`](LICENSE) for more information.
 
 <div align="center">
-  Made with ❤️ by <strong><a href="https://www.rphobbyist.com">RP Hobbyist</a></strong>
+  Made by <strong><a href="https://www.rphobbyist.com">RP Hobbyist</a></strong>
   <br>
   <em>Empowering minds with professional-grade creative tools.</em>
 </div>
