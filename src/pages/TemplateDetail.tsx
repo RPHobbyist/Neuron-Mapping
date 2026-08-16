@@ -14,9 +14,10 @@ import {
   Clock,
   HelpCircle
 } from "lucide-react";
-import { templates } from "@/data/templates";
+import { templates, categories } from "@/data/templates";
 import { useDocumentSEO } from "@/hooks/useDocumentSEO";
 import { Button } from "@/components/ui/button";
+import { templateDetailFaqs, templateSeoTitle, templateSeoDescription } from "@/data/seoContent";
 
 export default function TemplateDetail() {
   const { templateId } = useParams<{ templateId: string }>();
@@ -25,21 +26,22 @@ export default function TemplateDetail() {
     return templates.find((t) => t.id === templateId);
   }, [templateId]);
 
+  const categoryName = useMemo(() => {
+    return categories.find((c) => c.id === template?.category)?.name ?? template?.category ?? "";
+  }, [template]);
+
   const seoTitle = template
-    ? `Free ${template.name} Mind Map Template (Online & Private) | Neuron Mapping`
+    ? templateSeoTitle(template.name)
     : "Mind Map Template | Neuron Mapping";
   const seoDesc = template
-    ? `Create a ${template.name} mind map online for free. Pre-built template with ${template.nodes.length} nodes for visual brainstorming. 100% local privacy, no account required.`
+    ? templateSeoDescription(template.name, template.nodes.length)
     : "Explore free mind map templates in Neuron Mapping.";
 
-  useDocumentSEO({
-    title: seoTitle,
-    description: seoDesc,
-    canonical: template ? `/templates/${template.id}` : "/templates",
-    ogTitle: seoTitle,
-    ogDescription: seoDesc,
-    ogImage: "/readme-assets/promo-productivity.webp",
-    jsonLd: template
+  // Memoized (keyed on `template`, not recreated every render) so
+  // useDocumentSEO's effect only re-runs when the template actually changes,
+  // instead of on every render of this page.
+  const jsonLd = useMemo(() => (
+    template
       ? [
           {
             "@context": "https://schema.org",
@@ -90,9 +92,31 @@ export default function TemplateDetail() {
                 "item": `https://neuron-mapping.rphobbyist.com/templates/${template.id}`
               }
             ]
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": templateDetailFaqs.map(faq => ({
+              "@type": "Question",
+              "name": faq.q,
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.a
+              }
+            }))
           }
         ]
       : undefined
+  ), [template]);
+
+  useDocumentSEO({
+    title: seoTitle,
+    description: seoDesc,
+    canonical: template ? `/templates/${template.id}` : "/templates",
+    ogTitle: seoTitle,
+    ogDescription: seoDesc,
+    ogImage: "/readme-assets/promo-productivity.webp",
+    jsonLd
   });
 
   if (!template) {
@@ -145,7 +169,7 @@ export default function TemplateDetail() {
           <div className="lg:col-span-7 space-y-8">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs mb-3">
-                <Sparkles className="w-3.5 h-3.5" /> {template.category} Framework
+                <Sparkles className="w-3.5 h-3.5" /> {categoryName} Framework
               </div>
 
               <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-950 tracking-tight">
@@ -248,14 +272,15 @@ export default function TemplateDetail() {
               <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-indigo-600" /> Frequently Asked Questions
               </h4>
-              <details className="text-xs text-slate-600 border-b border-slate-100 pb-2">
-                <summary className="font-semibold text-slate-800 cursor-pointer">Can I modify this template?</summary>
-                <p className="mt-1 leading-relaxed">Yes! All templates are 100% editable. You can add, remove, recolor, and re-arrange any branch.</p>
-              </details>
-              <details className="text-xs text-slate-600">
-                <summary className="font-semibold text-slate-800 cursor-pointer">Is my data uploaded to a server?</summary>
-                <p className="mt-1 leading-relaxed">No. Neuron Mapping is local-first. Your mind map data remains strictly on your device.</p>
-              </details>
+              {templateDetailFaqs.map((faq, i) => (
+                <details
+                  key={faq.q}
+                  className={`text-xs text-slate-600 ${i < templateDetailFaqs.length - 1 ? "border-b border-slate-100 pb-2" : ""}`}
+                >
+                  <summary className="font-semibold text-slate-800 cursor-pointer">{faq.q}</summary>
+                  <p className="mt-1 leading-relaxed">{faq.a}</p>
+                </details>
+              ))}
             </div>
           </div>
         </div>

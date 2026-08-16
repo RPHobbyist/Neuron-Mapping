@@ -9,7 +9,7 @@
   <link rel="icon" type="image/svg+xml" href="/logo.svg" />
   <link rel="apple-touch-icon" href="/icon.png" />
   <link rel="manifest" href="/manifest.json" />
-  <title>Neuron Mapping — Free Mind Mapping Tool Online (No Signup) | RP Hobbyist</title>
+  <title>Free Mind Mapping Tool Online (No Signup) | Neuron Mapping</title>
   <meta name="description"
     content="Free open-source mind mapping tool. 20+ templates, 3D Galaxy View, PDF export — 100% private, no signup needed. Works offline." />
   <meta name="author" content="RP Hobbyist" />
@@ -92,93 +92,14 @@
   }
   </script>
 
-  <!-- Structured Data: BreadcrumbList -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    "itemListElement": [
-      {
-        "@type": "ListItem",
-        "position": 1,
-        "name": "RP Hobbyist",
-        "item": "https://rphobbyist.com"
-      },
-      {
-        "@type": "ListItem",
-        "position": 2,
-        "name": "Neuron Mapping",
-        "item": "https://neuron-mapping.rphobbyist.com/"
-      }
-    ]
-  }
-  </script>
-
-  <!-- Structured Data: FAQPage (static for non-JS crawlers and AI Answer Engines) -->
-  <script type="application/ld+json">
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      {
-        "@type": "Question",
-        "name": "How does Neuron Mapping keep my thoughts organized?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Neuron Mapping provides a large, distraction-free canvas where you can build node hierarchies. You can color-code your branches, choose custom connection layouts (curved, straight, stepped), write extensive markdown-formatted notes, draw sketches directly on nodes, and attach icons from a library."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Where is my data stored? Does it upload to the cloud?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Your data is 100% secure and private. Neuron Mapping runs on a strict 'Local-First, Privacy-Absolute' architecture. All mind maps, templates, auto-saves, and custom settings are saved client-side on your local device via IndexedDB. We have zero servers, zero telemetry trackers, and zero cloud uploads."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Can I export my mind maps to other formats?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Absolutely. You can export your maps as .nmm files (our native JSON structure) for backups or sharing. You can also export high-resolution PNG images or vector PDF files directly from the browser or desktop app."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Is Neuron Mapping really a free mind mapping tool?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Yes. Neuron Mapping is a 100% free, open-source mind mapping tool licensed under GNU AGPLv3. There are no paywalls, no subscriptions, and no map size limitations. Run it online, install the desktop app, or self-host."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "Can I do mind mapping online with complete privacy?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Absolutely. Neuron Mapping is designed as a local-first online mind mapping tool. All your mind maps and configurations are stored inside your browser's IndexedDB. We have no tracking cookies, no server uploads, and no analytics."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "How does this compare to other open source mind mapping tools?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Unlike standard open source mind mapping tools, Neuron Mapping features an interactive 3D Galaxy View that lets you visualize node connections as WebGL-powered particle constellations. It also includes 20+ pre-built business and planning templates, offline capabilities, and a full distraction-free canvas."
-        }
-      },
-      {
-        "@type": "Question",
-        "name": "What templates are included in the picker?",
-        "acceptedAnswer": {
-          "@type": "Answer",
-          "text": "Neuron Mapping includes 20+ pre-built, industry-standard templates: SWOT Analysis, Market Research, Porter's Five Forces, Purchase Requisition, Supplier Evaluation, Order Fulfilment, project planning roadmaps, brainstorming webs, and more."
-        }
-      }
-    ]
-  }
-  </script>
+  <!--
+    BreadcrumbList and FAQPage schemas are intentionally NOT hardcoded here.
+    They are page-specific (a breadcrumb/FAQ set that is true for "/" is false for
+    "/templates/swot-analysis") and are injected per-route by useDocumentSEO via the
+    #structured-data-script tag below, which the prerender script (scripts/generate-static-pages.ts)
+    also populates per-route at build time so non-JS crawlers see the correct data too.
+  -->
+  <script id="structured-data-script" type="application/ld+json"></script>
 
   <!-- Critical CSS for loading state (inline for fastest paint) -->
   <style>

@@ -3,6 +3,25 @@ import * as THREE from 'three';
 
 export type LayoutType = '2d-projection' | 'sphere' | 'grid' | 'force';
 
+// Deterministic pseudo-random generator seeded from a string (a node id), so
+// the same node always starts the force simulation from the same initial
+// position across separate re-runs — otherwise every recomputation (which
+// now only happens when the map's structure actually changes; see GalaxyView)
+// would still reshuffle every node via a fresh Math.random() seed.
+function seededRandom(seed: string): () => number {
+    let h = 1779033703 ^ seed.length;
+    for (let i = 0; i < seed.length; i++) {
+        h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+        h = (h << 13) | (h >>> 19);
+    }
+    return function next() {
+        h = Math.imul(h ^ (h >>> 16), 2246822507);
+        h = Math.imul(h ^ (h >>> 13), 3266489909);
+        h ^= h >>> 16;
+        return (h >>> 0) / 4294967296;
+    };
+}
+
 export const calculateLayout = (
     nodes: MindMapNode[],
     type: LayoutType,
@@ -11,6 +30,11 @@ export const calculateLayout = (
 
     const positions: Record<string, [number, number, number]> = {};
     const count = nodes.length;
+    // Normalized against the default of 100 so existing callers (which all
+    // pass 100) see no change; only sphere/grid/force respond to it —
+    // 2d-projection intentionally keeps its own fixed projectionScale,
+    // which must stay in sync with GalaxyNode's drag-math constant.
+    const scale = scaleFactor / 100;
 
     switch (type) {
         case '2d-projection': {
@@ -25,19 +49,18 @@ export const calculateLayout = (
 
 
         case 'sphere': {
-            // Improved Radial Sphere Layout - distributes all nodes evenly on a sphere surface
+            // Radial sphere layout - distributes all nodes evenly on a sphere surface
             const root = nodes.find(n => !n.parentId) || nodes[0];
 
             if (root) positions[root.id] = [0, 0, 0];
 
-            // Get all non-root nodes
             const otherNodes = nodes.filter(n => n.id !== root?.id);
             const n = otherNodes.length;
 
             if (n === 0) break;
 
             // Use golden spiral for even distribution on sphere
-            const radius = Math.max(8, Math.sqrt(n) * 4); // Scale radius with node count
+            const radius = Math.max(8, Math.sqrt(n) * 4) * scale; // Scale radius with node count
             const goldenRatio = (1 + Math.sqrt(5)) / 2;
             const angleIncrement = Math.PI * 2 * goldenRatio;
 
@@ -58,7 +81,7 @@ export const calculateLayout = (
 
         case 'grid': {
             const cols = Math.ceil(Math.pow(count, 1 / 3));
-            const gap = 15; // Increased from 4 for better spacing
+            const gap = 15 * scale;
             const offset = (cols * gap) / 2;
 
             nodes.forEach((node, i) => {
@@ -71,22 +94,25 @@ export const calculateLayout = (
         }
 
         case 'force': {
-            // Enhanced Force-Directed Layout
-            // 1. Initialize random positions with better spread
-            const tempNodes = nodes.map(n => ({
-                id: n.id,
-                x: (Math.random() - 0.5) * 30, // Wider spread
-                y: (Math.random() - 0.5) * 30,
-                z: (Math.random() - 0.5) * 30,
-                vx: 0, vy: 0, vz: 0,
-                isRoot: n.parentId === null
-            }));
+            // Force-Directed Layout
+            // Initialize random (but deterministic per node id) starting positions
+            const tempNodes = nodes.map(n => {
+                const rand = seededRandom(n.id);
+                return {
+                    id: n.id,
+                    x: (rand() - 0.5) * 30 * scale,
+                    y: (rand() - 0.5) * 30 * scale,
+                    z: (rand() - 0.5) * 30 * scale,
+                    vx: 0, vy: 0, vz: 0,
+                    isRoot: n.parentId === null
+                };
+            });
 
-            // 2. Iterate
-            const iterations = 150; // More iterations for stability
-            const repulsion = 80;    // Stronger repulsion
+            const iterations = 150;
+            const repulsion = 80 * scale * scale; // Repulsion falls off with distance^2, so it must scale with the square of the spatial scale to keep relative node spacing consistent
             const attraction = 0.2;  // Weaker attraction for wider tree
             const centerPull = 0.02; // Weaker center pull
+            const springTargetDist = 4 * scale; // Target parent-child distance
 
             for (let i = 0; i < iterations; i++) {
                 // Repulsion (All nodes repel)
@@ -119,9 +145,8 @@ export const calculateLayout = (
                             const dy = parent.y - child.y;
                             const dz = parent.z - child.z;
 
-                            // Distance based spring
                             const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                            const springForce = (dist - 4) * attraction; // Target distance of 4 units
+                            const springForce = (dist - springTargetDist) * attraction;
 
                             const fx = (dx / dist) * springForce;
                             const fy = (dy / dist) * springForce;
@@ -148,7 +173,7 @@ export const calculateLayout = (
                         n.vz -= n.z * centerPull;
 
                         // Damping
-                        n.vx *= 0.8; // More damping
+                        n.vx *= 0.8;
                         n.vy *= 0.8;
                         n.vz *= 0.8;
 
@@ -162,7 +187,6 @@ export const calculateLayout = (
                 });
             }
 
-            // 3. Map back
             tempNodes.forEach(n => {
                 positions[n.id] = [n.x, n.y, n.z];
             });

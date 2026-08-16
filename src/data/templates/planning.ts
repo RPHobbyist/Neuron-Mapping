@@ -101,6 +101,44 @@ const layerStackingNodes: MindMapNode[] = [
     { id: 'data', text: 'Data Layer', x: 0, y: 300, color: 'green', parentId: 'root', shape: 'isometric', width: 220, height: 120 },
 ];
 
+// OKR Planning - Objective, Key Results, Initiatives
+const okrPlanningNodes: MindMapNode[] = [
+    { id: 'root', text: 'Objective', x: 0, y: -200, color: 'root', parentId: null },
+
+    { id: 'kr1', text: 'Key Result 1', x: -300, y: -50, color: 'blue', parentId: 'root' },
+    { id: 'kr2', text: 'Key Result 2', x: 0, y: -50, color: 'green', parentId: 'root' },
+    { id: 'kr3', text: 'Key Result 3', x: 300, y: -50, color: 'orange', parentId: 'root' },
+
+    { id: 'i1', text: 'Initiative A', x: -380, y: 100, color: 'blue', parentId: 'kr1' },
+    { id: 'i2', text: 'Initiative B', x: -220, y: 100, color: 'blue', parentId: 'kr1' },
+    { id: 'i3', text: 'Initiative C', x: -80, y: 100, color: 'green', parentId: 'kr2' },
+    { id: 'i4', text: 'Initiative D', x: 80, y: 100, color: 'green', parentId: 'kr2' },
+    { id: 'i5', text: 'Initiative E', x: 220, y: 100, color: 'orange', parentId: 'kr3' },
+    { id: 'i6', text: 'Initiative F', x: 380, y: 100, color: 'orange', parentId: 'kr3' },
+];
+
+// 5 Whys - Root Cause Chain
+const fiveWhysNodes: MindMapNode[] = [
+    { id: 'root', text: 'Problem', x: 0, y: -300, color: 'red', parentId: null },
+    { id: 'why1', text: 'Why? #1', x: 0, y: -180, color: 'orange', parentId: 'root' },
+    { id: 'why2', text: 'Why? #2', x: 0, y: -60, color: 'orange', parentId: 'why1' },
+    { id: 'why3', text: 'Why? #3', x: 0, y: 60, color: 'orange', parentId: 'why2' },
+    { id: 'why4', text: 'Why? #4', x: 0, y: 180, color: 'orange', parentId: 'why3' },
+    { id: 'cause', text: 'Root Cause', x: 0, y: 300, color: 'green', parentId: 'why4' },
+];
+
+// Decision Tree - Yes/No branches
+const decisionTreeNodes: MindMapNode[] = [
+    { id: 'root', text: 'Decision?', x: 0, y: -250, color: 'root', parentId: null },
+    { id: 'yes', text: 'Yes', x: -250, y: -100, color: 'green', parentId: 'root' },
+    { id: 'no', text: 'No', x: 250, y: -100, color: 'red', parentId: 'root' },
+
+    { id: 'y1', text: 'Outcome A', x: -350, y: 50, color: 'green', parentId: 'yes' },
+    { id: 'y2', text: 'Outcome B', x: -150, y: 50, color: 'green', parentId: 'yes' },
+    { id: 'n1', text: 'Outcome C', x: 150, y: 50, color: 'red', parentId: 'no' },
+    { id: 'n2', text: 'Outcome D', x: 350, y: 50, color: 'red', parentId: 'no' },
+];
+
 export const planningTemplates: Template[] = [
     {
         id: 'customer-journey',
@@ -108,7 +146,8 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Awareness to Advocacy customer touchpoints',
         nodes: customerJourneyNodes,
-        preview: 'customerJourney',
+        tags: ['ux', 'journey map', 'marketing', 'customer experience'],
+        connectionStyle: 'curved',
     },
     {
         id: 'venn-diagram',
@@ -116,7 +155,8 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Compare and contrast elements',
         nodes: vennDiagramNodes,
-        preview: 'vennDiagram',
+        tags: ['compare', 'overlap', 'sets', 'contrast'],
+        connectionStyle: 'curved',
     },
     {
         id: 'cycle-diagram',
@@ -124,7 +164,8 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Plan-Do-Check-Act-Review continuous improvement cycle',
         nodes: cycleDiagramNodes,
-        preview: 'cycleDiagram',
+        tags: ['pdca', 'process', 'continuous improvement', 'cycle'],
+        connectionStyle: 'curved',
     },
     {
         id: 'eisenhower-box',
@@ -132,7 +173,8 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Prioritize tasks: Do First, Schedule, Delegate, Eliminate',
         nodes: eisenhowerBoxNodes,
-        preview: 'eisenhowerBox',
+        tags: ['priority', 'time management', 'productivity', 'matrix'],
+        connectionStyle: 'curved',
     },
     {
         id: 'cause-effect',
@@ -140,7 +182,8 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Trace causes to key problems and symptoms',
         nodes: causeEffectNodes,
-        preview: 'fishbone',
+        tags: ['fishbone', 'ishikawa', 'root cause', 'problem solving'],
+        connectionStyle: 'orthogonal',
     },
     {
         id: 'layer-stacking',
@@ -148,6 +191,34 @@ export const planningTemplates: Template[] = [
         category: 'planning',
         description: 'Visualizing technology stack or architectural layers',
         nodes: layerStackingNodes,
-        preview: 'layerStacking',
+        tags: ['architecture', 'tech stack', 'layers', 'system design'],
+        connectionStyle: 'straight',
+    },
+    {
+        id: 'okr-planning',
+        name: 'OKR Planning',
+        category: 'planning',
+        description: 'Objectives, Key Results, and supporting initiatives',
+        nodes: okrPlanningNodes,
+        tags: ['okr', 'objectives', 'key results', 'goals', 'strategy'],
+        connectionStyle: 'curved',
+    },
+    {
+        id: 'five-whys',
+        name: '5 Whys Root Cause',
+        category: 'planning',
+        description: 'Drill from a problem to its root cause by asking "why" five times',
+        nodes: fiveWhysNodes,
+        tags: ['root cause', '5 whys', 'problem solving', 'rca'],
+        connectionStyle: 'straight',
+    },
+    {
+        id: 'decision-tree',
+        name: 'Decision Tree',
+        category: 'planning',
+        description: 'Map a decision and its branching yes/no outcomes',
+        nodes: decisionTreeNodes,
+        tags: ['decision', 'tree', 'flowchart', 'logic'],
+        connectionStyle: 'orthogonal',
     },
 ];

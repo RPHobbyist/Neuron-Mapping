@@ -1,8 +1,11 @@
 import { useState, useCallback } from 'react';
-import { useHistory } from './useHistory';
-import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority } from '@/types/mindmap';
 import { toast } from 'sonner';
+
 import { generateId, getDescendantIds } from '@/utils/common';
+import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
+import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority } from '@/types/mindmap';
+
+import { useHistory } from './useHistory';
 
 export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnectionStyle: ConnectionStyle = 'curved') => {
     // History & State
@@ -15,6 +18,7 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         state: historyState,
         set,
         replace,
+        mutate,
         undo,
         redo,
         reset,
@@ -43,13 +47,48 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         }));
     }, [replace]);
 
+    // For passive writes that must never appear in undo/redo (e.g. ResizeObserver
+    // layout measurements) — does not push history and does not clear the redo stack.
+    const mutateNodes = useCallback((action: MindMapNode[] | ((prev: MindMapNode[]) => MindMapNode[])) => {
+        mutate((prev) => ({
+            ...prev,
+            nodes: typeof action === 'function' ? action(prev.nodes) : action
+        }));
+    }, [mutate]);
+
     const setConnectionStyle = useCallback((style: ConnectionStyle) => {
         set((prev) => ({ ...prev, connectionStyle: style }));
     }, [set]);
 
-    const resetNodes = useCallback((newNodes: MindMapNode[]) => {
-        reset({ nodes: newNodes, connectionStyle: 'curved' });
-    }, [reset]);
+    // Applies a global connection style AND strips per-node/relation overrides
+    // in a single history entry, so one Ctrl+Z fully reverts the change.
+    const applyGlobalConnectionStyle = useCallback((style: ConnectionStyle) => {
+        set((prev) => ({
+            connectionStyle: style,
+            nodes: prev.nodes.map(node => {
+                const newNode = { ...node };
+                if (newNode.lineType) delete newNode.lineType;
+                if (newNode.relations) {
+                    newNode.relations = newNode.relations.map(r => {
+                        const newRel = { ...r };
+                        if (newRel.type) delete newRel.type;
+                        return newRel;
+                    });
+                }
+                return newNode;
+            })
+        }));
+    }, [set]);
+
+    const resetNodes = useCallback((newNodes: MindMapNode[], newConnectionStyle?: ConnectionStyle) => {
+        reset({ nodes: newNodes, connectionStyle: newConnectionStyle ?? connectionStyle });
+    }, [reset, connectionStyle]);
+
+    const updateNodeMeasurement = useCallback((id: string, width: number, height: number) => {
+        mutateNodes((prev) => prev.map((node) => (
+            node.id === id ? { ...node, measuredWidth: width, measuredHeight: height } : node
+        )));
+    }, [mutateNodes]);
 
     // Selection
     const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
@@ -61,39 +100,51 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
 
     // Actions
     const addChildNode = useCallback((parentId: string, initialText: string = 'New Item') => {
-        const parent = nodes.find((n) => n.id === parentId);
-        if (!parent) return;
+        // Quick existence check against the last-rendered state; the actual
+        // position/color is computed from the functional updater's own `prev`
+        // below so rapid repeated calls (e.g. auto-repeating Tab) each see the
+        // most current sibling count instead of stacking new nodes on top of
+        // each other at an identical, stale position.
+        if (!nodes.some((n) => n.id === parentId)) return null;
 
-        const children = nodes.filter((n) => n.parentId === parentId);
-        const angle = (children.length * 50 - 100) * (Math.PI / 180);
-        const distance = 250;
+        const newId = generateId();
 
-        // Inherit color
-        let newColor: NodeColor = 'orange';
-        if (parent.id !== 'root') {
-            newColor = parent.color;
-        } else {
-            const colors: NodeColor[] = ['orange', 'blue', 'cyan', 'yellow', 'grey', 'purple'];
-            newColor = colors[children.length % colors.length];
-        }
+        setNodes((prev) => {
+            const parent = prev.find((n) => n.id === parentId);
+            if (!parent) return prev;
 
-        const newNode: MindMapNode = {
-            id: generateId(),
-            text: initialText,
-            x: parent.x + Math.cos(angle) * distance,
-            y: parent.y + Math.sin(angle) * distance,
-            color: newColor,
-            parentId,
-        };
+            const children = prev.filter((n) => n.parentId === parentId);
+            const angle = (children.length * 50 - 100) * (Math.PI / 180);
+            const distance = 250;
 
-        if (parent.id === 'root') {
-            const isRight = children.length % 2 === 0;
-            newNode.x = parent.x + (isRight ? 200 : -200);
-            newNode.y = parent.y + (children.length * 60 - 100);
-        }
+            // Inherit color
+            let newColor: NodeColor = 'orange';
+            if (parent.id !== 'root') {
+                newColor = parent.color;
+            } else {
+                const colors: NodeColor[] = ['orange', 'blue', 'cyan', 'yellow', 'grey', 'purple'];
+                newColor = colors[children.length % colors.length];
+            }
 
-        setNodes((prev) => [...prev, newNode]);
-        setSelectedNodeIds(new Set([newNode.id]));
+            const newNode: MindMapNode = {
+                id: newId,
+                text: initialText,
+                x: parent.x + Math.cos(angle) * distance,
+                y: parent.y + Math.sin(angle) * distance,
+                color: newColor,
+                parentId,
+            };
+
+            if (parent.id === 'root') {
+                const isRight = children.length % 2 === 0;
+                newNode.x = parent.x + (isRight ? 200 : -200);
+                newNode.y = parent.y + (children.length * 60 - 100);
+            }
+
+            return [...prev, newNode];
+        });
+        setSelectedNodeIds(new Set([newId]));
+        return newId;
     }, [nodes, setNodes]);
 
     const addRelation = useCallback(() => {
@@ -104,7 +155,10 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
             if (node.id === sourceId) {
                 const existing = node.relations || [];
                 if (existing.some(r => r.targetId === targetId)) return node;
-                return { ...node, relations: [...existing, { targetId }] };
+                return {
+                    ...node,
+                    relations: [...existing, { targetId, type: DEFAULT_RELATION_TYPE, color: DEFAULT_RELATION_COLOR }]
+                };
             }
             return node;
         }));
@@ -140,6 +194,15 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
     // Use this during continuous text editing to avoid cluttering history
     const replaceNodeText = useCallback((id: string, text: string) => {
         replaceNodes((prev) => prev.map((node) => (node.id === id ? { ...node, text } : node)));
+    }, [replaceNodes]);
+
+    // Same non-history pattern as replaceNodeText, generalized to any field —
+    // for continuous edits like typing in the Notes panel, where a caller
+    // saves one snapshot when editing starts and then wants every keystroke
+    // to update the live present state without each one pushing its own
+    // undo entry.
+    const replaceNode = useCallback((id: string, updates: Partial<MindMapNode>) => {
+        replaceNodes((prev) => prev.map((node) => (node.id === id ? { ...node, ...updates } : node)));
     }, [replaceNodes]);
 
     const updateSelectedNodesColor = useCallback((color: NodeColor) => {
@@ -223,6 +286,7 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         connectionStyle,
         setNodes,
         setConnectionStyle,
+        applyGlobalConnectionStyle,
         replaceNodes,
         saveSnapshot,
         resetNodes,
@@ -239,7 +303,9 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         updateNodePosition,
         updateNodeText,
         replaceNodeText,
+        replaceNode,
         updateNode,
+        updateNodeMeasurement,
         updateNodeSize,
         updateSelectedNodesColor,
         updateSelectedNodesShape,

@@ -12,7 +12,7 @@ export const Footer = () => {
                 </span>
                 <LicenseDialog />
                 <a
-                    href="https://github.com/RPHobbyist/Neuron-Mapping/releases/download/Software/Neuron_Mapping_v.1.5.0.zip"
+                    href={SYSTEM_CONFIG.downloadUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"
@@ -22,7 +22,7 @@ export const Footer = () => {
                 </a>
 
                 <a
-                    href="https://github.com/RPHobbyist/neuron-mapping"
+                    href={SYSTEM_CONFIG.githubUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"
@@ -32,7 +32,7 @@ export const Footer = () => {
                 </a>
 
                 <a
-                    href="https://www.youtube.com/playlist?list=PLwLQ_Xr7StXi2H1R3ZEGeMu5MX3V3ZXqD"
+                    href={SYSTEM_CONFIG.youtubePlaylistUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex items-center gap-1 hover:text-primary transition-colors whitespace-nowrap"

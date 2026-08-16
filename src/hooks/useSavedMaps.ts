@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { z } from 'zod';
-import { sanitizeUrl } from '@/utils/common';
-import { sanitizeText } from '@/utils/parsers/parserUtils';
 import { get, set } from 'idb-keyval';
+
+import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
+import { sanitizeText } from '@/utils/parsers/parserUtils';
+
+import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 
 const STORAGE_KEY = 'neuron_saved_maps';
 
@@ -27,6 +29,7 @@ const NodeSchema = z.object({
   lineTension: z.number().optional(),
   lineAnimationDirection: z.string().optional(),
   lineAnimationType: z.string().optional(),
+  lineArrowDirection: z.string().optional(),
   relations: z.array(z.object({
     targetId: z.string(),
     sourceId: z.string().optional(),
@@ -38,12 +41,13 @@ const NodeSchema = z.object({
     animationSpeed: z.string().optional(),
     animationDirection: z.string().optional(),
     animationType: z.string().optional(),
+    arrowDirection: z.string().optional(),
   })).optional(),
   width: z.number().optional(),
   height: z.number().optional(),
   measuredWidth: z.number().optional(),
   measuredHeight: z.number().optional(),
-  image: z.string().optional().transform(v => sanitizeUrl(v)),
+  image: z.string().optional().transform(v => sanitizeImageUrl(v)),
   icon: z.string().optional(),
   iconStyle: z.string().optional(),
   link: z.string().optional().transform(v => sanitizeUrl(v)),
@@ -89,22 +93,44 @@ export const useSavedMaps = () => {
     const loadData = async () => {
       try {
         let parsed: unknown;
+        let migratingFromLocalStorage = false;
         const idbData = await get(STORAGE_KEY);
-        
+
         if (idbData) {
           parsed = typeof idbData === 'string' ? JSON.parse(idbData) : idbData;
         } else {
           const localData = localStorage.getItem(STORAGE_KEY);
           if (localData) {
             parsed = JSON.parse(localData);
-            // Migrate to IndexedDB
-            await set(STORAGE_KEY, parsed);
+            migratingFromLocalStorage = true;
           }
         }
 
-        if (parsed) {
-          const validated = SavedMapsArraySchema.parse(parsed) as SavedMindMap[];
-          setSavedMaps(validated);
+        if (Array.isArray(parsed)) {
+          // Validate each map independently instead of the whole array
+          // at once — one legacy/malformed map used to throw away every
+          // saved map, and the very next save would then overwrite storage
+          // with just the new one, permanently destroying the rest.
+          const valid: SavedMindMap[] = [];
+          for (const raw of parsed) {
+            const result = SavedMapSchema.safeParse(raw);
+            if (result.success) {
+              valid.push(result.data as SavedMindMap);
+            } else {
+              console.error('Skipping invalid saved map:', result.error);
+            }
+          }
+          setSavedMaps(valid);
+
+          if (migratingFromLocalStorage) {
+            // Only write the *validated* data to IndexedDB, and only clear
+            // the legacy localStorage copy, once that write succeeds — writing
+            // the raw payload first (and validating after) could otherwise
+            // permanently poison IndexedDB with corrupt data while orphaning
+            // the still-good localStorage backup.
+            await set(STORAGE_KEY, valid);
+            localStorage.removeItem(STORAGE_KEY);
+          }
         }
       } catch (e) {
         console.error('Failed to parse or validate saved maps:', e);
@@ -114,12 +140,15 @@ export const useSavedMaps = () => {
     loadData();
   }, []);
 
-  const persistMaps = useCallback((maps: SavedMindMap[]) => {
-    set(STORAGE_KEY, maps).catch(e => console.error('Failed to save maps to IndexedDB:', e));
+  const persistMaps = useCallback(async (maps: SavedMindMap[]) => {
+    // Write must succeed before state (and therefore the UI) reflects the
+    // change — otherwise a failed write (e.g. quota exceeded) still shows
+    // "Saved!" for data that was never actually persisted.
+    await set(STORAGE_KEY, maps);
     setSavedMaps(maps);
   }, []);
 
-  const saveMap = useCallback((
+  const saveMap = useCallback(async (
     name: string,
     nodes: MindMapNode[],
     connectionStyle: ConnectionStyle,
@@ -127,20 +156,18 @@ export const useSavedMaps = () => {
     existingId?: string,
     thumbnail?: string,
     drawings?: Drawing[]
-  ): SavedMindMap => {
+  ): Promise<SavedMindMap> => {
     const now = new Date().toISOString();
 
     if (existingId) {
-      // Update existing map
       const updated = savedMaps.map(map =>
         map.id === existingId
           ? { ...map, name, nodes, connectionStyle, updatedAt: now, thumbnail: thumbnail || map.thumbnail, drawings }
           : map
       );
-      persistMaps(updated);
+      await persistMaps(updated);
       return updated.find(m => m.id === existingId)!;
     } else {
-      // Create new map
       const newMap: SavedMindMap = {
         id: generateId(),
         name,
@@ -152,13 +179,13 @@ export const useSavedMaps = () => {
         thumbnail,
         drawings,
       };
-      persistMaps([newMap, ...savedMaps]);
+      await persistMaps([newMap, ...savedMaps]);
       return newMap;
     }
   }, [savedMaps, persistMaps]);
 
-  const deleteMap = useCallback((id: string) => {
-    persistMaps(savedMaps.filter(m => m.id !== id));
+  const deleteMap = useCallback(async (id: string) => {
+    await persistMaps(savedMaps.filter(m => m.id !== id));
   }, [savedMaps, persistMaps]);
 
   const getMap = useCallback((id: string) => {

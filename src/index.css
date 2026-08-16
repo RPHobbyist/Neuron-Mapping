@@ -232,12 +232,34 @@
     }
 
     100% {
-      stroke-dashoffset: -100%;
+      /* Unitless, matching the elements' pathLength="100" normalization
+         (and the dash+gap patterns paired with it, which always sum to 100)
+         — a percentage here resolves against the SVG viewport diagonal
+         instead, which isn't an exact multiple of the 100-unit pattern and
+         made the loop restart with a visible jump instead of crawling
+         seamlessly. */
+      stroke-dashoffset: -100;
     }
   }
 
   .animate-snake-stroke {
     animation: snake-stroke 4s linear infinite;
+  }
+
+  /* Connection "draw-in" reveal for template previews. 500 comfortably
+     exceeds the longest path possible on DynamicTemplatePreview's 320x240
+     viewBox, so the whole path stays hidden as one dash until the offset
+     animates to 0. */
+  .animate-draw {
+    stroke-dasharray: 500;
+    stroke-dashoffset: 500;
+    animation: draw-line 1.2s ease-out forwards;
+  }
+
+  @keyframes draw-line {
+    to {
+      stroke-dashoffset: 0;
+    }
   }
 
   /* Standard rotate animation for components */

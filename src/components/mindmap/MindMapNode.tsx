@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, memo } from 'react';
-import { Plus, GripHorizontal } from 'lucide-react';
+import { Plus, GripHorizontal, FileText } from 'lucide-react';
 import { MindMapNode as NodeType } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -7,7 +7,28 @@ import { NodeToolbar } from './NodeToolbar';
 import { toast } from 'sonner';
 import { colorStyles, getShapeStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
-import { sanitizeUrl } from '@/utils/common';
+import { sanitizeUrl, getContrastTextColor } from '@/utils/common';
+
+// Shapes rendered via a custom SVG path instead of the div's own box/background
+const IRREGULAR_SHAPES = ['cloud', 'hexagon', 'diamond'];
+
+const IRREGULAR_SHAPE_PATHS: Record<string, string> = {
+  cloud: "M77.56,38.98 C75.01,19.57 63.65,5 50,5 C39.16,5 29.75,14.23 25.06,27.73 C13.78,29.53 5,43.87 5,61.25 C5,79.87 15.09,95 27.5,95 L76.25,95 C86.6,95 95,82.4 95,66.88 C95,52.03 87.31,39.99 77.56,38.98 Z",
+  hexagon: "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z",
+  diamond: "M41.52,13.49 Q50,5 58.49,13.49 L86.52,41.52 Q95,50 86.52,58.49 L58.49,86.52 Q50,95 41.52,86.52 L13.49,58.49 Q5,50 13.49,41.52 L41.52,13.49 Z",
+};
+
+// The snake border effect is a short bright "head" segment followed by
+// progressively fainter, thinner copies riding the same dash animation
+// with a small phase delay — since the delay is shorter than the dash
+// length, the copies overlap and blend into a tapering comet-like tail
+// instead of reading as a hard-edged block sliding around the border.
+const SNAKE_TRAIL = [
+  { delay: 0, opacity: 1, width: 4 },
+  { delay: 0.16, opacity: 0.55, width: 3.25 },
+  { delay: 0.32, opacity: 0.3, width: 2.5 },
+  { delay: 0.48, opacity: 0.12, width: 1.75 },
+];
 
 interface MindMapNodeProps {
   node: NodeType;
@@ -16,12 +37,14 @@ interface MindMapNodeProps {
   onPositionChange: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
   onSizeChange?: (id: string, width: number, height: number) => void;
-  onUpdateNode?: (id: string, data: Partial<NodeType>) => void;
+  onMeasureNode?: (id: string, width: number, height: number) => void;
   onAddChild: (id: string) => void;
   onRequestImage?: (id: string) => void;
   onRequestLink?: (id: string) => void;
   onRequestNotes?: (id: string) => void;
   onDragStart?: () => void;
+  /** Bumped by the parent (e.g. on F2/Space) to force this node into edit mode. */
+  editTrigger?: number;
   zoom: number;
   isDimmed?: boolean; // For focus mode - dims non-focused nodes
   isHighlighted?: boolean;
@@ -35,18 +58,18 @@ const MindMapNodeBase = ({
   onPositionChange,
   onTextChange,
   onSizeChange,
-  onUpdateNode,
+  onMeasureNode,
   onAddChild,
   onRequestImage,
   onRequestLink,
   onRequestNotes,
   onDragStart,
+  editTrigger,
   zoom,
   isDimmed,
   isHighlighted,
   onAddIcon,
 }: MindMapNodeProps) => {
-  // ... state ...
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -54,6 +77,14 @@ const MindMapNodeBase = ({
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
+
+  // Parent bumps editTrigger (e.g. on F2/Space) to request edit mode for
+  // this specific node without the component tree needing to lift isEditing.
+  useEffect(() => {
+    if (editTrigger !== undefined) {
+      setIsEditing(true);
+    }
+  }, [editTrigger]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -65,43 +96,46 @@ const MindMapNodeBase = ({
     }
   }, [isEditing]);
 
-  // Report measured size for auto-layout nodes
+  // Report measured size for auto-layout nodes. This is a passive layout
+  // measurement, not a user edit, so it must never go through undo/redo
+  // history — onMeasureNode routes to a history-exempt update.
   useEffect(() => {
-    if (!nodeRef.current || !onUpdateNode) return;
+    if (!nodeRef.current || !onMeasureNode) return;
 
     const element = nodeRef.current;
+    let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
 
     // Create observer
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        // Add padding/border compensation if measuring content box
-        // getBoundingClientRect is safer for total visible size
-        const rect = element.getBoundingClientRect();
-        // Fix: compensate for zoom scale to get logical size
-        const w = rect.width / zoom;
-        const h = rect.height / zoom;
+    const observer = new ResizeObserver(() => {
+      // getBoundingClientRect is safer for total visible size than contentRect
+      const rect = element.getBoundingClientRect();
+      // Compensate for zoom scale to get logical (unscaled) size
+      const w = rect.width / zoom;
+      const h = rect.height / zoom;
 
-        // Only update if significantly different (ignore sub-pixel noise)
-        // AND if not currently dragging/resizing (to avoid conflict)
-        if (!isDragging && !isResizing) {
-          if (
-            Math.abs(w - (node.measuredWidth || 0)) > 2 ||
-            Math.abs(h - (node.measuredHeight || 0)) > 2
-          ) {
-            // Use a small timeout to debounce/defer state update
-            // This prevents "ResizeObserver loop limit exceeded" and excessive renders
-            setTimeout(() => {
-              onUpdateNode(node.id, { measuredWidth: w, measuredHeight: h });
-            }, 100);
-          }
+      // Only update if significantly different (ignore sub-pixel noise)
+      // AND if not currently dragging/resizing (to avoid conflict)
+      if (!isDragging && !isResizing) {
+        if (
+          Math.abs(w - (node.measuredWidth || 0)) > 2 ||
+          Math.abs(h - (node.measuredHeight || 0)) > 2
+        ) {
+          // Use a small timeout to debounce/defer state update
+          // This prevents "ResizeObserver loop limit exceeded" and excessive renders
+          if (pendingTimeout) clearTimeout(pendingTimeout);
+          pendingTimeout = setTimeout(() => {
+            onMeasureNode(node.id, w, h);
+          }, 100);
         }
       }
     });
 
     observer.observe(element);
-    return () => observer.disconnect();
-  }, [node.id, onUpdateNode, node.measuredWidth, node.measuredHeight, isDragging, isResizing, zoom]);
+    return () => {
+      observer.disconnect();
+      if (pendingTimeout) clearTimeout(pendingTimeout);
+    };
+  }, [node.id, onMeasureNode, node.measuredWidth, node.measuredHeight, isDragging, isResizing, zoom]);
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -125,19 +159,42 @@ const MindMapNodeBase = ({
     onTextChange(node.id, target.value);
   };
 
+  // Tracks whether the current mouse gesture actually moved past the drag
+  // threshold. This is a ref (not state) so handleClick can read it
+  // synchronously — React 18 can flush the isDragging state reset from the
+  // native mouseup listener before the browser's trailing click event fires,
+  // which otherwise makes every drag end by collapsing the selection.
+  const didDragRef = useRef(false);
+  const DRAG_THRESHOLD = 3; // px, in screen space
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isEditing) return;
     e.stopPropagation();
     e.preventDefault();
 
-    onDragStart?.();
     dragStartRef.current = { x: e.clientX, y: e.clientY, nodeX: node.x, nodeY: node.y };
-    setIsDragging(true);
+    didDragRef.current = false;
+    let snapshotSaved = false;
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!dragStartRef.current) return;
-      const deltaX = (moveEvent.clientX - dragStartRef.current.x) / zoom;
-      const deltaY = (moveEvent.clientY - dragStartRef.current.y) / zoom;
+      const totalDeltaX = moveEvent.clientX - dragStartRef.current.x;
+      const totalDeltaY = moveEvent.clientY - dragStartRef.current.y;
+
+      // Don't count as a drag (and don't push undo history) until the
+      // pointer has actually moved — a plain click/select is not an edit.
+      if (!didDragRef.current) {
+        if (Math.hypot(totalDeltaX, totalDeltaY) < DRAG_THRESHOLD) return;
+        didDragRef.current = true;
+        setIsDragging(true);
+        if (!snapshotSaved) {
+          snapshotSaved = true;
+          onDragStart?.();
+        }
+      }
+
+      const deltaX = totalDeltaX / zoom;
+      const deltaY = totalDeltaY / zoom;
       onPositionChange(node.id, dragStartRef.current.nodeX + deltaX, dragStartRef.current.nodeY + deltaY);
     };
 
@@ -146,6 +203,9 @@ const MindMapNodeBase = ({
       setIsDragging(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      // Keep didDragRef true through the synchronous trailing click event;
+      // clear it on the next tick so the next plain click isn't suppressed.
+      setTimeout(() => { didDragRef.current = false; }, 0);
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -154,7 +214,7 @@ const MindMapNodeBase = ({
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!isDragging && !isResizing) onSelect(e, node.id);
+    if (!didDragRef.current && !isResizing) onSelect(e, node.id);
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent) => {
@@ -198,6 +258,8 @@ const MindMapNodeBase = ({
 
   const isRoot = node.parentId === null;
   const isCustomHex = node.color?.startsWith('#');
+  const isIrregularShape = IRREGULAR_SHAPES.includes(node.shape || '');
+  const shapePath = isIrregularShape ? IRREGULAR_SHAPE_PATHS[node.shape!] : '';
 
   // For custom hex colors, generate style object; for predefined names, use colorStyles
   const style = isRoot
@@ -206,14 +268,16 @@ const MindMapNodeBase = ({
       ? { bg: '', text: '', border: '' } // Custom colors use inline styles, not Tailwind classes
       : (colorStyles[node.color] || colorStyles.orange);
 
-  // Custom inline styles for hex colors
+  // Custom inline styles for hex colors. Cloud/hexagon/diamond shapes get their
+  // fill from the SVG path below, so skip the rectangular background/border here
+  // or it paints over the shape's silhouette.
   const customColorStyle = isCustomHex ? {
-    backgroundColor: node.color,
-    borderColor: node.color,
-    color: '#ffffff' // White text on custom backgrounds
+    ...(isIrregularShape ? {} : { backgroundColor: node.color, borderColor: node.color }),
+    color: getContrastTextColor(node.color!)
   } : undefined;
 
   const shapeStyles = getShapeStyles(node.shape, isRoot);
+  const effectiveShape = node.shape || (isRoot ? 'circle' : 'rounded');
 
   const isIconOnly = node.icon && node.iconStyle === 'plain';
 
@@ -241,17 +305,17 @@ const MindMapNodeBase = ({
       <div
         ref={nodeRef}
         className={cn(
-          'relative px-4 py-2 overflow-hidden transition-shadow',
+          'relative px-4 py-3 overflow-hidden transition-shadow',
           // Only apply standard node styles if NOT in icon-only mode
           !isIconOnly && [
-            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && 'border shadow-sm',
-            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && style.bg,
-            !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && style.border,
-            'hover:shadow-md',
+            !isIrregularShape && 'border shadow-sm',
+            !isIrregularShape && style.bg,
+            !isIrregularShape && style.border,
+            !isIrregularShape && 'hover:shadow-md',
             shapeStyles.className,
           ],
           style.text, // Text color for icon
-          (isSelected && !['cloud', 'hexagon', 'diamond'].includes(node.shape || '')) && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          (isSelected && !isIrregularShape) && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
           isHighlighted && 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-background z-10 shadow-[0_0_15px_rgba(250,204,21,0.5)]',
           node.nodeAnimation === 'ring' && 'animate-ring',
           node.nodeAnimation === 'blink' && 'animate-blink',
@@ -265,40 +329,43 @@ const MindMapNodeBase = ({
         }}
       >
         {/* Snake Animation Layer for Standard Shapes */}
-        {node.nodeAnimation === 'snake' && !['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && (
+        {node.nodeAnimation === 'snake' && !isIrregularShape && (
           <div className="absolute inset-0 z-0 pointer-events-none">
             <svg width="100%" height="100%" className="overflow-visible">
-              <rect
-                x="0"
-                y="0"
-                width="100%"
-                height="100%"
-                rx={node.shape === 'pill' ? '999px' : node.shape === 'circle' ? '50%' : '8px'}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="4"
-                strokeLinecap="round"
-                pathLength="100"
-                className="animate-snake-stroke"
-                style={{ strokeDasharray: '20 80' }}
-              />
+              {SNAKE_TRAIL.map(({ delay, opacity, width }, i) => (
+                <rect
+                  key={i}
+                  x="0"
+                  y="0"
+                  width="100%"
+                  height="100%"
+                  rx={effectiveShape === 'pill' ? '999px' : effectiveShape === 'circle' ? '50%' : '8px'}
+                  ry={effectiveShape === 'pill' ? '999px' : effectiveShape === 'circle' ? '50%' : '8px'}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={width}
+                  strokeLinecap="round"
+                  strokeOpacity={opacity}
+                  pathLength="100"
+                  className="animate-snake-stroke"
+                  style={{
+                    strokeDasharray: '14 86',
+                    animationDelay: `${delay}s`,
+                    filter: i === 0 ? 'drop-shadow(0 0 3px currentColor)' : undefined,
+                  }}
+                />
+              ))}
             </svg>
           </div>
         )}
 
         {/* Unified SVG Background for Irregular Shapes (Cloud, Hexagon, Diamond) */}
-        {['cloud', 'hexagon', 'diamond'].includes(node.shape || '') && (
+        {isIrregularShape && (
           <div className="absolute inset-[-4px] z-0 pointer-events-none drop-shadow-sm">
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
               {/* Main Shape Path */}
               <path
-                d={
-                  node.shape === 'cloud'
-                    ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
-                    : node.shape === 'hexagon'
-                      ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
-                      : "M50,5 L95,50 L50,95 L5,50 Z"
-                }
+                d={shapePath}
                 fill={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-bg))`}
                 stroke={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-border))`}
                 strokeWidth="2.5"
@@ -306,42 +373,43 @@ const MindMapNodeBase = ({
                 strokeLinejoin="round"
               />
               {/* Snake Animation Path (Irregular Shapes) */}
-              {node.nodeAnimation === 'snake' && (
+              {node.nodeAnimation === 'snake' && SNAKE_TRAIL.map(({ delay, opacity, width }, i) => (
                 <path
-                  d={
-                    node.shape === 'cloud'
-                      ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
-                      : node.shape === 'hexagon'
-                        ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
-                        : "M50,5 L95,50 L50,95 L5,50 Z"
-                  }
+                  key={i}
+                  d={shapePath}
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="5"
+                  strokeWidth={width + 1}
                   strokeLinecap="round"
+                  strokeOpacity={opacity}
+                  vectorEffect="non-scaling-stroke"
                   pathLength="100"
                   className="animate-snake-stroke"
-                  style={{ strokeDasharray: '20 80' }}
+                  style={{
+                    strokeDasharray: '14 86',
+                    animationDelay: `${delay}s`,
+                    filter: i === 0 ? 'drop-shadow(0 0 3px currentColor)' : undefined,
+                  }}
                 />
-              )}
-              {/* Selection Ring (Shape-matched) */}
-              {isSelected && (
-                <path
-                  d={
-                    node.shape === 'cloud'
-                      ? "M75,90 C85.4,90 95.8,80.7 95.8,69.2 C95.8,58.3 88.3,49.7 78.3,48.7 C76.7,33.1 64.6,21.1 49.8,21.1 C33.1,21.1 19.3,34.5 16.7,52.4 C9.2,55.3 3.6,62.9 3.6,71.6 C3.6,83.7 12.1,93.6 22.9,94.6 L75,90 Z"
-                      : node.shape === 'hexagon'
-                        ? "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z"
-                        : "M50,5 L95,50 L50,95 L5,50 Z"
-                  }
-                  fill="none"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth="4"
-                  vectorEffect="non-scaling-stroke"
-                  strokeLinejoin="round"
-                  className="opacity-40 animate-pulse"
-                />
-              )}
+              ))}
+            </svg>
+          </div>
+        )}
+
+        {/* Selection Ring (Shape-matched) — drawn in its own, larger-inset
+            layer so it reads as an offset halo (like the ring-offset-2 used
+            on regular shapes) instead of a border traced on the fill edge. */}
+        {isIrregularShape && isSelected && (
+          <div className="absolute inset-[-10px] z-0 pointer-events-none">
+            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
+              <path
+                d={shapePath}
+                fill="none"
+                stroke="hsl(var(--primary))"
+                strokeWidth="3"
+                vectorEffect="non-scaling-stroke"
+                strokeLinejoin="round"
+              />
             </svg>
           </div>
         )}
@@ -393,7 +461,7 @@ const MindMapNodeBase = ({
                 return (
                   <div className={cn(
                     "flex items-center justify-center transition-all",
-                    isBoxed ? "p-3 border-2 border-primary/20 bg-background/50 rounded-xl shadow-sm backdrop-blur-sm mb-1" : "",
+                    isBoxed ? "p-1 mb-1" : "",
                     !isPlain && "mb-1"
                   )}>
                     <IconComponent
@@ -469,6 +537,16 @@ const MindMapNodeBase = ({
         </div>
       </div>
 
+      {/* Notes Indicator Badge - shown whenever the node has notes attached */}
+      {node.notes?.trim() && (
+        <div
+          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-sm ring-2 ring-background pointer-events-none z-20"
+          title="This node has notes"
+        >
+          <FileText className="w-3 h-3" strokeWidth={2.5} />
+        </div>
+      )}
+
       {/* Node Toolbar */}
       {isSelected && !isEditing && !isDragging && (
         <NodeToolbar
@@ -488,6 +566,7 @@ const MindMapNodeBase = ({
             'bg-gray-400 hover:bg-gray-600 transition-colors',
             'shadow-sm'
           )}
+          onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onAddChild(node.id); }}
         >
           <Plus className="w-3 h-3" strokeWidth={3} />

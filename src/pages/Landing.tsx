@@ -1,13 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  ShieldCheck, 
-  ArrowRight, 
-  Download, 
-  Github, 
+import {
+  ShieldCheck,
+  ArrowRight,
+  Download,
+  Github,
   Youtube,
-  Play, 
+  Play,
   Plus,
   Minus,
   CheckCircle,
@@ -15,22 +15,19 @@ import {
   Map,
   Globe,
   Mail,
-  Cpu,
   Settings,
   FileUp,
-  TrendingUp,
-  MessageSquare,
-  Zap,
   X as XIcon,
   Check,
   FileText,
-  Brain,
-  Layers
+  Brain
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDocumentSEO } from "@/hooks/useDocumentSEO";
 import { SYSTEM_CONFIG } from "@/lib/core/core-system";
 import { InteractiveMindMap } from "@/components/shared/InteractiveMindMap";
+import { landingFaqs, homeSeo } from "@/data/seoContent";
+import { templates } from "@/data/templates";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -50,7 +47,7 @@ const itemVariants = {
     y: 0,
     transition: {
       duration: 0.5,
-      ease: "easeOut"
+      ease: "easeOut" as const
     }
   }
 };
@@ -64,59 +61,54 @@ const blogs = [
   }
 ];
 
-const faqs = [
-  {
-    q: "How does Neuron Mapping keep my thoughts organized?",
-    a: "Neuron Mapping provides a large, distraction-free canvas where you can build node hierarchies. You can color-code your branches, choose custom connection layouts (curved, straight, stepped), write extensive markdown-formatted notes, draw sketches directly on nodes, and attach icons from a library. All keyboard shortcuts are built to keep your hands on the keyboard and keep you in the flow."
-  },
-  {
-    q: "Where is my data stored? Does it upload to the cloud?",
-    a: "Your data is 100% secure and private. Neuron Mapping runs on a strict 'Local-First, Privacy-Absolute' architecture. All mind maps, templates, auto-saves, and custom settings are saved client-side on your local device (via IndexedDB). We have zero servers, zero telemetry trackers, and zero cloud uploads. Your data never leaves your computer."
-  },
-  {
-    q: "Can I export my mind maps to other formats?",
-    a: "Absolutely. You can export your maps as `.nmm` files (our native, local JSON structure) for backups or sharing. You can also export high-resolution PNG images or vector PDF files directly from the browser or desktop app to include in slides, papers, or printouts."
-  },
-  {
-    q: "Is Neuron Mapping really a free mind mapping tool?",
-    a: "Yes. Neuron Mapping is a 100% free, open-source mind mapping tool licensed under the GNU AGPLv3. There are no paywalls, no recurring monthly subscriptions, and no map size limitations. You can run it online, install the desktop app on Windows, macOS, or Linux, or host it on your own server."
-  },
-  {
-    q: "Can I do mind mapping online with complete privacy?",
-    a: "Absolutely. Neuron Mapping is designed as a local-first online mind mapping tool. All your mind maps, data, and configurations are stored securely inside your browser's IndexedDB. We have no tracking cookies, no server uploads, and no analytics - meaning your ideas remain completely private even while doing mind mapping online."
-  },
-  {
-    q: "How does this compare to other open source mind mapping tools?",
-    a: "Unlike standard open source mind mapping tools, Neuron Mapping features an interactive 3D Galaxy View that lets you visualize your node connections as WebGL-powered particle constellations. It also includes 20+ pre-built business and planning templates (SWOT, Porter's Five Forces, Market Research), offline capabilities, and a full distraction-free canvas with keyboard-first navigation."
-  },
-  {
-    q: "What templates are included in the picker?",
-    a: "Neuron Mapping includes 20+ pre-built, industry-standard templates: SWOT Analysis, Market Research, Porter's Five Forces, Purchase Requisition, Supplier Evaluation, Order Fulfilment, project planning roadmaps, brainstorming webs, and more."
-  }
-];
+const faqs = landingFaqs;
 
 export default function Landing() {
+  // Memoized so useDocumentSEO's effect (DOM queries, JSON.stringify, a
+  // Trusted Types policy lookup) only re-runs when the structured-data
+  // content actually changes, not on every render of this page — an inline
+  // array/object literal here would otherwise be a new reference every time.
+  const jsonLd = useMemo(() => [
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": faqs.map(faq => ({
+        "@type": "Question",
+        "name": faq.q,
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": faq.a
+        }
+      }))
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "RP Hobbyist",
+          "item": "https://rphobbyist.com"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Neuron Mapping",
+          "item": "https://neuron-mapping.rphobbyist.com/"
+        }
+      ]
+    }
+  ], []);
+
   useDocumentSEO({
-    title: "Free Mind Mapping Tool Online (No Signup) | Neuron Mapping",
-    description: "Free open-source mind mapping tool. 20+ templates, 3D Galaxy View, PDF export — 100% private, no signup needed. Works offline.",
+    title: homeSeo.title,
+    description: homeSeo.description,
     canonical: "/",
-    ogTitle: "Neuron Mapping — Free Mind Mapping Tool Online (No Signup)",
-    ogDescription: "Create unlimited mind maps with 20+ templates, 3D Galaxy View, and 100% local privacy. Free, open-source — no signup needed.",
+    ogTitle: homeSeo.ogTitle,
+    ogDescription: homeSeo.ogDescription,
     ogImage: "/readme-assets/promo-productivity.webp",
-    jsonLd: [
-      {
-        "@context": "https://schema.org",
-        "@type": "FAQPage",
-        "mainEntity": faqs.map(faq => ({
-          "@type": "Question",
-          "name": faq.q,
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": faq.a
-          }
-        }))
-      }
-    ]
+    jsonLd
   });
 
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
@@ -166,7 +158,7 @@ export default function Landing() {
 
           {/* Navigation Links */}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-bold text-slate-600">
-            <Link to="/templates" className="text-indigo-600 hover:text-indigo-700 transition-all flex items-center gap-1 font-bold">Templates (20+)</Link>
+            <Link to="/templates" className="text-indigo-600 hover:text-indigo-700 transition-all flex items-center gap-1 font-bold">Templates ({templates.length}+)</Link>
             <button onClick={() => handleScroll("features")} className="hover:text-slate-900 transition-all">Features</button>
             <button onClick={() => handleScroll("how-it-works")} className="hover:text-slate-900 transition-all">How It Works</button>
             <button onClick={() => handleScroll("tutorials")} className="hover:text-slate-900 transition-all">Tutorials</button>
@@ -335,7 +327,7 @@ export default function Landing() {
 
               {/* Feature 4 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">20+ Templates Ready-to-Use</h3>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">{templates.length}+ Templates Ready-to-Use</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
                   Start mapping instantly with SWOT frameworks, Porter's Five Forces, product backlog breakdowns, supplier audits, study notes, or blank sheets.
                 </p>
@@ -374,11 +366,13 @@ export default function Landing() {
               <div className="grid md:grid-cols-2 gap-8">
                 <div className="space-y-4">
                   <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white aspect-[4/3] relative group">
-                    <img 
-                      src="/readme-assets/mindmap-node-editor-canvas.webp" 
-                      alt="Neuron Mapping Mind Map Productivity View" 
+                    <img
+                      src="/readme-assets/mindmap-node-editor-canvas.webp"
+                      alt="Neuron Mapping Mind Map Productivity View"
                       width={800}
                       height={600}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -387,11 +381,13 @@ export default function Landing() {
                 </div>
                 <div className="space-y-4">
                   <div className="overflow-hidden rounded-2xl border border-slate-200 shadow-sm bg-white aspect-[4/3] relative group">
-                    <img 
-                      src="/readme-assets/advanced-node-styling-properties.webp" 
-                      alt="Neuron Mapping Advanced Node Styling options" 
+                    <img
+                      src="/readme-assets/advanced-node-styling-properties.webp"
+                      alt="Neuron Mapping Advanced Node Styling options"
                       width={800}
                       height={600}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -479,11 +475,13 @@ export default function Landing() {
               aria-label="Watch Neuron Mapping video walkthrough tutorial on YouTube"
               className="block relative group rounded-3xl overflow-hidden shadow-xl border border-slate-200 hover:shadow-2xl transition-all duration-300"
             >
-              <img 
-                src="https://img.youtube.com/vi/tZC3a-83HXI/maxresdefault.jpg" 
-                alt="Neuron Mapping Video Tutorial Walkthrough" 
+              <img
+                src="https://img.youtube.com/vi/tZC3a-83HXI/maxresdefault.jpg"
+                alt="Neuron Mapping Video Tutorial Walkthrough"
                 width={1280}
                 height={720}
+                loading="lazy"
+                decoding="async"
                 className="w-full aspect-video object-cover group-hover:scale-[1.01] transition-transform duration-500"
               />
               <div aria-hidden="true" className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors flex items-center justify-center">
@@ -518,7 +516,7 @@ export default function Landing() {
                 <tbody>
                   {[
                     ["Infinite Mind Map Grid", true, true, true],
-                    ["20+ Strategy Templates", false, "partial", true],
+                    [`${templates.length}+ Strategy Templates`, false, "partial", true],
                     ["3D Galaxy view", false, false, true],
                     ["100% Offline Capability", "partial", false, true],
                     ["Keyboard Shortcut Driven", "partial", true, true],
@@ -589,9 +587,11 @@ export default function Landing() {
                     whileHover={{ y: -5 }}
                   >
                     <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
-                      <img 
-                        src={blog.image} 
-                        alt={blog.title} 
+                      <img
+                        src={blog.image}
+                        alt={blog.title}
+                        loading="lazy"
+                        decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
                           // Fallback placeholder if image link is block-injected

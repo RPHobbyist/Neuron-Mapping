@@ -1,6 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { z } from 'zod';
-import { sanitizeUrl } from '@/utils/common';
+import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
 import { sanitizeText } from './parserUtils';
 
 // Re-use NodeSchema from exportUtils for consistency
@@ -23,12 +23,13 @@ const NodeSchema = z.object({
     lineTension: z.number().optional(),
     lineAnimationDirection: z.string().optional(),
     lineAnimationType: z.string().optional(),
+    lineArrowDirection: z.string().optional(),
     relations: z.array(z.unknown()).optional(),
     width: z.number().optional(),
     height: z.number().optional(),
     measuredWidth: z.number().optional(),
     measuredHeight: z.number().optional(),
-    image: z.string().optional().transform(v => sanitizeUrl(v)),
+    image: z.string().optional().transform(v => sanitizeImageUrl(v)),
     icon: z.string().optional(),
     iconStyle: z.string().optional(),
     link: z.string().optional().transform(v => sanitizeUrl(v)),

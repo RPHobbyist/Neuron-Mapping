@@ -1,13 +1,10 @@
-import { useState, useEffect, memo } from "react";
+import { useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Brain, 
-  Lightbulb, 
-  Target, 
-  Cpu, 
-  Share2, 
-  TrendingUp, 
-  Monitor, 
+import {
+  Brain,
+  Lightbulb,
+  Target,
+  TrendingUp,
   Layers
 } from "lucide-react";
 
@@ -23,28 +20,17 @@ interface NodeData {
   desc: string;
 }
 
+// Cosmetic — this demo doesn't render a real scene to measure, so a static
+// number is exactly as honest as a jittering fake one, without the cost: the
+// previous 1s setInterval defeated this component's own memo() and
+// re-rendered the whole demo (four infinite framer-motion loops included)
+// once a second, indefinitely, even scrolled off-screen.
+const DISPLAY_FPS = 60;
+
 export const InteractiveMindMap = memo(() => {
   const [hoveredNode, setHoveredNode] = useState<string | null>(null);
-  const [fps, setFps] = useState(60);
-  const [nodeCount, setNodeCount] = useState(5);
-  const [selectedStyle, setSelectedStyle] = useState<"curved" | "straight" | "stepped">("curved");
-  const [viewMode, setViewMode] = useState<"2D" | "3D">("2D");
-
-  // FPS simulation
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFps(Math.floor(58 + Math.random() * 3));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const centerNode = {
-    x: 50,
-    y: 50,
-    label: "Neuron Mapping",
-    icon: Brain,
-    desc: "Infinite local workspace"
-  };
+  const [nodeCount] = useState(5);
+  const [selectedStyle, setSelectedStyle] = useState<"curved" | "straight" | "step">("curved");
 
   const branchNodes: NodeData[] = [
     {
@@ -98,7 +84,7 @@ export const InteractiveMindMap = memo(() => {
     if (selectedStyle === "straight") {
       return `M ${startX} ${startY} L ${endX} ${endY}`;
     }
-    if (selectedStyle === "stepped") {
+    if (selectedStyle === "step") {
       const midX = startX + (endX - startX) / 2;
       return `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
     }
@@ -149,8 +135,8 @@ export const InteractiveMindMap = memo(() => {
                     strokeOpacity={isHovered ? 0.6 : 0.3}
                     fill="none"
                     strokeLinecap="round"
-                    animate={{ strokeWidth: isHovered ? [1.5, 2.2, 1.5] : 0.8 }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    animate={isHovered ? { strokeWidth: [1.5, 2.2, 1.5] } : undefined}
+                    transition={isHovered ? { repeat: Infinity, duration: 1.5 } : undefined}
                   />
                   {/* Flow Animation dashes */}
                   <path
@@ -238,7 +224,7 @@ export const InteractiveMindMap = memo(() => {
               
               {/* Configuration controls */}
               <div className="flex gap-1.5 bg-white p-1 rounded-xl border border-slate-200/60 shadow-inner">
-                {(["curved", "straight", "stepped"] as const).map((style) => (
+                {(["curved", "straight", "step"] as const).map((style) => (
                   <button
                     key={style}
                     onClick={() => setSelectedStyle(style)}
@@ -261,7 +247,7 @@ export const InteractiveMindMap = memo(() => {
               <div className="col-span-6 grid grid-cols-2 gap-3">
                 <div className="bg-white border border-slate-200/60 p-2.5 rounded-2xl flex flex-col shadow-sm">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide">FPS</span>
-                  <span className="text-sm font-black text-slate-800 tabular-nums">{fps}</span>
+                  <span className="text-sm font-black text-slate-800 tabular-nums">{DISPLAY_FPS}</span>
                 </div>
                 <div className="bg-white border border-slate-200/60 p-2.5 rounded-2xl flex flex-col shadow-sm">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide">Nodes</span>

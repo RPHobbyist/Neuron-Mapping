@@ -1,12 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, Map, Plus, FolderOpen, Upload, Send, Brain, Package, Briefcase, BarChart3, ShoppingCart, Target, Rocket, Lightbulb, ClipboardList, Users, Scale, Route, GitBranch, RefreshCw, MessageSquare, FileText, Grid2X2, AlertTriangle, Truck, Layers, LucideIcon } from 'lucide-react';
-import { Template } from '@/types/templates';
-import { SavedMindMap, MindMapNode, ConnectionStyle } from '@/types/mindmap';
-import { templates } from '@/data/templates';
-import { SavedMapCard } from './SavedMapCard';
-import { FileUpload } from '../mindmap/FileUpload';
-import { loadFromFile, NeuronMindMapFile } from '@/utils/exportUtils';
+import { Search, Map, Plus, FolderOpen, Upload, Trash2, Bookmark } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { Footer } from '@/components/layout/Footer';
 import {
   Dialog,
   DialogContent,
@@ -16,46 +12,25 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { WhatsNewDialog } from '../mindmap/WhatsNewDialog';
-
-import { Footer } from '@/components/layout/Footer';
+import { templates, categories } from '@/data/templates';
 import { MAX_FILE_SIZE } from '@/lib/constants';
+import { Template } from '@/types/templates';
+import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
+import { getCustomTemplates, deleteCustomTemplate } from '@/utils/customTemplates';
+import { loadFromFile, NeuronMindMapFile } from '@/utils/exportUtils';
+
+import { SavedMapCard } from './SavedMapCard';
+import { DynamicTemplatePreview } from './DynamicTemplatePreview';
+import { FileUpload } from '../mindmap/FileUpload';
+import { WhatsNewDialog } from '../mindmap/WhatsNewDialog';
 import { NeuronLogo } from '../common/NeuronLogo';
-
-// Icon mapping for templates
-const templateIcons: Record<string, LucideIcon> = {
-  'blank-mindmap': Brain,
-  'order-fulfillment': Package,
-  'business-analyst': Briefcase,
-  'market-research': BarChart3,
-  'purchase-requisition': ShoppingCart,
-  'swot-analysis': Target,
-  'product-launch-checklist': ClipboardList,
-  'product-launch-radial': Rocket,
-  'product-development': Lightbulb,
-  'project-management': ClipboardList,
-  'employee-onboarding': Users,
-  'legal-case': Scale,
-  'customer-journey': Route,
-  'venn-diagram': GitBranch,
-  'cycle-diagram': RefreshCw,
-  'six-thinking-hats': MessageSquare,
-  'argument-map': FileText,
-  'eisenhower-box': Grid2X2,
-  'cause-effect': AlertTriangle,
-  'supplier-evaluation': Truck,
-  'porters-five-forces': Target,
-  'layer-stacking': Layers,
-};
-
-
 
 interface TemplatePickerProps {
   onSelectTemplate: (template: Template) => void;
   savedMaps?: SavedMindMap[];
   onSelectSavedMap?: (map: SavedMindMap) => void;
   onDeleteSavedMap?: (id: string) => void;
-  onLoadFromFile?: (nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle) => void;
+  onLoadFromFile?: (nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: Drawing[]) => void;
 }
 
 export const TemplatePicker = ({
@@ -66,8 +41,10 @@ export const TemplatePicker = ({
   onLoadFromFile,
 }: TemplatePickerProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showImportModal, setShowImportModal] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [customTemplates, setCustomTemplates] = useState<Template[]>(() => getCustomTemplates());
 
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,10 +62,29 @@ export const TemplatePicker = ({
     }
   }, []);
 
+  const matchesQuery = (t: Template, q: string) =>
+    t.name.toLowerCase().includes(q) ||
+    t.description.toLowerCase().includes(q) ||
+    (t.tags?.some(tag => tag.toLowerCase().includes(q)) ?? false);
+
   const filtered = useMemo(() => {
-    if (!searchQuery) return templates;
-    return templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
-  }, [searchQuery]);
+    const q = searchQuery.toLowerCase();
+    return templates.filter(t => {
+      if (selectedCategory !== 'all' && t.category !== selectedCategory) return false;
+      return !q || matchesQuery(t, q);
+    });
+  }, [searchQuery, selectedCategory]);
+
+  const filteredCustom = useMemo(() => {
+    const q = searchQuery.toLowerCase();
+    return customTemplates.filter(t => !q || matchesQuery(t, q));
+  }, [customTemplates, searchQuery]);
+
+  const handleDeleteCustomTemplate = (id: string) => {
+    deleteCustomTemplate(id);
+    setCustomTemplates(prev => prev.filter(t => t.id !== id));
+    toast.success('Template deleted');
+  };
 
   const handleCreateBlank = () => {
     const blank = templates.find(t => t.id === 'blank-mindmap');
@@ -106,7 +102,7 @@ export const TemplatePicker = ({
 
     try {
       const data: NeuronMindMapFile = await loadFromFile(file);
-      onLoadFromFile?.(data.nodes, data.name, data.connectionStyle);
+      onLoadFromFile?.(data.nodes, data.name, data.connectionStyle, data.drawings);
       toast.success(`Loaded "${data.name}"`);
     } catch (error) {
       toast.error('Failed to load file. Please select a valid .nmm file.');
@@ -180,8 +176,8 @@ export const TemplatePicker = ({
       {/* Import Modal */}
       {showImportModal && (
         <FileUpload
-          onDataParsed={(nodes) => {
-            onLoadFromFile?.(nodes, 'Imported Map', 'curved');
+          onDataParsed={(nodes, meta) => {
+            onLoadFromFile?.(nodes, 'Imported Map', meta?.connectionStyle || 'curved', meta?.drawings);
             setShowImportModal(false);
           }}
           onClose={() => setShowImportModal(false)}
@@ -210,9 +206,46 @@ export const TemplatePicker = ({
             </section>
           )}
 
+          {/* My Templates Section */}
+          {filteredCustom.length > 0 && (
+            <section className="mb-12">
+              <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
+                <Bookmark className="w-5 h-5 text-gray-500" /> My Templates
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredCustom.map(template => (
+                  <div key={template.id} className="group relative">
+                    <button
+                      onClick={() => onSelectTemplate(template)}
+                      className="w-full text-left bg-white rounded-xl border p-4 hover:border-blue-500 hover:shadow-md transition-all"
+                    >
+                      <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mb-4 border border-gray-100 overflow-hidden">
+                        <DynamicTemplatePreview nodes={template.nodes} />
+                      </div>
+                      <h3 className="font-semibold text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
+                        {template.name}
+                      </h3>
+                      <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCustomTemplate(template.id);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded-lg bg-white/90 border text-gray-400 hover:text-red-600 hover:border-red-200 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Delete template"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+
           {/* Templates Section */}
           <section>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-gray-900">Start from a template</h2>
               <div className="relative">
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -228,26 +261,48 @@ export const TemplatePicker = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-8">
-              {filtered.map(template => (
+            {/* Category Filter */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-6">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedCategory === 'all' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-100'}`}
+              >
+                All ({templates.length})
+              </button>
+              {categories.map(cat => (
                 <button
-                  key={template.id}
-                  onClick={() => onSelectTemplate(template)}
-                  className="group text-left bg-white rounded-xl border p-4 hover:border-blue-500 hover:shadow-md transition-all"
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-colors ${selectedCategory === cat.id ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 border hover:bg-gray-100'}`}
                 >
-                  <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mb-4 flex flex-col items-center justify-center border border-gray-100 gap-3">
-                    {(() => {
-                      const IconComponent = templateIcons[template.id] || Brain;
-                      return <IconComponent className="w-12 h-12 text-gray-400 group-hover:text-blue-500 transition-colors" />;
-                    })()}
-                    <h3 className="font-semibold text-sm text-gray-700 group-hover:text-blue-600 transition-colors text-center px-2">
-                      {template.name}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                  {cat.name}
                 </button>
               ))}
             </div>
+
+            {filtered.length === 0 ? (
+              <div className="text-center py-16 bg-white rounded-xl border">
+                <p className="text-sm text-gray-500">No templates found. Try a different search or category.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pb-8">
+                {filtered.map(template => (
+                  <button
+                    key={template.id}
+                    onClick={() => onSelectTemplate(template)}
+                    className="group text-left bg-white rounded-xl border p-4 hover:border-blue-500 hover:shadow-md transition-all"
+                  >
+                    <div className="aspect-[4/3] bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg mb-4 border border-gray-100 overflow-hidden">
+                      <DynamicTemplatePreview nodes={template.nodes} />
+                    </div>
+                    <h3 className="font-semibold text-sm text-gray-700 group-hover:text-blue-600 transition-colors">
+                      {template.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">{template.description}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       </main>

@@ -12,6 +12,43 @@ export const generateId = (): string => {
     return `${Date.now().toString(36)}-${Math.random().toString(36).substr(2, 9)}`;
 };
 
+// data:image/<type>;base64,<payload> — restricted to raster formats FileReader.readAsDataURL()
+// produces from an <input accept="image/*"> upload. svg+xml is intentionally excluded.
+const DATA_IMAGE_URI_RE = /^data:image\/(png|jpe?g|gif|webp|bmp|x-icon);base64,[A-Za-z0-9+/]+=*$/;
+
+/**
+ * Given a hex background color, returns '#000000' or '#ffffff' — whichever
+ * gives better text contrast — using the WCAG relative luminance formula.
+ */
+export const getContrastTextColor = (hexColor: string): string => {
+    const hex = hexColor.replace('#', '');
+    const normalized = hex.length === 3
+        ? hex.split('').map((c) => c + c).join('')
+        : hex;
+    if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return '#ffffff';
+
+    const r = parseInt(normalized.slice(0, 2), 16);
+    const g = parseInt(normalized.slice(2, 4), 16);
+    const b = parseInt(normalized.slice(4, 6), 16);
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+
+    return luminance > 0.6 ? '#000000' : '#ffffff';
+};
+
+/**
+ * Sanitize an uploaded node image. Accepts base64 data: image URIs (the format
+ * FileReader produces) in addition to whatever sanitizeUrl already allows, since
+ * sanitizeUrl's http/https/mailto/tel allow-list otherwise strips every uploaded image.
+ */
+export const sanitizeImageUrl = (url: string | undefined): string | undefined => {
+    if (!url) return undefined;
+    const trimmed = url.trim();
+    if (DATA_IMAGE_URI_RE.test(trimmed)) {
+        return trimmed;
+    }
+    return sanitizeUrl(trimmed);
+};
+
 /**
  * Sanitize a URL to prevent javascript: and other dangerous protocols.
  * Also ensures it's a valid URL or a relative path.

@@ -1,15 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Template } from '@/types/templates';
-import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
+import { toast } from 'sonner';
+
 import { TemplatePicker } from '@/components/templates/TemplatePicker';
 import { MindMapCanvas } from '@/components/mindmap/MindMapCanvas';
-import { templateConfigs, templates } from '@/data/templates';
+import { templates } from '@/data/templates';
 import { useSavedMaps } from '@/hooks/useSavedMaps';
 import { clearAutoSave } from '@/hooks/useAutoSave';
-import { toast } from 'sonner';
 import { useDocumentSEO } from '@/hooks/useDocumentSEO';
+import { Template } from '@/types/templates';
+import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 
 interface ActiveMap {
   nodes: MindMapNode[];
@@ -21,7 +22,7 @@ interface ActiveMap {
 }
 
 const Index = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const templateQuery = searchParams.get('template');
 
   useDocumentSEO({
@@ -40,23 +41,31 @@ const Index = () => {
       const targetTemplate = templates.find((t) => t.id === templateQuery);
       if (targetTemplate) {
         clearAutoSave();
-        const config = templateConfigs[targetTemplate.id];
         setActiveMap({
           nodes: targetTemplate.nodes || [],
-          connectionStyle: config?.connectionStyle || 'curved',
+          connectionStyle: targetTemplate.connectionStyle || 'curved',
           templateId: targetTemplate.id,
         });
       }
+      // Consume the param either way so it doesn't linger in the URL — left
+      // in place, refreshing the page after switching to a different (or
+      // blank) map would re-trigger this effect, wipe the autosaved work
+      // via clearAutoSave(), and force-reload this template again.
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('template');
+        return next;
+      }, { replace: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateQuery]);
 
   const handleSelectTemplate = useCallback((template: Template) => {
     // Clear auto-save so the new template isn't overwritten by old data
     clearAutoSave();
-    const config = templateConfigs[template.id];
     setActiveMap({
       nodes: template.nodes || [],
-      connectionStyle: config?.connectionStyle || 'curved',
+      connectionStyle: template.connectionStyle || 'curved',
       templateId: template.id,
     });
   }, []);
@@ -74,9 +83,14 @@ const Index = () => {
     });
   }, []);
 
-  const handleDeleteSavedMap = useCallback((id: string) => {
-    deleteMap(id);
-    toast.success('Mind map deleted');
+  const handleDeleteSavedMap = useCallback(async (id: string) => {
+    try {
+      await deleteMap(id);
+      toast.success('Mind map deleted');
+    } catch (e) {
+      console.error('Failed to delete map:', e);
+      toast.error('Failed to delete mind map');
+    }
   }, [deleteMap]);
 
   const handleBackToTemplates = useCallback(() => {
@@ -97,10 +111,12 @@ const Index = () => {
     setActiveMap(prev => prev ? { ...prev, name } : null);
   }, []);
 
-  const handleSave = useCallback((name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => {
+  const handleSave = useCallback(async (name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => {
     if (!activeMap) return;
 
-    const saved = saveMap(
+    // Let a storage failure here propagate — MindMapCanvas's handleSave
+    // awaits this and only shows "Saved!" once it actually resolves.
+    const saved = await saveMap(
       name,
       nodes,
       connectionStyle,

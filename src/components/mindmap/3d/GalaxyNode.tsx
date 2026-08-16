@@ -36,6 +36,7 @@ interface GalaxyNodeProps {
     onClick?: (e: ThreeEvent<MouseEvent>) => void;
     onDoubleClick?: (e: ThreeEvent<MouseEvent>) => void;
     onMove?: (id: string, x: number, y: number) => void;
+    onDragStart?: () => void;
 }
 
 export const GalaxyNode = ({
@@ -44,19 +45,19 @@ export const GalaxyNode = ({
     isSelected,
     onClick,
     onDoubleClick,
-    onMove
+    onMove,
+    onDragStart
 }: GalaxyNodeProps) => {
     const groupRef = useRef<THREE.Group>(null);
     const [hovered, setHovered] = useState(false);
     const [active, setActive] = useState(false);
 
     // Drag Logic
-    const { camera, raycaster } = useThree();
+    const { camera, raycaster, controls } = useThree();
     const isDragging = useRef(false);
     const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
     const planeIntersect = new THREE.Vector3();
 
-    // Get color styles for this node
     const nodeColor = node.color || 'orange';
     const isRoot = node.parentId === null;
 
@@ -66,15 +67,19 @@ export const GalaxyNode = ({
         ? { bg: nodeColor + '40', text: '#ffffff', border: nodeColor } // Use hex with 25% opacity for bg
         : (colorToHex[nodeColor] || colorToHex.orange);
 
+    const hasSavedSnapshot = useRef(false);
+
     const handlePointerDown = (e: ThreeEvent<PointerEvent>) => {
         e.stopPropagation();
         isDragging.current = true;
-        // Cast to unknown then HTMLElement to satisfy TS if the target is indeed capturing events like a DOM element
-        // In R3F, sometimes people do this for canvas capture. 
-        // Properly, we should capture on the gl.domElement, but let's keep the user's logic structure but typed.
+        hasSavedSnapshot.current = false;
         (e.target as unknown as HTMLElement).setPointerCapture(e.pointerId);
         setActive(true);
-        // Cast e to ThreeEvent<MouseEvent> for the callback as they likely expect similar structure
+        // Disable orbit controls for the duration of the drag — otherwise
+        // dragging a node also orbits the camera at the same time, and since
+        // the drag re-projects through the camera on every frame, the node
+        // ends up chasing a target that's itself sliding underneath it.
+        if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
         onClick?.(e as unknown as ThreeEvent<MouseEvent>);
     };
 
@@ -82,30 +87,54 @@ export const GalaxyNode = ({
         isDragging.current = false;
         (e.target as unknown as HTMLElement).releasePointerCapture(e.pointerId);
         setActive(false);
+        if (controls) (controls as unknown as { enabled: boolean }).enabled = true;
     };
 
     const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
         if (isDragging.current && onMove) {
+            // Save the undo snapshot on the first real movement of this drag
+            // gesture, not on pointerdown — otherwise a plain click-to-select
+            // (no movement) would push a snapshot too, same as the 2D node's
+            // equivalent bug. Unlike the 2D drag path, nothing here called
+            // saveSnapshot at all before, so 3D moves were neither undoable
+            // nor redoable.
+            if (!hasSavedSnapshot.current) {
+                hasSavedSnapshot.current = true;
+                onDragStart?.();
+            }
             raycaster.setFromCamera(e.pointer, camera);
-            raycaster.ray.intersectPlane(plane, planeIntersect);
+            const hit = raycaster.ray.intersectPlane(plane, planeIntersect);
+            // intersectPlane returns null when the ray is parallel to (or
+            // pointing away from) the plane — reachable simply by orbiting
+            // the camera during a drag. Previously the stale planeIntersect
+            // from a prior frame (or its initial (0,0,0)) was used anyway,
+            // which could snap the node to the origin, and at near-grazing
+            // angles the intersection point itself can be enormous.
+            if (!hit) return;
             const newX = planeIntersect.x * SCALE_FACTOR;
             const newY = -planeIntersect.y * SCALE_FACTOR;
+            const MAX_COORD = 1_000_000;
+            if (!Number.isFinite(newX) || !Number.isFinite(newY) || Math.abs(newX) > MAX_COORD || Math.abs(newY) > MAX_COORD) {
+                return;
+            }
             onMove(node.id, newX, newY);
         }
     };
 
-    // Fix: Double Click logic
     const handleDoubleClick = (e: ThreeEvent<MouseEvent>) => {
         e.stopPropagation();
         onDoubleClick?.(e);
     };
 
-    // Rotating ring ref
     const ringRef = useRef<THREE.Mesh>(null);
 
     useFrame((state, delta) => {
         if (groupRef.current) {
-            groupRef.current.position.lerp(targetPosition, 0.1);
+            // 0.1 was tuned as a per-frame factor at 60fps; converting it to
+            // a decay rate keeps the settle speed tied to wall-clock time
+            // instead of the actual frame rate (delta).
+            const t = 1 - Math.pow(0.9, delta * 60);
+            groupRef.current.position.lerp(targetPosition, t);
         }
         if (ringRef.current) {
             ringRef.current.rotation.z += delta * 0.5;

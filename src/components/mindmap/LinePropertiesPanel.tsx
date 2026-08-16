@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useLayoutEffect } from 'react';
 import { ConnectionStyle, LineThickness, NodeColor, NodeShape, NodePriority, NodeAnimation } from '@/types/mindmap';
-import { Spline, Minus, Equal, Bold, Palette, Type, Zap, GripHorizontal, ArrowRight, ArrowLeft, Activity, Shapes, AlertCircle, Trash2 } from 'lucide-react';
+import { Spline, Minus, Equal, Bold, Palette, Type, Zap, GripHorizontal, ArrowRight, ArrowLeft, ArrowLeftRight, MoveHorizontal, Activity, Shapes, AlertCircle, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface LineSettings {
@@ -13,6 +13,7 @@ export interface LineSettings {
     tension?: number;
     animationDirection?: 'forward' | 'reverse';
     animationType?: 'dash' | 'arrow' | 'cross';
+    arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
 }
 
 export interface NodeSettings {
@@ -28,6 +29,9 @@ export interface NodeSettings {
 interface PropertiesPanelProps {
     mode: 'line' | 'node';
     position?: { x: number; y: number };
+    // On-screen width (px) of the node the panel is anchored to. When set,
+    // the panel opens beside the node instead of centered on top of it.
+    anchorWidth?: number;
 
     // Line Props
     lineValues?: LineSettings;
@@ -49,6 +53,13 @@ const lineTypes: { value: ConnectionStyle; label: string }[] = [
     { value: 'dashed', label: 'Dashed' },
     { value: 'dotted', label: 'Dotted' },
     { value: 'arrow', label: 'Arrow' },
+];
+
+const arrowheadOptions: { value: NonNullable<LineSettings['arrowDirection']>; label: string; icon: React.ReactNode }[] = [
+    { value: 'none', label: 'None', icon: <MoveHorizontal className="w-3.5 h-3.5" /> },
+    { value: 'forward', label: 'End', icon: <ArrowRight className="w-3.5 h-3.5" /> },
+    { value: 'reverse', label: 'Start', icon: <ArrowLeft className="w-3.5 h-3.5" /> },
+    { value: 'both', label: 'Both', icon: <ArrowLeftRight className="w-3.5 h-3.5" /> },
 ];
 
 const thicknessOptions: { value: LineThickness; label: string; icon: React.ReactNode }[] = [
@@ -97,42 +108,76 @@ export const PropertiesPanel = ({
     onDelete,
     onClose,
     is3DMode = false,
-    position // Destructure position
+    position, // Destructure position
+    anchorWidth
 }: PropertiesPanelProps) => {
     const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const dragRef = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+    const [panelSize, setPanelSize] = useState({ width: 300, height: 0 });
+    const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-    const handleMouseDown = (e: React.MouseEvent) => {
+    // Re-clamp on resize: left/top below are recomputed every render, but
+    // nothing re-renders this component on its own when only the window
+    // resizes, so without this the panel can end up stranded past the new
+    // (smaller) viewport edge until some unrelated prop change happens to
+    // trigger a re-render.
+    useLayoutEffect(() => {
+        const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+        window.addEventListener('resize', onResize);
+        return () => window.removeEventListener('resize', onResize);
+    }, []);
+
+    // Pointer capture (instead of document-level mousemove/mouseup listeners)
+    // means the header element itself keeps receiving move/up events for the
+    // duration of the drag, even if the cursor leaves the window — so there's
+    // nothing to leak. The previous document-listener version had no cleanup
+    // path at all: releasing outside the window, or deleting the node
+    // mid-drag (unmounting this panel), left a dangling `mousemove` listener
+    // on `document` forever.
+    const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         e.preventDefault();
-        setIsDragging(true);
+        e.currentTarget.setPointerCapture(e.pointerId);
         dragRef.current = {
             startX: e.clientX,
             startY: e.clientY,
             startPosX: dragPosition.x,
             startPosY: dragPosition.y,
         };
-
-        const handleMouseMove = (moveEvent: MouseEvent) => {
-            if (!dragRef.current) return;
-            const deltaX = moveEvent.clientX - dragRef.current.startX;
-            const deltaY = moveEvent.clientY - dragRef.current.startY;
-            setDragPosition({
-                x: dragRef.current.startPosX + deltaX,
-                y: dragRef.current.startPosY + deltaY,
-            });
-        };
-
-        const handleMouseUp = () => {
-            setIsDragging(false);
-            dragRef.current = null;
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-        };
-
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
+        setIsDragging(true);
     };
+
+    const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        if (!dragRef.current) return;
+        const deltaX = e.clientX - dragRef.current.startX;
+        const deltaY = e.clientY - dragRef.current.startY;
+        setDragPosition({
+            x: dragRef.current.startPosX + deltaX,
+            y: dragRef.current.startPosY + deltaY,
+        });
+    };
+
+    const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+        dragRef.current = null;
+        setIsDragging(false);
+        if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+        }
+    };
+
+    // Measure the panel's real size so its anchored position can be clamped
+    // to the viewport — its content height varies (e.g. the animation
+    // sub-options), so a fixed guess isn't reliable.
+    useLayoutEffect(() => {
+        const el = panelRef.current;
+        if (!el) return;
+        const update = () => setPanelSize({ width: el.offsetWidth, height: el.offsetHeight });
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [mode]);
 
     const renderLineContent = () => {
         if (!lineValues || !onLineUpdate) return null;
@@ -155,6 +200,31 @@ export const PropertiesPanel = ({
                                 )}
                             >
                                 {type.label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Arrowheads */}
+                <div>
+                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
+                        <ArrowLeftRight className="w-3 h-3" /> Arrowheads
+                    </label>
+                    <div className="grid grid-cols-4 gap-1">
+                        {arrowheadOptions.map((opt) => (
+                            <button
+                                key={opt.value}
+                                onClick={() => onLineUpdate({ arrowDirection: opt.value })}
+                                title={opt.label}
+                                className={cn(
+                                    "px-2 py-1.5 text-[10px] rounded flex flex-col items-center justify-center gap-0.5 transition-all border",
+                                    (lineValues.arrowDirection || 'none') === opt.value
+                                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                )}
+                            >
+                                {opt.icon}
+                                {opt.label}
                             </button>
                         ))}
                     </div>
@@ -520,21 +590,59 @@ export const PropertiesPanel = ({
         );
     };
 
+    // Anchored (position provided): compute left/top directly and clamp to
+    // the viewport, using the panel's own measured size — no transform shift
+    // on top, since that was being applied on top of an already shifted
+    // `left`, pushing the panel (including its own close button) fully
+    // off-screen for anchors near the left/top edge.
+    const MARGIN = 12;
+    const SIDE_GAP = 28;
+    let left: number | undefined;
+    let top: number | undefined;
+    if (position) {
+        const maxLeft = Math.max(MARGIN, viewport.width - panelSize.width - MARGIN);
+        const maxTop = Math.max(MARGIN, viewport.height - panelSize.height - MARGIN);
+
+        let rawLeft: number;
+        let rawTop: number;
+        if (anchorWidth !== undefined) {
+            // Open beside the anchored node instead of centered on top of
+            // it, so the node stays visible without the user having to drag
+            // the panel away. Prefer the right side; fall back to the left
+            // side when there isn't room to the right.
+            const rightLeft = position.x + anchorWidth / 2 + SIDE_GAP;
+            rawLeft = rightLeft + panelSize.width + MARGIN <= viewport.width
+                ? rightLeft
+                : position.x - anchorWidth / 2 - SIDE_GAP - panelSize.width;
+            rawTop = position.y - panelSize.height / 2;
+        } else {
+            rawLeft = position.x - panelSize.width / 2;
+            rawTop = position.y - 100;
+        }
+
+        left = Math.min(Math.max(rawLeft + dragPosition.x, MARGIN), maxLeft);
+        top = Math.min(Math.max(rawTop + dragPosition.y, MARGIN), maxTop);
+    }
+
     return (
         <div
+            ref={panelRef}
             className="fixed bg-white/95 backdrop-blur-sm rounded-xl shadow-xl border p-3 z-50 w-[300px]"
             style={{
-                left: position ? `${position.x - 170 + dragPosition.x}px` : `calc(50% + ${dragPosition.x}px)`,
-                top: position ? `${position.y - 100 + dragPosition.y}px` : undefined,
+                left: position ? `${left}px` : `calc(50% + ${dragPosition.x}px)`,
+                top: position ? `${top}px` : undefined,
                 bottom: position ? undefined : `calc(1rem - ${dragPosition.y}px)`,
-                transform: position ? 'translateX(-100%)' : 'translateX(-50%)',
+                transform: position ? undefined : 'translateX(-50%)',
                 cursor: isDragging ? 'grabbing' : 'default',
             }}
         >
             {/* Draggable header */}
             <div
                 className="flex items-center justify-between mb-3 cursor-grab active:cursor-grabbing select-none border-b pb-2"
-                onMouseDown={handleMouseDown}
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
             >
                 <h3 className="font-semibold text-xs flex items-center gap-2 uppercase tracking-wide text-foreground/80">
                     <GripHorizontal className="w-3.5 h-3.5 text-muted-foreground" />
@@ -543,6 +651,7 @@ export const PropertiesPanel = ({
                 <button
                     onClick={onClose}
                     className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-full w-5 h-5 flex items-center justify-center transition-all hover:rotate-90 duration-300"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onMouseDown={(e) => e.stopPropagation()}
                 >
                     ×

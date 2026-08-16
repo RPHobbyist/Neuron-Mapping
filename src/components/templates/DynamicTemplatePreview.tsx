@@ -17,12 +17,10 @@ const colorThemes: Record<string, { from: string; to: string; border: string; te
     yellow: { from: '#fefce8', to: '#fef3c7', border: '#eab308', text: '#a16207', shadow: 'rgba(234, 179, 8, 0.15)' },
     cyan: { from: '#ecfeff', to: '#cffafe', border: '#06b6d4', text: '#0e7490', shadow: 'rgba(6, 182, 212, 0.15)' },
     grey: { from: '#f9fafb', to: '#f3f4f6', border: '#6b7280', text: '#374151', shadow: 'rgba(107, 114, 128, 0.15)' },
-    // Root node theme
     root: { from: '#1f2937', to: '#111827', border: '#374151', text: '#ffffff', shadow: 'rgba(0, 0, 0, 0.2)' },
 };
 
 export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTemplatePreviewProps) => {
-    // Memoize the calculation of bounds and layout
     const layout = useMemo(() => {
         if (!nodes || nodes.length === 0) return null;
 
@@ -36,17 +34,14 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
         const rangeX = maxX - minX || 1;
         const rangeY = maxY - minY || 1;
 
-        // SVG dimensions
-        const width = 320; // Increased resolution
+        const width = 320;
         const height = 240;
-        const padding = 40; // Increased padding
+        const padding = 40;
 
-        // Compute scale to fit with padding
         const scaleX = (width - padding * 2) / rangeX;
         const scaleY = (height - padding * 2) / rangeY;
-        const scale = Math.min(scaleX, scaleY, 0.6); // Higher max scale cap
+        const scale = Math.min(scaleX, scaleY, 0.6);
 
-        // Center calculation
         const svgCenterX = width / 2;
         const svgCenterY = height / 2;
         const contentCenterX = (minX + maxX) / 2;
@@ -76,12 +71,10 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
     const normalizeY = (y: number) => y * scale + offsetY;
     const nodeMap = new Map(nodes.map(n => [n.id, n]));
 
-    // Dynamic sizing based on density
     const baseNodeWidth = nodeCount > 20 ? 40 : nodeCount > 10 ? 60 : 80;
     const baseNodeHeight = nodeCount > 20 ? 15 : nodeCount > 10 ? 25 : 32;
     const baseFontSize = nodeCount > 20 ? 6 : nodeCount > 10 ? 8 : 10;
 
-    // Scale down dimensions slightly if total scale is very small
     const sizeMultiplier = scale < 0.3 ? 1.5 : 1;
     const nodeWidth = baseNodeWidth * sizeMultiplier;
     const nodeHeight = baseNodeHeight * sizeMultiplier;
@@ -125,17 +118,16 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
 
                     const theme = colorThemes[node.color] || colorThemes.grey;
 
-                    // Simple curved path logic
                     const dx = x2 - x1;
                     const dy = y2 - y1;
 
-                    // Control points for nice Bezier
                     const cp1x = x1 + dx * 0.5;
                     const cp1y = y1;
                     const cp2x = x2 - dx * 0.5;
                     const cp2y = y2;
 
-                    // Adjust curve based on relative position (layout orientation detection could be better but this works for general cases)
+                    // Heuristic, not a real layout-direction flag: taller-than-wide gaps get a
+                    // vertical S-curve instead of the default horizontal one.
                     const isVertical = Math.abs(dy) > Math.abs(dx) * 1.5;
 
                     let d = `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`;
@@ -165,16 +157,14 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                     const y = normalizeY(node.y);
                     const isRoot = !node.parentId;
 
-                    // Use root theme for root node, otherwise use node color
                     const themeKey = isRoot ? 'root' : (colorThemes[node.color] ? node.color : 'grey');
                     const theme = colorThemes[themeKey];
 
                     const w = isRoot ? nodeWidth * 1.3 : nodeWidth;
                     const h = isRoot ? nodeHeight * 1.3 : nodeHeight;
                     const fs = isRoot ? fontSize * 1.2 : fontSize;
-                    const r = h / 2; // Pill shape
+                    const r = h / 2;
 
-                    // Text truncation
                     const charWidth = fs * 0.6;
                     const maxChars = Math.floor((w - 10) / charWidth);
                     const label = node.text.length > maxChars

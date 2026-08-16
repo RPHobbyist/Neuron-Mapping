@@ -30,7 +30,12 @@ export function parseJSON(content: string): MindMapNode[] {
     }
 }
 
+// Matches the recursion guard already used by the XML/OPML parser — without
+// it, a deeply/pathologically nested JSON file can overflow the call stack.
+const MAX_DEPTH = 50;
+
 function processValue(value: unknown, parentId: string, depth: number, nodes: MindMapNode[]): void {
+    if (depth > MAX_DEPTH) return;
     if (Array.isArray(value)) {
         processArray(value, parentId, depth, nodes);
     } else if (typeof value === 'object' && value !== null) {

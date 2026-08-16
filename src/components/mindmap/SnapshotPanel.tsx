@@ -3,7 +3,7 @@ import { MindMapNode } from '@/types/mindmap';
 import { History, Save, Trash2, RotateCcw, X, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { sanitizeUrl } from '@/utils/common';
+import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
 import { sanitizeText } from '@/utils/parsers/parserUtils';
 
 // Zod schema to validate and sanitize snapshot node data from localStorage
@@ -31,7 +31,7 @@ const SnapshotNodeSchema = z.object({
     height: z.number().optional(),
     measuredWidth: z.number().optional(),
     measuredHeight: z.number().optional(),
-    image: z.string().optional().transform(v => sanitizeUrl(v)),
+    image: z.string().optional().transform(v => sanitizeImageUrl(v)),
     icon: z.string().optional(),
     iconStyle: z.string().optional(),
     link: z.string().optional().transform(v => sanitizeUrl(v)),
@@ -78,9 +78,22 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
     });
     const [snapshotName, setSnapshotName] = useState('');
 
-    const saveSnapshots = useCallback((newSnapshots: Snapshot[]) => {
-        setSnapshots(newSnapshots);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(newSnapshots));
+    // Returns whether the write actually succeeded — snapshots hold full
+    // deep-cloned node arrays (including any embedded base64 images), so
+    // localStorage's quota is a realistic thing to hit here. Writing state
+    // before persistence used to make a failed save look identical to a
+    // successful one: the snapshot appeared in the list but vanished on
+    // reload with no error ever shown.
+    const saveSnapshots = useCallback((newSnapshots: Snapshot[]): boolean => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(newSnapshots));
+            setSnapshots(newSnapshots);
+            return true;
+        } catch (e) {
+            console.error('Failed to persist snapshots:', e);
+            toast.error('Failed to save snapshot — your browser storage may be full.');
+            return false;
+        }
     }, []);
 
     const createSnapshot = useCallback(() => {
@@ -91,14 +104,16 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
             timestamp: Date.now(),
             nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
         };
-        saveSnapshots([newSnapshot, ...snapshots].slice(0, 10)); // Keep max 10
-        setSnapshotName('');
-        toast.success(`Snapshot "${name}" saved`);
+        if (saveSnapshots([newSnapshot, ...snapshots].slice(0, 10))) { // Keep max 10
+            setSnapshotName('');
+            toast.success(`Snapshot "${name}" saved`);
+        }
     }, [nodes, snapshotName, snapshots, saveSnapshots]);
 
     const deleteSnapshot = useCallback((id: string) => {
-        saveSnapshots(snapshots.filter(s => s.id !== id));
-        toast.success('Snapshot deleted');
+        if (saveSnapshots(snapshots.filter(s => s.id !== id))) {
+            toast.success('Snapshot deleted');
+        }
     }, [snapshots, saveSnapshots]);
 
     const restoreSnapshot = useCallback((snapshot: Snapshot) => {
@@ -112,10 +127,12 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
 
         // Add backup and ensure we don't exceed limit (keep backup + existing)
         const updatedSnapshots = [currentBackup, ...snapshots].slice(0, 10);
-        saveSnapshots(updatedSnapshots);
+        // The restore itself doesn't depend on the backup write succeeding —
+        // only the toast's claim about it does.
+        const backedUp = saveSnapshots(updatedSnapshots);
 
         onRestore(snapshot.nodes);
-        toast.success(`Restored to "${snapshot.name}" (Current state backed up)`);
+        toast.success(backedUp ? `Restored to "${snapshot.name}" (Current state backed up)` : `Restored to "${snapshot.name}"`);
         onClose();
     }, [nodes, snapshots, saveSnapshots, onRestore, onClose]);
 

@@ -30,9 +30,12 @@ export class ErrorBoundary extends Component<Props, State> {
         window.location.href = '/';
     };
 
-    private handleHardReset = () => {
+    private handleHardReset = async () => {
         if (confirm("This will clear your current unsaved session to fix the crash. Your saved maps will remain. Proceed?")) {
-            clearAutoSave();
+            // Must be awaited: navigating before the IndexedDB delete resolves
+            // can lose the race against the page unload, leaving the corrupt
+            // autosave record in place and crashing the app again on reload.
+            await clearAutoSave();
             window.location.href = '/';
         }
     };

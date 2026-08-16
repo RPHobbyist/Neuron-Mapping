@@ -4,6 +4,7 @@ import {
     DialogHeader,
     DialogTitle,
     DialogTrigger,
+    DialogClose,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { AGPL_LICENSE_TEXT } from "@/lib/constants";
@@ -55,9 +56,9 @@ export const LicenseDialog = () => {
                     ))}
                 </div>
                 <div className="flex justify-end mt-4">
-                    <DialogTrigger asChild>
+                    <DialogClose asChild>
                         <Button variant="outline">Close</Button>
-                    </DialogTrigger>
+                    </DialogClose>
                 </div>
             </DialogContent>
         </Dialog>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, PenTool, Eraser, Monitor, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, ChevronDown, Wand2, BookmarkPlus } from 'lucide-react';
 import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import {
@@ -14,7 +14,9 @@ import { LineTypeSelector } from './LineTypeSelector';
 import { ExportMenu } from './ExportMenu';
 import { SearchBar } from './SearchBar';
 import { ShortcutsDialog } from './ShortcutsDialog';
+import { SaveAsTemplateDialog } from './SaveAsTemplateDialog';
 import { autoLayoutNodes } from '@/utils/layoutUtils';
+import { saveCustomTemplate } from '@/utils/customTemplates';
 import { toast } from 'sonner';
 import { WhatsNewDialog } from './WhatsNewDialog';
 
@@ -108,12 +110,13 @@ export function MindMapToolbar({
 }) {
     const [isLayoutMenuOpen, setIsLayoutMenuOpen] = useState(false);
     const [showWhatsNew, setShowWhatsNew] = useState(false);
+    const [showSaveAsTemplate, setShowSaveAsTemplate] = useState(false);
 
 
     return (
         <div className="h-14 border-b bg-white flex items-center justify-between px-4 z-50 shrink-0 shadow-sm gap-4">
-            <div className="flex items-center gap-4 min-w-0 shrink overflow-hidden">
-                <button onClick={onBack} className="p-2 hover:bg-muted rounded text-muted-foreground transition-colors shrink-0">
+            <div className="flex items-center gap-4 shrink-0">
+                <button onClick={onBack} title="Back to templates" className="p-2 hover:bg-muted rounded text-muted-foreground transition-colors shrink-0">
                     <ArrowLeft className="w-5 h-5" />
                 </button>
             </div>
@@ -141,6 +144,7 @@ export function MindMapToolbar({
                         className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap hover:bg-muted text-muted-foreground hover:text-foreground"
                         title="Smart Add (AI Placement)"
                     >
+                        <Wand2 className="w-4 h-4" />
                         <span>Smart Add</span>
                     </button>
 
@@ -281,6 +285,22 @@ export function MindMapToolbar({
                         <Save className="w-4 h-4" />
                         <span>Save</span>
                     </button>
+                    <button
+                        onClick={() => setShowSaveAsTemplate(true)}
+                        className="flex items-center justify-center p-1.5 rounded transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                        title="Save as Template"
+                    >
+                        <BookmarkPlus className="w-4 h-4" />
+                    </button>
+                    <SaveAsTemplateDialog
+                        open={showSaveAsTemplate}
+                        onOpenChange={setShowSaveAsTemplate}
+                        nodeCount={nodes.length}
+                        onConfirm={(name) => {
+                            saveCustomTemplate(name, nodes, connectionStyle);
+                            toast.success(`Saved "${name}" as a template`);
+                        }}
+                    />
                     <ExportMenu
                         onSaveToFile={onExportToFile}
                         onExportPNG={onExportPNG}

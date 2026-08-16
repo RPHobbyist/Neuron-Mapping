@@ -25,6 +25,21 @@ const argumentMapNodes: MindMapNode[] = [
     { id: 'reb', text: 'Rebuttal', x: 0, y: 100, color: 'orange', parentId: 'obj1' },
 ];
 
+// Empathy Map - Says / Thinks / Does / Feels
+const empathyMapNodes: MindMapNode[] = [
+    { id: 'root', text: 'User', x: 0, y: 0, color: 'root', parentId: null },
+
+    { id: 'says', text: 'Says', x: -200, y: -150, color: 'blue', parentId: 'root' },
+    { id: 'thinks', text: 'Thinks', x: 200, y: -150, color: 'purple', parentId: 'root' },
+    { id: 'does', text: 'Does', x: -200, y: 150, color: 'green', parentId: 'root' },
+    { id: 'feels', text: 'Feels', x: 200, y: 150, color: 'pink', parentId: 'root' },
+
+    { id: 'sd1', text: 'What they say publicly', x: -200, y: -250, color: 'blue', parentId: 'says' },
+    { id: 'td1', text: 'Real concerns', x: 200, y: -250, color: 'purple', parentId: 'thinks' },
+    { id: 'dd1', text: 'Observed actions', x: -200, y: 250, color: 'green', parentId: 'does' },
+    { id: 'fd1', text: 'Emotional state', x: 200, y: 250, color: 'pink', parentId: 'feels' },
+];
+
 export const communicationTemplates: Template[] = [
     {
         id: 'six-thinking-hats',
@@ -32,7 +47,8 @@ export const communicationTemplates: Template[] = [
         category: 'communication',
         description: 'Explore problems from multiple perspectives',
         nodes: sixThinkingHatsNodes,
-        preview: 'sixThinkingHats',
+        tags: ['de bono', 'brainstorm', 'perspectives', 'creative thinking'],
+        connectionStyle: 'curved',
     },
     {
         id: 'argument-map',
@@ -40,6 +56,16 @@ export const communicationTemplates: Template[] = [
         category: 'communication',
         description: 'Structure arguments with reasons, evidence and objections',
         nodes: argumentMapNodes,
-        preview: 'argumentMap',
+        tags: ['debate', 'critical thinking', 'reasoning'],
+        connectionStyle: 'orthogonal',
+    },
+    {
+        id: 'empathy-map',
+        name: 'Empathy Map',
+        category: 'communication',
+        description: 'Understand a user through what they say, think, do, and feel',
+        nodes: empathyMapNodes,
+        tags: ['ux', 'design thinking', 'user research', 'persona'],
+        connectionStyle: 'curved',
     },
 ];

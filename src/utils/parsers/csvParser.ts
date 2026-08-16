@@ -6,7 +6,10 @@ import { createRootNode, generateId, getColorByDepth, sanitizeText } from './par
  * First column of each row becomes the parent, remaining columns become children.
  */
 export function parseCSV(content: string): MindMapNode[] {
-    const lines = content.split('\n').filter(l => l.trim());
+    // Split on quote-aware row boundaries first — splitting on raw '\n' before
+    // parsing quotes would tear a quoted field containing a literal newline
+    // into two spurious rows.
+    const lines = splitCsvRows(content).filter(l => l.trim());
     if (lines.length === 0) return [];
 
     const nodes: MindMapNode[] = [];
@@ -51,6 +54,35 @@ export function parseCSV(content: string): MindMapNode[] {
     });
 
     return nodes;
+}
+
+/**
+ * Split raw CSV content into rows, tracking quote state across the whole
+ * string so a newline inside a quoted field doesn't end the row early.
+ */
+function splitCsvRows(content: string): string[] {
+    const rows: string[] = [];
+    let current = '';
+    let inQuote = false;
+
+    for (let i = 0; i < content.length; i++) {
+        const char = content[i];
+
+        if (char === '"') {
+            inQuote = !inQuote;
+            current += char;
+        } else if ((char === '\n' || char === '\r') && !inQuote) {
+            // Collapse \r\n and skip blank separators without losing empty rows
+            if (char === '\r' && content[i + 1] === '\n') i++;
+            rows.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    if (current.length > 0) rows.push(current);
+
+    return rows;
 }
 
 /**

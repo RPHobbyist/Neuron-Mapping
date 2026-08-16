@@ -57,14 +57,6 @@ export const NodeToolbar = ({
                     <FileText className="w-4 h-4" />
                 </button>
             )}
-            {/* 
-      // Future:
-      <button className="p-1.5 hover:bg-gray-100 rounded text-gray-600 hover:text-blue-600">
-        <Smile className="w-4 h-4" />
-      </button>
-        <FileText className="w-4 h-4" />
-      </button>
-      */}
         </div>
     );
 };

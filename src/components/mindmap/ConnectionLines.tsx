@@ -1,8 +1,10 @@
+import { memo, useMemo } from 'react';
 import { MindMapNode, ConnectionStyle, LineThickness } from '@/types/mindmap';
+import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 
 /**
  * ConnectionLines Component
- * 
+ *
  * Renders SVG connection lines between mind map nodes.
  * Lines connect from edge to edge using anchor points.
  */
@@ -10,19 +12,11 @@ import { MindMapNode, ConnectionStyle, LineThickness } from '@/types/mindmap';
 interface Props {
   nodes: MindMapNode[];
   zoom: number;
-  pan: { x: number; y: number };
   connectionStyle?: ConnectionStyle;
   selectedLineId?: string | null;
   onLineSelect?: (lineId: string | null) => void;
   visibleLineIds?: Set<string>;
 }
-
-const COLORS: Record<string, string> = {
-  root: '#1a1a1a', orange: '#f97316', amber: '#f97316', blue: '#3b82f6',
-  sky: '#3b82f6', cyan: '#06b6d4', teal: '#14b8a6', violet: '#8b5cf6',
-  purple: '#a855f7', yellow: '#eab308', rose: '#eab308', grey: '#6b7280',
-  emerald: '#10b981', green: '#22c55e', red: '#ef4444', pink: '#ec4899',
-};
 
 const STROKE: Record<LineThickness, number> = { thin: 1, medium: 2, thick: 4 };
 
@@ -33,21 +27,17 @@ const STROKE: Record<LineThickness, number> = { thin: 1, medium: 2, thick: 4 };
 const ANIMATION_CONFIG = {
   // Arrow Animation
   ARROW_SPACING: 50,           // Distance between arrows in pixels
-  ARROW_BASE_DURATION: 2.5,    // Base duration in seconds
-  ARROW_SPEED_FACTOR: 0.003,   // Speed adjustment per pixel of line length
-  ARROW_MIN_DURATION: 1.5,     // Minimum animation duration
-  ARROW_MAX_DURATION: 5,       // Maximum animation duration
   ARROW_EXTRA_COUNT: 4,        // Extra arrows for seamless coverage
+
+  // Cross Animation
+  CROSS_SPACING: 80,           // Distance between crosses in pixels
+  CROSS_EXTRA_COUNT: 4,        // Extra crosses for seamless coverage
+
+  // Upper bound on animated glyphs per line, regardless of length
+  MAX_ANIMATED_GLYPHS: 400,
 
   // Dash Animation
   DASH_PATTERN: '10 5',        // Dash pattern (dash length, gap length)
-  DASH_BASE_DURATION: 1,       // Base duration in seconds
-  DASH_SPEED_FACTOR: 0.002,    // Speed adjustment per pixel
-  DASH_MIN_DURATION: 0.8,      // Minimum animation duration
-  DASH_MAX_DURATION: 3,        // Maximum animation duration
-
-  // Easing
-  EASING_CURVE: '0.4 0 0.2 1', // Cubic bezier easing (ease-in-out)
 } as const;
 
 // ============================================================================
@@ -82,7 +72,11 @@ function getSides(parent: MindMapNode, child: MindMapNode): { from: Side; to: Si
   const dx = child.x - parent.x;
   const dy = child.y - parent.y;
 
-  if (Math.abs(dx) >= Math.abs(dy) * 0.3) {
+  // A ~1:1 (45°) threshold instead of the old 0.3 one — that classified any
+  // edge within ~73° of horizontal as "horizontal", so a typical wide/
+  // moderate-height vertical-layout fan-out got left/right anchors and
+  // rendered as a sideways bulge instead of dropping straight to the child.
+  if (Math.abs(dx) >= Math.abs(dy)) {
     return dx > 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' };
   }
   return dy > 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' };
@@ -216,12 +210,26 @@ function getDash(s: ConnectionStyle): string | undefined {
   return s === 'dashed' ? '8 4' : s === 'dotted' ? '0 8' : undefined;
 }
 
+// Resolves the effective arrowhead placement for a connection. When the
+// user hasn't explicitly chosen a direction, this preserves the historical
+// defaults: relations and the 'arrow' line type get an arrowhead pointing
+// at the target/child end; every other line type has none.
+function resolveArrowDirection(conn: {
+  arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
+  isRelation?: boolean;
+  type: ConnectionStyle;
+}): 'none' | 'forward' | 'reverse' | 'both' {
+  if (conn.arrowDirection) return conn.arrowDirection;
+  return conn.isRelation || conn.type === 'arrow' ? 'forward' : 'none';
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function ConnectionLines({
+function ConnectionLinesBase({
   nodes,
+  zoom,
   connectionStyle = 'curved',
   selectedLineId,
   onLineSelect,
@@ -243,68 +251,89 @@ export function ConnectionLines({
     animationType?: 'dash' | 'arrow' | 'cross';
     animationDirection?: 'forward' | 'reverse'; // Added prop
     tension: number;
+    arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
   }
 
-  const connections: VisualConnection[] = [];
+  // Built once per render instead of nodes.find() inside the loops below —
+  // on a large map that O(n) lookup inside an O(n) walk was effectively
+  // O(n^2) per render, and this component re-renders on every pan/drag frame.
+  const nodeById = useMemo(() => {
+    const map = new Map<string, MindMapNode>();
+    nodes.forEach(n => map.set(n.id, n));
+    return map;
+  }, [nodes]);
 
-  // 1. Hierarchy Connections
-  nodes.forEach(c => {
-    if (!c.parentId) return;
-    const p = nodes.find(n => n.id === c.parentId);
-    if (!p) return;
+  const connections = useMemo(() => {
+    const result: VisualConnection[] = [];
 
-    connections.push({
-      id: `${p.id}::${c.id}`,
-      p,
-      c,
-      label: c.lineLabel,
-      isRelation: false,
-      // Resolve Props from Child Node's line settings
-      type: c.lineType || connectionStyle,
-      color: c.lineColor || '#9ca3af', // Default to neutral gray (gray-400) if no specific line color
-      thickness: c.lineThickness || 'medium',
-      animated: !!c.lineAnimated,
-      animationType: c.lineAnimationType || (c.lineAnimated ? 'dash' : undefined), // Fallback to dash if animated
-      animationDirection: c.lineAnimationDirection, // Map direction
-      tension: c.lineTension ?? 0.5
-    });
-  });
+    // 1. Hierarchy Connections
+    nodes.forEach(c => {
+      if (!c.parentId) return;
+      const p = nodeById.get(c.parentId);
+      if (!p) return;
 
-  // 2. Relation Connections
-  nodes.forEach(n => {
-    (n.relations || []).forEach(r => {
-      const t = nodes.find(x => x.id === r.targetId);
-      if (!t) return;
-
-      connections.push({
-        id: `rel::${n.id}::${t.id}`,
-        p: n,
-        c: t,
-        label: r.label,
-        isRelation: true,
-        // Resolve Props from Relation object
-        type: r.type || connectionStyle,
-        color: r.color || '#9ca3af', // Default to neutral gray
-        thickness: r.thickness || 'medium',
-        animated: !!r.animated,
-        animationType: r.animationType || (r.animated ? 'dash' : undefined), // Fallback
-        animationDirection: r.animationDirection, // Map direction
-        tension: 0.5
+      result.push({
+        id: `${p.id}::${c.id}`,
+        p,
+        c,
+        label: c.lineLabel,
+        isRelation: false,
+        // Resolve Props from Child Node's line settings
+        type: c.lineType || connectionStyle,
+        color: c.lineColor || '#9ca3af', // Default to neutral gray (gray-400) if no specific line color
+        thickness: c.lineThickness || 'medium',
+        animated: !!c.lineAnimated,
+        animationType: c.lineAnimationType || (c.lineAnimated ? 'dash' : undefined), // Fallback to dash if animated
+        animationDirection: c.lineAnimationDirection, // Map direction
+        tension: c.lineTension ?? 0.5,
+        arrowDirection: c.lineArrowDirection,
       });
     });
-  });
 
-  // Large SVG canvas centered at (0,0) with offset
+    // 2. Relation Connections
+    nodes.forEach(n => {
+      (n.relations || []).forEach(r => {
+        const t = nodeById.get(r.targetId);
+        if (!t) return;
+
+        result.push({
+          id: `rel::${n.id}::${t.id}`,
+          p: n,
+          c: t,
+          label: r.label,
+          isRelation: true,
+          // Resolve Props from the Relation object — falls back to the same
+          // shared defaults addRelation() now writes at creation time, so a
+          // relation's line and its own properties panel never disagree.
+          type: r.type || DEFAULT_RELATION_TYPE,
+          color: r.color || DEFAULT_RELATION_COLOR,
+          thickness: r.thickness || 'medium',
+          animated: !!r.animated,
+          animationType: r.animationType || (r.animated ? 'dash' : undefined), // Fallback
+          animationDirection: r.animationDirection, // Map direction
+          tension: 0.5,
+          arrowDirection: r.arrowDirection,
+        });
+      });
+    });
+
+    return result;
+  }, [nodes, nodeById, connectionStyle]);
+
+  // Large SVG canvas centered at (0,0) with offset. overflow: visible so
+  // connections to nodes further than ±OFF model units from center (reachable
+  // on wide auto-layouts, or after dragging a node far out) aren't invisibly
+  // clipped by the SVG's own bounds while the node itself stays on screen.
   const SIZE = 10000;
   const OFF = SIZE / 2;
 
   return (
     <svg
-      className="absolute pointer-events-none"
+      className="absolute pointer-events-none overflow-visible"
       style={{ left: -OFF, top: -OFF, width: SIZE, height: SIZE }}
     >
       <defs>
-        {connections.filter(conn => conn.animationType === 'arrow' || conn.isRelation || conn.type === 'arrow').map((conn) => {
+        {connections.filter(conn => conn.animationType === 'arrow' || resolveArrowDirection(conn) !== 'none').map((conn) => {
           const safeMarkerId = conn.id.replace(/::/g, '_');
           return (
             <marker
@@ -328,8 +357,12 @@ export function ConnectionLines({
           // Create a safe ID for SVG element references (colons break URL fragment references)
           const safeId = id.replace(/::/g, '_');
 
-          // Play Mode Visibility Check
-          if (visibleLineIds && !visibleLineIds.has(id)) {
+          // Play Mode Visibility Check — Play Mode's sequence only walks the
+          // parent/child hierarchy, so relations (cross-links) never appear
+          // in visibleLineIds. Without this exemption every relation line
+          // would stay hidden for the entire playback instead of just being
+          // shown throughout, as a cross-link isn't part of the reveal order.
+          if (visibleLineIds && !isRelation && !visibleLineIds.has(id)) {
             return null;
           }
 
@@ -337,6 +370,13 @@ export function ConnectionLines({
           const dash = getDash(type);
           const path = makePath(p, c, type, tension);
           const sel = selectedLineId === id;
+
+          // Arrowhead suppression when the "moving arrow" animation is
+          // active mirrors the old behavior: the animated glyphs already
+          // convey direction, so a static marker on top would be redundant.
+          const arrowDir = animated && animationType === 'arrow' ? 'none' : resolveArrowDirection(conn);
+          const showEndArrow = arrowDir === 'forward' || arrowDir === 'both';
+          const showStartArrow = arrowDir === 'reverse' || arrowDir === 'both';
 
           // Debug points calculation
           const { from, to } = getSides(p, c);
@@ -368,12 +408,15 @@ export function ConnectionLines({
 
           return (
             <g key={id}>
-              {/* Hit area */}
+              {/* Hit area — width compensated for zoom so it stays a
+                  constant ~20 screen px; otherwise it shrinks in the
+                  content's local coordinate space and lines become nearly
+                  unclickable when zoomed out. */}
               <path
                 d={path}
                 fill="none"
                 stroke="transparent"
-                strokeWidth={20}
+                strokeWidth={20 / zoom}
                 style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
                 onClick={e => { e.stopPropagation(); onLineSelect?.(id); }}
               />
@@ -399,16 +442,27 @@ export function ConnectionLines({
                 strokeDasharray={(animated && animationType === 'dash') ? ANIMATION_CONFIG.DASH_PATTERN : dash}
                 className={animated && animationType === 'dash' ? (animationDirection === 'reverse' ? 'flow-reverse' : 'flow') : undefined}
                 style={animated ? { willChange: 'stroke-dashoffset' } : undefined}
-                // Hide static marker if Arrow Animation is active (redundant)
-                markerEnd={((isRelation || type === 'arrow') && !(animated && animationType === 'arrow')) ? `url(#arrow-${safeId})` : undefined}
+                markerEnd={showEndArrow ? `url(#arrow-${safeId})` : undefined}
+                markerStart={showStartArrow ? `url(#arrow-${safeId})` : undefined}
               />
 
               {/* Arrow Animation - Seamless Loop Fix with Absolute Positioning */}
               {animated && animationType === 'arrow' && (() => {
-                const lineLength = Math.hypot(b.x - a.x, b.y - a.y);
-                const spacing = 50;
-                // Add extra arrows for buffer at both ends
-                const arrowCount = Math.ceil(lineLength / spacing) + 4;
+                // Straight-line distance under-covers orthogonal/curved paths
+                // (the actual rendered path is longer), leaving a visible gap
+                // with no arrows before the arrowhead. The orthogonal path's
+                // length is exactly |dx| + |dy| regardless of tension — its
+                // two segments along each axis always sum to the full delta.
+                const lineLength = type === 'orthogonal'
+                  ? Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
+                  : Math.hypot(b.x - a.x, b.y - a.y);
+                const spacing = ANIMATION_CONFIG.ARROW_SPACING;
+                // Add extra arrows for buffer at both ends, capped so a very
+                // long line can't render thousands of elements.
+                const arrowCount = Math.min(
+                  ANIMATION_CONFIG.MAX_ANIMATED_GLYPHS,
+                  Math.ceil(lineLength / spacing) + ANIMATION_CONFIG.ARROW_EXTRA_COUNT
+                );
                 const arrow = animationDirection === 'reverse' ? "◀" : "▶";
 
                 return (
@@ -416,10 +470,10 @@ export function ConnectionLines({
                     fontSize="12"
                     fill={color}
                     style={{ pointerEvents: 'none', userSelect: 'none' }}
-                    dominantBaseline="middle"
+                    dominantBaseline="central"
                     textAnchor="start"
                   >
-                    <textPath href={`#path-${safeId}`} startOffset="0" spacing="auto" dy="8">
+                    <textPath href={`#path-${safeId}`} startOffset="0" spacing="auto">
                       <animate
                         attributeName="startOffset"
                         from="0"
@@ -440,9 +494,14 @@ export function ConnectionLines({
 
               {/* Cross Animation - Similar to Arrow */}
               {animated && animationType === 'cross' && (() => {
-                const lineLength = Math.hypot(b.x - a.x, b.y - a.y);
-                const spacing = 80; // Increased from 50 for better spacing
-                const crossCount = Math.ceil(lineLength / spacing) + 4;
+                const lineLength = type === 'orthogonal'
+                  ? Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
+                  : Math.hypot(b.x - a.x, b.y - a.y);
+                const spacing = ANIMATION_CONFIG.CROSS_SPACING;
+                const crossCount = Math.min(
+                  ANIMATION_CONFIG.MAX_ANIMATED_GLYPHS,
+                  Math.ceil(lineLength / spacing) + ANIMATION_CONFIG.CROSS_EXTRA_COUNT
+                );
 
                 return (
                   <text
@@ -503,37 +562,12 @@ export function ConnectionLines({
           );
         })}
       </g>
-      <style>{`
-        /* Dash flow animations */
-        .flow { animation: dash-forward 1s linear infinite; }
-        .flow-reverse { animation: dash-backward 1s linear infinite; }
-        
-        @keyframes dash-forward {
-          from { stroke-dashoffset: 0; }
-          to { stroke-dashoffset: -15; }
-        }
-        @keyframes dash-backward {
-          from { stroke-dashoffset: 0; }
-          to { stroke-dashoffset: 15; }
-        }
-        
-        /* Arrow flow animations - using transform for smooth GPU-accelerated animation */
-        @keyframes arrow-slide-forward {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(50px); }
-        }
-        @keyframes arrow-slide-backward {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50px); }
-        }
-        
-        .arrow-flow {
-          animation: arrow-slide-forward 2s linear infinite;
-        }
-        .arrow-flow-reverse {
-          animation: arrow-slide-backward 2s linear infinite;
-        }
-      `}</style>
     </svg>
   );
 }
+
+// The `.flow` / `.flow-reverse` dash-scroll animation classes used above are
+// defined once, globally, in src/index.css — this used to carry its own
+// duplicate (and, being an unlayered inline <style>, one that silently
+// overrode the real stylesheet).
+export const ConnectionLines = memo(ConnectionLinesBase);

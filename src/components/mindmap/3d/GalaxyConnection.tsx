@@ -17,9 +17,7 @@ export const GalaxyConnection = ({
     color = '#94a3b8',
     onSelect
 }: GalaxyConnectionProps) => {
-    // 3D Line Animation logic
     // Using explicit ref-based updates avoids React render cycles for smooth 60fps
-
     const meshRef = useRef<THREE.InstancedMesh>(null);
     const dummy = useMemo(() => new THREE.Object3D(), []);
     const currentStart = useRef(startPos.clone());
@@ -28,34 +26,31 @@ export const GalaxyConnection = ({
     const tempDir = useMemo(() => new THREE.Vector3(), []);
     const curvePoints = useMemo(() => [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()], []);
 
-    useFrame((state) => {
-        // 1. Lerp positions
-        currentStart.current.lerp(startPos, 0.1);
-        currentEnd.current.lerp(endPos, 0.1);
+    useFrame((state, delta) => {
+        // 0.1 was tuned as a per-frame factor at 60fps; converting it to a
+        // decay rate keeps the settle speed tied to wall-clock time instead
+        // of the actual frame rate (delta).
+        const t = 1 - Math.pow(0.9, delta * 60);
+        currentStart.current.lerp(startPos, t);
+        currentEnd.current.lerp(endPos, t);
 
-        // Calculate Control Point (Simple outward arc)
-        // Midpoint
+        // Control point for a simple outward arc: offset the midpoint away
+        // from the world center, proportional to the connection's length.
         controlPoint.copy(currentStart.current).add(currentEnd.current).multiplyScalar(0.5);
-        // Desired bulge: proportional to distance, direction away from world center (0,0,0)
         const len = currentStart.current.distanceTo(currentEnd.current);
         const bulge = len * 0.25; // 25% curve
 
-        // Direction from center
         tempDir.copy(controlPoint).normalize();
-        // If close to center, default to up?
+        // Avoid a degenerate (zero-length) direction when the control point sits near the origin
         if (tempDir.lengthSq() < 0.01) tempDir.set(0, 1, 0);
 
         controlPoint.addScaledVector(tempDir, bulge);
-
-        // Update curve visual (if we used a meshLine, we'd update it here. 
-        // For now, we update the dots to follow the bezier path)
 
         if (meshRef.current) {
             const count = meshRef.current.count;
             const speed = 0.2;
             const t = state.clock.elapsedTime * speed;
 
-            // Bezier Helper
             const getBezierPoint = (t: number, p0: THREE.Vector3, p1: THREE.Vector3, p2: THREE.Vector3, target: THREE.Vector3) => {
                 const oneMinusT = 1 - t;
                 // (1-t)^2 * P0 + 2(1-t)t * P1 + t^2 * P2
@@ -69,7 +64,6 @@ export const GalaxyConnection = ({
                 const spacing = i * (1 / count);
                 const progress = (t + spacing) % 1.0;
 
-                // Position on Curve
                 getBezierPoint(progress, currentStart.current, controlPoint, currentEnd.current, dummy.position);
 
                 // Scale: Pulse size + blink effect
@@ -87,12 +81,12 @@ export const GalaxyConnection = ({
         }
     });
 
-    const highDynamicRangeColor = useMemo(() => {
-        return new THREE.Color(color).multiplyScalar(30);
-    }, [color]);
+    // No Bloom/EffectComposer is configured anywhere in this scene, so this
+    // renders to a plain 8-bit target — multiplying by 30 (meant for an HDR
+    // bloom pass) just clips every channel above 1.0, making every relation
+    // color render as flat white regardless of what was picked.
+    const dotColor = useMemo(() => new THREE.Color(color), [color]);
 
-    // Calculate static curve for the faint line (using raw props so it renders initially)
-    // For smooth update, we'd need to re-render. Since props change, it re-renders.
     const cp = useMemo(() => {
         const mid = startPos.clone().add(endPos).multiplyScalar(0.5);
         const len = startPos.distanceTo(endPos);
@@ -119,6 +113,14 @@ export const GalaxyConnection = ({
             <instancedMesh
                 ref={meshRef}
                 args={[undefined, undefined, 8]}
+                // The instance matrices are rewritten every frame in
+                // useFrame, but Three only computes an InstancedMesh's
+                // bounding sphere lazily on its first frustum check — it's
+                // never recomputed after that. Left on, dots on connections
+                // far from the scene origin eventually get culled as if
+                // still inside whatever bounds existed on that first check,
+                // making them invisible and unclickable.
+                frustumCulled={false}
                 onClick={(e) => {
                     e.stopPropagation();
                     onSelect?.(e);
@@ -128,7 +130,7 @@ export const GalaxyConnection = ({
             >
                 <sphereGeometry args={[0.08, 16, 16]} />
                 <meshBasicMaterial
-                    color={highDynamicRangeColor}
+                    color={dotColor}
                     toneMapped={false}
                 />
             </instancedMesh>

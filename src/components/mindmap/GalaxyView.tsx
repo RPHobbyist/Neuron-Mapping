@@ -9,14 +9,13 @@ import { GalaxyConnection } from './3d/GalaxyConnection';
 
 import { ThreeEvent } from '@react-three/fiber';
 
-// ...
-
 interface GalaxyViewProps {
     nodes: MindMapNode[];
     selectedNodeIds?: Set<string>;
     onNodeClick?: (nodeId: string, e: ThreeEvent<MouseEvent>) => void;
     onNodeDoubleClick?: (nodeId: string) => void;
     onNodeMove?: (id: string, x: number, y: number) => void;
+    onNodeDragStart?: () => void;
     onLineSelect?: (sourceId: string, targetId: string, relationId?: string) => void;
     onExit?: () => void;
 }
@@ -29,12 +28,24 @@ export function GalaxyView({
     onNodeClick,
     onNodeDoubleClick,
     onNodeMove,
+    onNodeDragStart,
     onLineSelect,
     onExit
 }: GalaxyViewProps) {
     const [layoutMode, setLayoutMode] = useState<LayoutType>('2d-projection');
 
     const origin = useMemo(() => new THREE.Vector3(0, 0, 0), []);
+
+    // Structural fingerprint (ids + parent relationships only, order-stable)
+    // — used so the Force Field layout only re-simulates when the map's
+    // structure actually changes. `nodes` gets a new array reference on
+    // every edit (rename, recolor, ...), and without this, Force Field mode
+    // would reseed and fully re-run its O(n^2)/150-iteration simulation on
+    // every single keystroke, scrambling the whole layout each time.
+    const structuralKey = useMemo(
+        () => nodes.map(n => `${n.id}:${n.parentId ?? ''}`).join('|'),
+        [nodes]
+    );
 
     const targetPositions = useMemo(() => {
         const layouts = calculateLayout(nodes, layoutMode, SCALE_FACTOR);
@@ -43,7 +54,11 @@ export function GalaxyView({
             vectorMap[id] = new THREE.Vector3(...pos);
         }
         return vectorMap;
-    }, [nodes, layoutMode]);
+        // Other layout modes (2d-projection especially) need to react to
+        // live x/y/order changes, so they still depend on `nodes` directly;
+        // only 'force' is pinned to the structural key instead.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [layoutMode === 'force' ? structuralKey : nodes, layoutMode]);
 
     return (
         <div className="w-full h-full bg-slate-950 relative">
@@ -99,6 +114,7 @@ export function GalaxyView({
                                 onClick={(e) => onNodeClick?.(node.id, e)}
                                 onDoubleClick={onNodeDoubleClick ? (e) => onNodeDoubleClick(node.id) : undefined}
                                 onMove={layoutMode === '2d-projection' ? onNodeMove : undefined}
+                                onDragStart={onNodeDragStart}
                             />
                         );
                     })}

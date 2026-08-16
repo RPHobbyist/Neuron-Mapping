@@ -1,12 +1,10 @@
-import { cn } from '@/lib/utils';
-import { TemplateCategory } from '@/types/templates';
-import { 
-  FileText, 
-  Brain, 
-  Network, 
-  Users, 
-  Clock, 
-  ListTree, 
+import {
+  FileText,
+  Brain,
+  Network,
+  Users,
+  Clock,
+  ListTree,
   GanttChart,
   Globe,
   TrendingUp,
@@ -14,6 +12,9 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+
+import { cn } from '@/lib/utils';
+import { TemplateCategory } from '@/types/templates';
 
 interface TemplateSidebarProps {
   categories: TemplateCategory[];

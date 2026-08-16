@@ -33,19 +33,17 @@ export const usePlayMode = (nodes: MindMapNode[]): UsePlayModeReturn => {
         const steps: AnimationStep[] = [];
 
         const dfs = (nodeId: string) => {
-            // 1. Show Node
             steps.push({ type: 'node', id: nodeId });
 
-            // 2. Find children (sorted by Y for visual flow)
+            // Sort by Y so siblings animate in top-to-bottom visual order
             const children = nodes
                 .filter(n => n.parentId === nodeId)
                 .sort((a, b) => a.y - b.y);
 
             children.forEach(child => {
-                // 3. Show Connection Line BEFORE Child
-                steps.push({ type: 'line', id: `${nodeId}::${child.id}` }); // Format matches ConnectionLines.tsx
+                // Line appears before its child node, matching the id format ConnectionLines.tsx expects
+                steps.push({ type: 'line', id: `${nodeId}::${child.id}` });
 
-                // 4. Recurse
                 dfs(child.id);
             });
         };
@@ -60,7 +58,6 @@ export const usePlayMode = (nodes: MindMapNode[]): UsePlayModeReturn => {
         setVisibleNodeIds(new Set());
         setVisibleLineIds(new Set());
 
-        // Start auto-play
         setTimeout(() => {
             setCurrentStep(1);
         }, 100);
@@ -68,7 +65,6 @@ export const usePlayMode = (nodes: MindMapNode[]): UsePlayModeReturn => {
 
     const stopPlay = useCallback(() => {
         setIsPlaying(false);
-        // Show everything
         setVisibleNodeIds(new Set(nodes.map(n => n.id)));
         setVisibleLineIds(new Set(
             nodes.filter(n => n.parentId).map(n => `${n.parentId}::${n.id}`)
@@ -88,11 +84,22 @@ export const usePlayMode = (nodes: MindMapNode[]): UsePlayModeReturn => {
     useEffect(() => {
         if (!isPlaying) return;
 
+        if (sequence.length === 0) {
+            stopPlay();
+            return;
+        }
+
+        // Clamp to sequence.length: if a node (and its subtree) is deleted or
+        // undone mid-playback, `sequence` can shrink out from under an
+        // in-flight `currentStep`, and indexing past the end used to
+        // dereference `undefined` and throw during render.
+        const clampedStep = Math.min(currentStep, sequence.length);
+
         const newVisibleNodes = new Set<string>();
         const newVisibleLines = new Set<string>();
 
         // Reconstruct state up to current step
-        for (let i = 0; i < currentStep; i++) {
+        for (let i = 0; i < clampedStep; i++) {
             const step = sequence[i];
             if (step.type === 'node') newVisibleNodes.add(step.id);
             if (step.type === 'line') newVisibleLines.add(step.id);
@@ -101,14 +108,22 @@ export const usePlayMode = (nodes: MindMapNode[]): UsePlayModeReturn => {
         setVisibleNodeIds(newVisibleNodes);
         setVisibleLineIds(newVisibleLines);
 
-        // Auto-play timer
-        if (currentStep > 0 && currentStep < sequence.length) {
+        if (clampedStep >= sequence.length) {
+            // Reached (or overshot) the last step — finish playback.
+            // Previously nothing set isPlaying back to false here, so the
+            // toolbar stayed stuck on "Stop" and any node added afterward
+            // stayed invisible until the user manually pressed Stop.
+            stopPlay();
+            return;
+        }
+
+        if (clampedStep > 0) {
             const timer = setTimeout(() => {
                 setCurrentStep(s => s + 1);
-            }, 800); // 0.8s speed
+            }, 800);
             return () => clearTimeout(timer);
         }
-    }, [currentStep, isPlaying, sequence]);
+    }, [currentStep, isPlaying, sequence, stopPlay]);
 
     return {
         isPlaying,

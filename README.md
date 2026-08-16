@@ -22,7 +22,7 @@
 ## 📑 Table of Contents
 - [🧠 About Neuron Mapping](#-about-neuron-mapping)
 - [📺 Video Tutorial](#-video-tutorial)
-- [🚀 What's New in Version 1.5?](#-whats-new-in-version-15)
+- [🚀 What's New in Version 1.6.0?](#-whats-new-in-version-160)
 - [🛠️ Key Capabilities](#️-key-capabilities)
 - [⚙️ Technical Specifications](#️-technical-specifications)
 - [🚀 Get Started](#-get-started)
@@ -49,9 +49,20 @@ Watch the official tutorial to learn how to master Neuron Mapping:
 
 ---
 
-## 🚀 What's New in Version 1.5?
+## 🚀 What's New in Version 1.6.0?
 
-The v1.5 update enhances the core mapping engine and introduces new customization options for a more fluid creative experience.
+The v1.6.0 update enhances the core mapping engine and introduces new customization options for a more fluid creative experience.
+
+- **🖌️ Drawing Canvas**: Freehand drawing support with pencil and eraser tools to annotate maps directly.
+- **🪄 Smart Add**: Type anything and let the algorithm find the best spot for it in your map automatically.
+- **🌐 3D Galaxy View**: Visualize mind maps in immersive 3D with 2D Projection, Sphere, Grid, and Force layouts.
+- **🎯 Focus Mode**: Select a node and hide everything else to concentrate on one branch.
+- **🕘 History Snapshots**: View and restore previous versions of your mind map with visual snapshots.
+- **🚀 Faster Loading**: 3x smaller initial bundle with lazy loading — exports and 3D load on-demand.
+- **⚡ Line Animations**: Snake arrows, flow dashes, and cross patterns with direction control.
+- **▶️ Node Loop & Play Mode**: Presentation mode that reveals nodes step-by-step for walkthroughs.
+- **🎨 Advanced Line Styling**: Customize connections with colors, thickness, labels, and tension.
+- **📹 YouTube Tutorials**: New video tutorials to help you master every feature.
 
 <p align="center">
   <img src="public/readme-assets/promo-productivity.webp" alt="Neuron Mapping Enhanced Productivity Tools" width="48%" style="border-radius: 10px;">
@@ -92,7 +103,7 @@ The v1.5 update enhances the core mapping engine and introduces new customizatio
 
 ### 📦 Download & Run
 Neuron Mapping is provided as a pre-compiled application for a seamless experience.
-1. Download the **Neuron_Mapping_v.1.5.0.zip** package from [GitHub Releases](https://github.com/RPHobbyist/Neuron-Mapping/releases).
+1. Download the **Neuron_Mapping_v.1.6.0.zip** package from [GitHub Releases](https://github.com/RPHobbyist/Neuron-Mapping/releases).
 2. Unzip the contents to your preferred location.
 3. Run `Neuron Mapping.exe` (Windows) to start mapping instantly.
 
@@ -109,6 +120,8 @@ npm install
 # Start development server
 npm run dev
 ```
+
+Optional: copy `.env.example` to `.env` to override branding (vendor name, logo, links, etc.) in your own fork — every variable already has a sensible default, so this step can be skipped entirely.
 
 ---
 

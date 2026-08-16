@@ -92,9 +92,7 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
 };
 
 // Shape styles with CSS classes and clip-path
-// Shape styles with CSS classes and clip-path
 export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: string; style?: CSSProperties } => {
-    // Default root to circle if not specified, otherwise default to rounded
     const effectiveShape = shape || (isRoot ? 'circle' : 'rounded');
 
     // Add prominence to root node regardless of shape
@@ -133,7 +131,7 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
                 className: `px-6 ${rootClass}`.trim(),
                 style: { transform: 'skewX(-10deg)' }
             };
-        case 'iso-cube': // Renaming isometric to iso-cube for clarity if needed, but keeping switch case
+        case 'iso-cube':
         case 'isometric': // Keep backward compatibility
             return {
                 className: 'px-8 py-4 shadow-xl',

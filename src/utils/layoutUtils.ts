@@ -16,6 +16,7 @@ const CONFIG = {
     RADIAL: {
         RING_GAP: 300,          // Radius increment per level
         MIN_ANGLE_GAP: 0.1,     // Minimum angle between siblings (radians)
+        TREE_SPACING: 1800,     // Horizontal gap between separate radial trees
     },
 } as const;
 
@@ -60,8 +61,11 @@ export const autoLayoutNodes = (
     const { nodeMap, rootNodes } = buildTree(nodes);
     if (rootNodes.length === 0) return nodes;
 
-    // Layout each root tree (supports multiple disconnected trees)
+    // Layout each root tree (supports multiple disconnected trees — e.g. an
+    // orphaned node whose parentId no longer resolves to anything, which
+    // buildTree() falls back to treating as an extra root).
     let offsetY = 0;
+    let radialOffsetX = 0;
     rootNodes.forEach(root => {
         switch (direction) {
             case 'horizontal':
@@ -80,7 +84,15 @@ export const autoLayoutNodes = (
                 break;
             case 'radial':
                 layoutRadial(root);
-                // Radial already sets absolute positions from center
+                // layoutRadial() always centers a tree on (0,0) — with no
+                // offset here, multiple disconnected root trees would all
+                // radiate from the exact same origin and their nodes would
+                // collide, rather than being stacked apart like the other
+                // two layout directions already are above.
+                if (radialOffsetX !== 0) {
+                    offsetTree(root, radialOffsetX, 0);
+                }
+                radialOffsetX += CONFIG.RADIAL.TREE_SPACING;
                 break;
         }
     });
@@ -169,7 +181,6 @@ function layoutHorizontalBranch(node: TreeNode, direction: 'left' | 'right'): vo
         return;
     }
 
-    // Recurse first
     node.children.forEach(child => layoutHorizontalBranch(child, direction));
 
     // Calculate subtree height
@@ -259,7 +270,6 @@ function layoutVerticalBranch(node: TreeNode): void {
         return;
     }
 
-    // Recurse first
     node.children.forEach(child => layoutVerticalBranch(child));
 
     // Calculate subtree dimensions
@@ -284,10 +294,8 @@ function layoutVerticalBranch(node: TreeNode): void {
 // =============================================================================
 
 function layoutRadial(root: TreeNode): void {
-    // Calculate weights
     calculateSubtreeWeight(root);
 
-    // Assign angles recursively
     root.x = 0;
     root.y = 0;
     layoutRadialBranch(root, 0, 2 * Math.PI, 1);
@@ -314,7 +322,6 @@ function layoutRadialBranch(node: TreeNode, startAngle: number, sweep: number, l
         child.y = radius * Math.sin(angle);
         child.angle = angle;
 
-        // Recurse
         layoutRadialBranch(child, currentAngle, childSweep, level + 1);
 
         currentAngle += childSweep;
@@ -329,4 +336,12 @@ function applyRelativePositions(node: TreeNode, parentX: number, parentY: number
     node.x = parentX + (node.rx || 0);
     node.y = parentY + (node.ry || 0);
     node.children.forEach(child => applyRelativePositions(child, node.x, node.y));
+}
+
+/** Shifts every node in a tree (already positioned in absolute coordinates,
+ *  as layoutRadial produces) by a fixed offset. */
+function offsetTree(node: TreeNode, dx: number, dy: number): void {
+    node.x += dx;
+    node.y += dy;
+    node.children.forEach(child => offsetTree(child, dx, dy));
 }

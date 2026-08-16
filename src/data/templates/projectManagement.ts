@@ -113,6 +113,38 @@ const projectManagementNodes: MindMapNode[] = [
     { id: 'c2', text: 'Review', x: 300, y: 40, color: 'green', parentId: 'close' },
 ];
 
+// Sprint Retrospective - Start / Continue / Stop
+const sprintRetrospectiveNodes: MindMapNode[] = [
+    { id: 'root', text: 'Sprint Retro', x: 0, y: -250, color: 'root', parentId: null },
+
+    { id: 'start', text: 'Start', x: -300, y: -100, color: 'green', parentId: 'root' },
+    { id: 'continue', text: 'Continue', x: 0, y: -100, color: 'blue', parentId: 'root' },
+    { id: 'stop', text: 'Stop', x: 300, y: -100, color: 'red', parentId: 'root' },
+
+    { id: 's1', text: 'New tool trial', x: -380, y: 50, color: 'green', parentId: 'start' },
+    { id: 's2', text: 'Pair programming', x: -220, y: 50, color: 'green', parentId: 'start' },
+    { id: 'c1', text: 'Daily standups', x: -80, y: 50, color: 'blue', parentId: 'continue' },
+    { id: 'c2', text: 'Code reviews', x: 80, y: 50, color: 'blue', parentId: 'continue' },
+    { id: 'st1', text: 'Long meetings', x: 220, y: 50, color: 'red', parentId: 'stop' },
+    { id: 'st2', text: 'Scope creep', x: 380, y: 50, color: 'red', parentId: 'stop' },
+];
+
+// Kanban Board - To Do / In Progress / Done
+const kanbanBoardNodes: MindMapNode[] = [
+    { id: 'root', text: 'Kanban Board', x: 0, y: -250, color: 'root', parentId: null },
+
+    { id: 'todo', text: 'To Do', x: -300, y: -100, color: 'grey', parentId: 'root' },
+    { id: 'progress', text: 'In Progress', x: 0, y: -100, color: 'blue', parentId: 'root' },
+    { id: 'done', text: 'Done', x: 300, y: -100, color: 'green', parentId: 'root' },
+
+    { id: 't1', text: 'Design mockups', x: -380, y: 50, color: 'grey', parentId: 'todo' },
+    { id: 't2', text: 'Write specs', x: -220, y: 50, color: 'grey', parentId: 'todo' },
+    { id: 'p1', text: 'API integration', x: -80, y: 50, color: 'blue', parentId: 'progress' },
+    { id: 'p2', text: 'Unit tests', x: 80, y: 50, color: 'blue', parentId: 'progress' },
+    { id: 'd1', text: 'Setup repo', x: 220, y: 50, color: 'green', parentId: 'done' },
+    { id: 'd2', text: 'Kickoff meeting', x: 380, y: 50, color: 'green', parentId: 'done' },
+];
+
 export const projectTemplates: Template[] = [
     {
         id: 'product-launch-checklist',
@@ -120,7 +152,8 @@ export const projectTemplates: Template[] = [
         category: 'project-management',
         description: 'Complete checklist for product launches',
         nodes: productLaunchChecklistNodes,
-        preview: 'productLaunchChecklist',
+        tags: ['launch', 'checklist', 'marketing', 'go-to-market'],
+        connectionStyle: 'curved',
     },
     {
         id: 'product-launch-radial',
@@ -128,7 +161,8 @@ export const projectTemplates: Template[] = [
         category: 'project-management',
         description: 'Radial view of product launch elements',
         nodes: productLaunchRadialNodes,
-        preview: 'productLaunchRadial',
+        tags: ['launch', 'marketing', 'go-to-market', 'stakeholders'],
+        connectionStyle: 'curved',
     },
     {
         id: 'product-development',
@@ -136,7 +170,8 @@ export const projectTemplates: Template[] = [
         category: 'project-management',
         description: 'End-to-end product development with all phases',
         nodes: productDevelopmentNodes,
-        preview: 'productDevelopment',
+        tags: ['product', 'lifecycle', 'development', 'roadmap'],
+        connectionStyle: 'curved',
     },
     {
         id: 'project-management',
@@ -144,6 +179,25 @@ export const projectTemplates: Template[] = [
         category: 'project-management',
         description: 'Project lifecycle from initiation to closure',
         nodes: projectManagementNodes,
-        preview: 'organigram',
+        tags: ['pm', 'lifecycle', 'planning', 'initiation', 'closure'],
+        connectionStyle: 'orthogonal',
+    },
+    {
+        id: 'sprint-retrospective',
+        name: 'Sprint Retrospective',
+        category: 'project-management',
+        description: 'Start, Stop, Continue format for agile sprint retros',
+        nodes: sprintRetrospectiveNodes,
+        tags: ['retro', 'agile', 'scrum', 'sprint', 'start stop continue'],
+        connectionStyle: 'curved',
+    },
+    {
+        id: 'kanban-board',
+        name: 'Kanban Board',
+        category: 'project-management',
+        description: 'To Do, In Progress, Done task board',
+        nodes: kanbanBoardNodes,
+        tags: ['kanban', 'agile', 'scrum', 'board', 'workflow'],
+        connectionStyle: 'orthogonal',
     },
 ];

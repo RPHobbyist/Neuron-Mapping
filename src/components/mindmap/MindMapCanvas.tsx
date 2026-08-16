@@ -10,7 +10,7 @@ import { NodeActionDialog } from './NodeActionDialog';
 import { useMindMapNodes } from '@/hooks/useMindMapNodes';
 import { useAutoSave, AutoSaveData } from '@/hooks/useAutoSave';
 import { toast } from 'sonner';
-import { LayoutGrid, Save, ArrowLeft, Trash2, Undo2, Redo2, Link, CircleHelp, Focus, Play, History, Pencil, Eraser } from 'lucide-react';
+import { Pencil, Eraser } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PropertiesPanel, LineSettings } from './LinePropertiesPanel';
 import { MindMapToolbar } from './MindMapToolbar';
@@ -20,6 +20,7 @@ import { AnimatePresence } from 'framer-motion';
 import { IconLibraryDialog } from './IconLibraryDialog';
 import { SmartAddPanel } from './SmartAddPanel';
 import { findBestParent } from '@/utils/smartPlacement';
+import { MIN_ZOOM, MAX_ZOOM } from '@/lib/constants';
 
 // Lazy load GalaxyView to split Three.js chunk
 const GalaxyView = lazy(() => import('./GalaxyView').then(module => ({ default: module.GalaxyView })));
@@ -29,7 +30,7 @@ interface MindMapCanvasProps {
   initialDrawings?: Drawing[];
   onBack?: () => void;
   connectionStyle?: ConnectionStyle;
-  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => void;
+  onSave?: (name: string, nodes: NodeType[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => void | Promise<void>;
   onNameChange?: (name: string) => void;
   mapName?: string;
   mapId?: string;
@@ -57,16 +58,13 @@ export const MindMapCanvas = ({
 
   // Business Logic from Hook
   const {
-    nodes, setNodes, undo, redo, canUndo, canRedo, saveSnapshot,
+    nodes, setNodes, resetNodes, undo, redo, canUndo, canRedo, saveSnapshot,
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
-    addChildNode, addRelation, updateNodePosition, updateNodeText, replaceNodeText, updateNode, updateNodeSize,
-    updateSelectedNodesColor, updateSelectedNodesShape, updateSelectedNodesLineType, updateSelectedNodesPriority,
+    addChildNode, addRelation, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
     deleteNode, deleteSelectedNodes, deleteRelation,
-    connectionStyle: hookConnectionStyle, setConnectionStyle
+    connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle
   } = useMindMapNodes(initialNodes, connectionStyle);
-
-
 
   // UI State
   const [zoom, setZoom] = useState(1);
@@ -81,9 +79,11 @@ export const MindMapCanvas = ({
 
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const notesSnapshotTakenRef = useRef(false);
   const [focusRootIds, setFocusRootIds] = useState<Set<string> | null>(null);
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [showSnapshotPanel, setShowSnapshotPanel] = useState(false);
+  const [editTrigger, setEditTrigger] = useState<{ nodeId: string; token: number } | null>(null);
 
   // Properties Panel Visibility
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
@@ -138,6 +138,21 @@ export const MindMapCanvas = ({
     return Math.hypot(p.x - q.x, p.y - q.y);
   };
 
+  /** Removes any drawing within eraserRadius of pos — shared by the eraser's
+   *  click-to-erase (mousedown) and drag-to-erase (mousemove) paths. */
+  const eraseDrawingsAt = (pos: { x: number, y: number }) => {
+    const eraserRadius = 15 / zoom;
+    setDrawings(prev => prev.filter(d => {
+      for (let i = 0; i < d.points.length - 1; i++) {
+        if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
+      }
+      if (d.points.length === 1) {
+        return Math.hypot(d.points[0].x - pos.x, d.points[0].y - pos.y) >= eraserRadius;
+      }
+      return true;
+    }));
+  };
+
   // Focus Mode Logic
   const getDescendants = useCallback((nodeId: string, currentNodes: NodeType[]): Set<string> => {
     const descendants = new Set<string>([nodeId]);
@@ -180,15 +195,15 @@ export const MindMapCanvas = ({
   }, [isFocusMode, focusRootIds, nodes, getDescendants]);
 
   // Auto-save integration (must be after state declarations)
+  // Uses resetNodes (clears history) rather than setNodes, so restoring a
+  // session doesn't leave the blank template sitting on the undo stack —
+  // one accidental Ctrl+Z would otherwise throw the whole restore away.
   const handleAutoLoad = useCallback((data: AutoSaveData) => {
-    setNodes(data.nodes);
-    if (data.connectionStyle) {
-      setConnectionStyle(data.connectionStyle);
-    }
+    resetNodes(data.nodes, data.connectionStyle);
     if (data.drawings) {
       setDrawings(data.drawings);
     }
-  }, [setNodes, setConnectionStyle, setDrawings]);
+  }, [resetNodes, setDrawings]);
 
   // Auto-save integration (must be after state declarations)
   useAutoSave(nodes, hookConnectionStyle, drawings, handleAutoLoad);
@@ -203,23 +218,14 @@ export const MindMapCanvas = ({
       } else if (drawingMode === 'eraser') {
         // Click to erase
         setIsDragging(true);
-        const eraserRadius = 15 / zoom;
-        setDrawings(prev => prev.filter(d => {
-          for (let i = 0; i < d.points.length - 1; i++) {
-            if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
-          }
-          if (d.points.length === 1) {
-            return Math.hypot(d.points[0].x - pos.x, d.points[0].y - pos.y) >= eraserRadius;
-          }
-          return true;
-        }));
+        eraseDrawingsAt(pos);
       }
       return;
     }
 
-    // Determine if we should close the properties panel
-    // Keep open if clicking inside it? No, it catches its own events usually.
-    // If clicking canvas directly:
+    // Only a direct click on the canvas background closes the properties
+    // panel — clicks inside the panel itself are stopped there and never
+    // reach this handler.
     if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-area')) {
       // Close properties panel on background click
       setIsPropertiesOpen(false);
@@ -244,16 +250,7 @@ export const MindMapCanvas = ({
       if (drawingMode === 'pen') {
         setCurrentPath(prev => [...prev, pos]);
       } else if (drawingMode === 'eraser') {
-        const eraserRadius = 15 / zoom;
-        setDrawings(prev => prev.filter(d => {
-          for (let i = 0; i < d.points.length - 1; i++) {
-            if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
-          }
-          if (d.points.length === 1) {
-            return Math.hypot(d.points[0].x - pos.x, d.points[0].y - pos.y) >= eraserRadius;
-          }
-          return true;
-        }));
+        eraseDrawingsAt(pos);
       }
       return;
     }
@@ -320,11 +317,24 @@ export const MindMapCanvas = ({
     setIsDragging(false);
   };
 
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? -0.1 : 0.1;
-    setZoom((prev) => Math.min(Math.max(prev + delta, 0.25), 2));
-  };
+  // React 18 registers the root `wheel` listener as passive, so
+  // e.preventDefault() inside a React onWheel handler is a silent no-op —
+  // Ctrl+scroll would still trigger the browser's native page zoom alongside
+  // this one. A manually-attached, non-passive listener is required to
+  // actually cancel the native gesture.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+
+    const onNativeWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      setZoom((prev) => Math.min(Math.max(prev + delta, MIN_ZOOM), MAX_ZOOM));
+    };
+
+    el.addEventListener('wheel', onNativeWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onNativeWheel);
+  }, [is3DMode]);
 
   const handleSave = async (name: string) => {
     setIsSaving(true);
@@ -337,43 +347,30 @@ export const MindMapCanvas = ({
           // Silent catch for thumbnail generation
         }
       }
-      onSave?.(name, nodes, thumbnail, hookConnectionStyle, drawings);
+      // Await the save so a storage failure (e.g. quota exceeded) is caught
+      // below instead of showing "Saved!" for a write that never happened.
+      await onSave?.(name, nodes, thumbnail, hookConnectionStyle, drawings);
       toast.success('Saved!');
       setShowSaveDialog(false);
-    } catch {
-      toast.error('Failed to save');
+    } catch (e) {
+      console.error('Save failed:', e);
+      toast.error('Failed to save. Your browser storage may be full.');
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleGlobalStyleChange = useCallback((style: ConnectionStyle) => {
-    // 1. Update the default global style
-    setConnectionStyle(style);
-
-    // 2. Clear individual overrides from all nodes and relations to enforce uniformity
-    setNodes((prev) => prev.map(node => {
-      const newNode = { ...node };
-      // Clear node line override
-      if (newNode.lineType) delete newNode.lineType;
-
-      // Clear relation line overrides
-      if (newNode.relations) {
-        newNode.relations = newNode.relations.map(r => {
-          const newRel = { ...r };
-          if (newRel.type) delete newRel.type;
-          return newRel;
-        });
-      }
-      return newNode;
-    }));
-
+    // Updates the global style AND clears per-node/relation overrides in one
+    // history entry, so a single Ctrl+Z fully reverts the change instead of
+    // needing two undos and passing through a hybrid state in between.
+    applyGlobalConnectionStyle(style);
     toast.success(`Applied ${style} style to all lines`);
-  }, [setConnectionStyle, setNodes]);
+  }, [applyGlobalConnectionStyle]);
 
   const handleExportToFile = () => {
     try {
-      saveToFile(nodes, mapName || 'mindmap', hookConnectionStyle);
+      saveToFile(nodes, mapName || 'mindmap', hookConnectionStyle, drawings);
       toast.success('Mind map saved to file!');
     } catch {
       toast.error('Failed to save file');
@@ -444,7 +441,7 @@ export const MindMapCanvas = ({
         // Edit Text (F2 or Space)
         else if (e.key === 'F2' || e.key === ' ') {
           e.preventDefault();
-          // Logic to trigger edit mode handled by Node component, but we can prevent default scroll
+          setEditTrigger({ nodeId: selectedId, token: Date.now() });
         }
         // Navigation (Arrows)
         else if (e.key.startsWith('Arrow')) {
@@ -478,9 +475,7 @@ export const MindMapCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, nodes, setSelectedNodeIds]);
-
-  const selectedNode = selectedNodeIds.size > 0 ? nodes.find((n) => n.id === Array.from(selectedNodeIds)[0]) : null;
+  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, nodes, setSelectedNodeIds, setEditTrigger]);
 
   const handleNodeSelect = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (e.shiftKey) {
@@ -507,16 +502,21 @@ export const MindMapCanvas = ({
   }, []);
 
   const handleRequestNotes = useCallback((id: string) => {
-    // 1. Ensure node has notes field initialized
-    const node = nodes.find(n => n.id === id);
-    if (node && !node.notes) {
-      updateNode(id, { notes: ' ' });
+    // Defer the history boundary until the first actual edit (see onUpdate
+    // in the NotesPanel below) instead of snapshotting on every open —
+    // otherwise merely opening the panel to look, then closing without
+    // typing, still burns a slot in the capped 20-entry undo history.
+    notesSnapshotTakenRef.current = false;
+    // Ensure node has notes field initialized, via the non-history path.
+    const target = nodes.find(n => n.id === id);
+    if (target && !target.notes) {
+      replaceNode(id, { notes: ' ' });
     }
-    // 2. Select the node to ensure panel shows correct data
+    // Select the node to ensure panel shows correct data
     setSelectedNodeIds(new Set([id]));
-    // 3. Open panel
+    // Open panel
     setIsNotesOpen(true);
-  }, [nodes, updateNode, setSelectedNodeIds]);
+  }, [nodes, replaceNode, setSelectedNodeIds]);
 
   const handleRequestIcon = useCallback((id: string) => {
     setShowIconLibrary({ isOpen: true, nodeId: id });
@@ -572,19 +572,19 @@ export const MindMapCanvas = ({
       <SmartAddPanel
         isOpen={isSmartAddOpen}
         onClose={() => setIsSmartAddOpen(false)}
+        nodes={nodes}
+        selectedNodeIds={selectedNodeIds}
         onAdd={(text) => {
           // 1. Find best parent
           const parentId = findBestParent(nodes, text, selectedNodeIds);
           const parentNode = nodes.find(n => n.id === parentId);
 
-          // 2. Add child
-          addChildNode(parentId, text);
-
-          // 3. Feedback
-          if (parentNode) {
+          // 2. Add child — only toast success if a node was actually created
+          const newNodeId = addChildNode(parentId, text);
+          if (!newNodeId) {
+            toast.error("Couldn't find a node to attach to");
+          } else if (parentNode) {
             toast.success(`Added to "${parentNode.text.split('\n')[0].substring(0, 20)}..."`);
-            // Optional: Select the new node? addChildNode already does this.
-            // Optional: Pan to new node?
           } else {
             toast.success("Added new node");
           }
@@ -600,26 +600,18 @@ export const MindMapCanvas = ({
               selectedNodeIds={selectedNodeIds}
               onExit={() => setIs3DMode(false)}
               onNodeMove={updateNodePosition}
+              onNodeDragStart={saveSnapshot}
               onNodeClick={(id, e) => handleNodeSelect(e as unknown as React.MouseEvent, id)}
               onNodeDoubleClick={(id) => {
-                // Focus on Double Click or trigger edit?
-                // For now, toggle Focus Mode as a power user feature, OR just select.
-                // Or better: Simulate F2 by finding the node and maybe showing a prompt since we don't have a 3D Input yet.
-                // We'll rely on the properties panel for text editing for now, so double click can be 'Focus Mode'
-
-                // OR: Just select and ensure panel is open.
                 setSelectedNodeIds(new Set([id]));
                 setIsPropertiesOpen(true);
               }}
               onLineSelect={(sourceId, targetId, relationId) => {
-                if (relationId) {
-                  setSelectedLineId(relationId);
-                } else {
-                  setSelectedLineId(`conn::${sourceId}::${targetId}`); // Assuming child ID connection convention or use child ID if hierarchical
-                  // Actually standard lines in 2D are usually selected by the Child Node ID they connect TO.
-                  // Let's assume targetId is the child
-                  setSelectedLineId(`conn::${targetId}`);
-                }
+                // Relation ids are already in ConnectionLines' `rel::src::tgt`
+                // format; hierarchy lines are keyed as `${parentId}::${childId}`
+                // there too, so it has to match exactly for the line to
+                // highlight and for the properties panel to resolve it.
+                setSelectedLineId(relationId || `${sourceId}::${targetId}`);
                 setIsPropertiesOpen(true);
               }}
             />
@@ -640,7 +632,6 @@ export const MindMapCanvas = ({
             onMouseMove={handleCanvasMouseMove}
             onMouseUp={handleCanvasMouseUp}
             onMouseLeave={handleCanvasMouseUp}
-            onWheel={handleWheel}
           >
             <div
               ref={contentRef}
@@ -654,7 +645,6 @@ export const MindMapCanvas = ({
               <ConnectionLines
                 nodes={nodes}
                 zoom={zoom}
-                pan={pan}
                 connectionStyle={hookConnectionStyle}
                 selectedLineId={selectedLineId}
                 onLineSelect={(id) => {
@@ -678,13 +668,14 @@ export const MindMapCanvas = ({
                       onPositionChange={updateNodePosition}
                       onTextChange={replaceNodeText}
                       onSizeChange={updateNodeSize}
-                      onUpdateNode={updateNode}
+                      onMeasureNode={updateNodeMeasurement}
                       onAddChild={addChildNode}
                       onRequestImage={handleRequestImage}
                       onRequestLink={handleRequestLink}
                       onRequestNotes={handleRequestNotes}
                       onAddIcon={handleRequestIcon}
                       onDragStart={saveSnapshot}
+                      editTrigger={editTrigger?.nodeId === node.id ? editTrigger.token : undefined}
                       zoom={zoom}
                       isDimmed={isFocusMode && focusedNodeIds ? !focusedNodeIds.has(node.id) : false}
                       isHighlighted={highlightedNodeIds.includes(node.id)}
@@ -766,8 +757,8 @@ export const MindMapCanvas = ({
           <div className="absolute bottom-6 right-6 z-50">
             <ZoomControls
               zoom={zoom}
-              onZoomIn={() => setZoom(z => Math.min(2, z + 0.1))}
-              onZoomOut={() => setZoom(z => Math.max(0.1, z - 0.1))}
+              onZoomIn={() => setZoom(z => Math.min(MAX_ZOOM, z + 0.1))}
+              onZoomOut={() => setZoom(z => Math.max(MIN_ZOOM, z - 0.1))}
               onReset={() => { setZoom(1); setPan({ x: 0, y: 0 }); }}
             >
               <div className="flex items-center gap-1">
@@ -809,15 +800,23 @@ export const MindMapCanvas = ({
       />
 
       {/* Properties Panel (Line or Node) */}
-      {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen && !is3DMode) && (() => {
-        // Calculate screen coordinates for positioning
+      {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen) && (() => {
+        // Calculate screen coordinates for positioning. Derived from the
+        // canvas element's actual bounding box (same math as the box-selection
+        // screen->node conversion in handleCanvasMouseUp) rather than
+        // window.innerHeight/2, which ignores the toolbar's height and put
+        // the panel a constant ~28px away from the node/line it belongs to.
+        // In 3D mode there's no equivalent 2D screen projection for a node's
+        // position, so the panel opens at a fixed anchor instead.
         const getScreenPos = (x: number, y: number) => {
-          // Canvas center is 50% 50%
-          const centerX = window.innerWidth / 2;
-          const centerY = window.innerHeight / 2;
+          if (is3DMode) {
+            return { x: window.innerWidth - 340, y: 96 };
+          }
+          const rect = canvasRef.current?.getBoundingClientRect();
+          if (!rect) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
           return {
-            x: centerX + pan.x + (x * zoom),
-            y: centerY + pan.y + (y * zoom)
+            x: rect.left + rect.width / 2 + pan.x + (x * zoom),
+            y: rect.top + rect.height / 2 + pan.y + (y * zoom)
           };
         };
 
@@ -844,10 +843,12 @@ export const MindMapCanvas = ({
               animated: relation?.animated,
               animationDirection: relation?.animationDirection,
               animationType: relation?.animationType,
+              arrowDirection: relation?.arrowDirection || 'forward',
             };
 
             return (
               <PropertiesPanel
+                key={`line-rel-${sourceId}-${targetId}`}
                 mode="line"
                 position={pos}
                 lineValues={values}
@@ -865,11 +866,11 @@ export const MindMapCanvas = ({
             const childNode = nodes.find(n => n.id === childId);
             if (!childNode) return null;
 
-            // For child lines, position near child or midpoint? Let's use child node for valid ref
             const pos = getScreenPos(childNode.x, childNode.y - 50); // Slightly above child
 
+            const resolvedLineType = childNode.lineType || hookConnectionStyle;
             const values: LineSettings = {
-              type: childNode.lineType || hookConnectionStyle,
+              type: resolvedLineType,
               thickness: childNode.lineThickness || 'medium',
               color: childNode.lineColor,
               label: childNode.lineLabel,
@@ -877,11 +878,13 @@ export const MindMapCanvas = ({
               gradient: childNode.lineGradient,
               tension: childNode.lineTension,
               animationDirection: childNode.lineAnimationDirection,
-              animationType: childNode.lineAnimationType
+              animationType: childNode.lineAnimationType,
+              arrowDirection: childNode.lineArrowDirection || (resolvedLineType === 'arrow' ? 'forward' : 'none'),
             };
 
             return (
               <PropertiesPanel
+                key={`line-child-${childId}`}
                 mode="line"
                 position={pos}
                 lineValues={values}
@@ -896,6 +899,7 @@ export const MindMapCanvas = ({
                   if (updates.tension !== undefined) nodeUpdates.lineTension = updates.tension;
                   if (updates.animationDirection !== undefined) nodeUpdates.lineAnimationDirection = updates.animationDirection;
                   if (updates.animationType !== undefined) nodeUpdates.lineAnimationType = updates.animationType;
+                  if (updates.arrowDirection !== undefined) nodeUpdates.lineArrowDirection = updates.arrowDirection;
                   updateNode(childId, nodeUpdates);
                 }}
                 onClose={() => { setSelectedLineId(null); setIsPropertiesOpen(false); }}
@@ -908,11 +912,14 @@ export const MindMapCanvas = ({
           if (!node) return null;
 
           const pos = getScreenPos(node.x, node.y);
+          const anchorWidth = is3DMode ? undefined : (node.measuredWidth || node.width || 150) * zoom;
 
           return (
             <PropertiesPanel
+              key={`node-${nodeId}`}
               mode="node"
               position={pos}
+              anchorWidth={anchorWidth}
               nodeValues={{
                 color: node.color,
                 shape: node.shape,
@@ -941,7 +948,12 @@ export const MindMapCanvas = ({
             onClose={() => setIsNotesOpen(false)}
             content={selectedNode?.notes || ''}
             onUpdate={(text) => {
-              if (selectedNode) updateNode(selectedNode.id, { notes: text });
+              if (!selectedNode) return;
+              if (!notesSnapshotTakenRef.current) {
+                notesSnapshotTakenRef.current = true;
+                saveSnapshot();
+              }
+              replaceNode(selectedNode.id, { notes: text });
             }}
           />
         );

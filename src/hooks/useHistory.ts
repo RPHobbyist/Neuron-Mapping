@@ -19,13 +19,12 @@ export function useHistory<T>(initialState: T, maxHistory: number = 50) {
                 ? (newState as (prev: T) => T)(current.present)
                 : newState;
 
-            // Add current state to past, limit history size
             const newPast = [...current.past, current.present].slice(-maxHistory);
 
             return {
                 past: newPast,
                 present: nextState,
-                future: [], // Clear future when new action is taken
+                future: [],
             };
         });
     }, [maxHistory]);
@@ -40,6 +39,22 @@ export function useHistory<T>(initialState: T, maxHistory: number = 50) {
                 past: current.past,
                 present: nextState,
                 future: [],
+            };
+        });
+    }, []);
+
+    // Updates the present state without touching past or future at all — for
+    // passive/derived writes (e.g. measured layout size) that shouldn't count
+    // as an edit and shouldn't clear the redo stack the way replace() does.
+    const mutate = useCallback((newState: T | ((prev: T) => T)) => {
+        setHistory((current) => {
+            const nextState = typeof newState === 'function'
+                ? (newState as (prev: T) => T)(current.present)
+                : newState;
+
+            return {
+                ...current,
+                present: nextState,
             };
         });
     }, []);
@@ -93,6 +108,7 @@ export function useHistory<T>(initialState: T, maxHistory: number = 50) {
         state: history.present,
         set,
         replace,
+        mutate,
         undo,
         redo,
         reset,

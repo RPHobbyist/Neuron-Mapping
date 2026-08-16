@@ -8,8 +8,6 @@
  * (at your option) any later version.
  */
 
-// CORE SYSTEM CONFIGURATION
-
 /**
  * System Identity Configuration
  * Critical for application integrity and environment synchronization.

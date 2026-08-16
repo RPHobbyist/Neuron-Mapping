@@ -6,7 +6,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Zap, Play, Boxes, RefreshCw, Palette, Video, Globe, Droplet, Rocket, Wand2, Focus, History } from 'lucide-react';
+import { Zap, Play, Palette, Video, Globe, Rocket, Wand2, Focus, History } from 'lucide-react';
 import { SYSTEM_CONFIG } from '@/lib/core/core-system';
 
 interface WhatsNewDialogProps {
@@ -22,7 +22,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                 <div className="p-6 pb-2 relative">
                     <div className="mb-4">
                         <div className="inline-flex items-center px-2 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-medium mb-3">
-                            Update 1.5.0
+                            Update 1.6.0
                         </div>
                         <DialogTitle className="text-xl font-bold text-gray-900 tracking-tight">What's New</DialogTitle>
                         <DialogDescription className="text-gray-500 text-sm mt-1">

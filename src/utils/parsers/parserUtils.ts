@@ -1,6 +1,7 @@
-import { MindMapNode, NodeColor } from '@/types/mindmap';
-import { generateId } from '@/utils/common';
 import DOMPurify from 'dompurify';
+
+import { generateId } from '@/utils/common';
+import { MindMapNode, NodeColor } from '@/types/mindmap';
 
 // Color palette for depth-based coloring
 const colors: NodeColor[] = ['orange', 'blue', 'cyan', 'yellow', 'green', 'purple', 'pink', 'red', 'teal', 'grey'];

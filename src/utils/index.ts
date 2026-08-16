@@ -15,10 +15,10 @@ export { calculateLayout } from './layout3d';
 export type { LayoutType } from './layout3d';
 
 // Node styling
-export { colorStyles, getShapeClasses, getAnimationClasses, shapeBorderRadii } from './nodeStyles';
+export { colorStyles, getShapeStyles } from './nodeStyles';
 
 // Export utilities
-export { exportToFile, exportToPNG, exportToPDF } from './exportUtils';
+export { saveToFile, loadFromFile, exportToPNG, exportToPDF, generateThumbnail } from './exportUtils';
 
 // File parsers (re-export from parsers module)
 export { parseFile, parseContent, SUPPORTED_EXTENSIONS, isSupportedExtension } from './parsers';

@@ -6,16 +6,19 @@ const orderFulfillmentNodes: MindMapNode[] = [
     { id: 'root', text: 'Order Fulfillment', x: 0, y: -350, color: 'teal', parentId: null },
 
     // Row 1 - Distributed symmetrically around 0
-    // Col 1 (Start)
-    { id: 'start', text: 'Start', x: -560, y: -200, color: 'purple', parentId: 'root' },
+    // Col 1 (Start) — bend pulled toward the child (lineTension) so the
+    // orthogonal step falls in the gap before "Place Order" instead of on
+    // its column, which otherwise draws the connector straight through it.
+    { id: 'start', text: 'Start', x: -560, y: -200, color: 'purple', parentId: 'root', lineTension: 0.75 },
     // Col 2 (Place Order)
     { id: 'place', text: 'Place Order', x: -280, y: -200, color: 'purple', parentId: 'root' },
     // Col 3 (Manage Stock) - Center
     { id: 'manage', text: 'Manage Stock', x: 0, y: -200, color: 'blue', parentId: 'root' },
     // Col 4 (Pick Ticket)
     { id: 'pick', text: 'Pick Ticket', x: 280, y: -200, color: 'blue', parentId: 'root' },
-    // Col 5 (Cargo Coord)
-    { id: 'cargo', text: 'Cargo Coord', x: 560, y: -200, color: 'blue', parentId: 'root' },
+    // Col 5 (Cargo Coord) — same bend-tension fix, mirrored, so this
+    // connector's step falls after "Pick Ticket" instead of through it.
+    { id: 'cargo', text: 'Cargo Coord', x: 560, y: -200, color: 'blue', parentId: 'root', lineTension: 0.75 },
 
     // Row 2
     // Col 1 Flow
@@ -147,6 +150,23 @@ const portersFiveForces: MindMapNode[] = [
     { id: 'su1', text: 'Uniqueness', x: -300, y: 100, color: 'red', parentId: 'supp' },
 ];
 
+// Business Model Canvas - 9 Building Blocks
+const businessModelCanvasNodes: MindMapNode[] = [
+    { id: 'root', text: 'Business Model Canvas', x: 0, y: -320, color: 'root', parentId: null },
+
+    { id: 'partners', text: 'Key Partners', x: -600, y: -180, color: 'blue', parentId: 'root' },
+    { id: 'activities', text: 'Key Activities', x: -350, y: -180, color: 'blue', parentId: 'root' },
+    { id: 'value', text: 'Value Propositions', x: 0, y: -180, color: 'teal', parentId: 'root', width: 200 },
+    { id: 'relationships', text: 'Customer Relationships', x: 350, y: -180, color: 'green', parentId: 'root' },
+    { id: 'segments', text: 'Customer Segments', x: 600, y: -180, color: 'green', parentId: 'root' },
+
+    { id: 'resources', text: 'Key Resources', x: -475, y: -40, color: 'purple', parentId: 'root' },
+    { id: 'channels', text: 'Channels', x: 475, y: -40, color: 'purple', parentId: 'root' },
+
+    { id: 'cost', text: 'Cost Structure', x: -300, y: 120, color: 'red', parentId: 'root' },
+    { id: 'revenue', text: 'Revenue Streams', x: 300, y: 120, color: 'orange', parentId: 'root' },
+];
+
 export const businessTemplates: Template[] = [
     {
         id: 'order-fulfillment',
@@ -154,7 +174,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Swimlane flowchart for order processing workflow',
         nodes: orderFulfillmentNodes,
-        preview: 'gantt',
+        tags: ['logistics', 'supply chain', 'workflow', 'process', 'operations'],
+        connectionStyle: 'orthogonal',
     },
     {
         id: 'business-analyst',
@@ -162,7 +183,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Map business analyst responsibilities and relationships',
         nodes: businessAnalystNodes,
-        preview: 'concept',
+        tags: ['ba', 'requirements', 'analysis', 'processes', 'rules'],
+        connectionStyle: 'orthogonal',
     },
     {
         id: 'market-research',
@@ -170,7 +192,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Comprehensive market research framework',
         nodes: marketResearchNodes,
-        preview: 'marketResearch',
+        tags: ['research', 'competitors', 'customers', 'analysis'],
+        connectionStyle: 'curved',
     },
     {
         id: 'purchase-requisition',
@@ -178,7 +201,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Requester to Purchases workflow with approval gates',
         nodes: purchaseRequisitionNodes,
-        preview: 'gantt',
+        tags: ['procurement', 'purchasing', 'approval', 'workflow'],
+        connectionStyle: 'orthogonal',
     },
     {
         id: 'swot-analysis',
@@ -186,7 +210,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Strengths, Weaknesses, Opportunities, Threats analysis',
         nodes: swotNodes,
-        preview: 'swot',
+        tags: ['swot', 'strategy', 'strengths', 'weaknesses', 'opportunities', 'threats'],
+        connectionStyle: 'curved',
     },
     {
         id: 'supplier-evaluation',
@@ -194,7 +219,8 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Evaluate suppliers with requirements and monitoring',
         nodes: supplierEvaluationNodes,
-        preview: 'supplierEvaluation',
+        tags: ['procurement', 'vendor', 'supply chain', 'evaluation'],
+        connectionStyle: 'curved',
     },
     {
         id: 'porters-five-forces',
@@ -202,6 +228,16 @@ export const businessTemplates: Template[] = [
         category: 'business',
         description: 'Industry competitive analysis framework',
         nodes: portersFiveForces,
-        preview: 'portersForces',
+        tags: ['strategy', 'competitive analysis', 'industry', 'porter'],
+        connectionStyle: 'curved',
+    },
+    {
+        id: 'business-model-canvas',
+        name: 'Business Model Canvas',
+        category: 'business',
+        description: 'Nine building blocks for designing or documenting a business model',
+        nodes: businessModelCanvasNodes,
+        tags: ['bmc', 'lean canvas', 'startup', 'strategy', 'value proposition'],
+        connectionStyle: 'straight',
     },
 ];

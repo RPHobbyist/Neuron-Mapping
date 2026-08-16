@@ -14,61 +14,74 @@ import {
   FileText
 } from "lucide-react";
 import { templates, categories } from "@/data/templates";
+import { DynamicTemplatePreview } from "@/components/templates/DynamicTemplatePreview";
 import { useDocumentSEO } from "@/hooks/useDocumentSEO";
 import { Button } from "@/components/ui/button";
+import { templatesIndexSeo } from "@/data/seoContent";
+
+const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
+
+// Static content — hoisted to module scope (rather than an inline literal in
+// the useDocumentSEO() call) so it's a stable reference across renders.
+// useDocumentSEO's effect keys on this value, and an inline literal would be
+// a new array every render, re-running its DOM queries, JSON.stringify, and
+// Trusted Types policy lookup on every state change on this page.
+const TEMPLATES_JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "name": "Neuron Mapping Template Gallery",
+    "description": "Free, pre-built mind mapping templates for visual brainstorming and business strategy.",
+    "url": "https://neuron-mapping.rphobbyist.com/templates",
+    "isPartOf": {
+      "@type": "WebSite",
+      "name": "Neuron Mapping",
+      "url": "https://neuron-mapping.rphobbyist.com/"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://neuron-mapping.rphobbyist.com/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Templates",
+        "item": "https://neuron-mapping.rphobbyist.com/templates"
+      }
+    ]
+  }
+];
 
 export default function TemplatesIndex() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   useDocumentSEO({
-    title: "20+ Free Mind Map Templates & Diagrams Online | Neuron Mapping",
-    description: "Browse 20+ free, pre-built mind map templates including SWOT Analysis, Porter's Five Forces, Customer Journey, Eisenhower Box, Fishbone, and more. 100% private, no signup.",
+    title: templatesIndexSeo.title,
+    description: templatesIndexSeo.description,
     canonical: "/templates",
-    ogTitle: "20+ Free Mind Map Templates & Diagrams Online | Neuron Mapping",
-    ogDescription: "Explore 20+ free, open-source mind map templates for strategy, project management, HR, legal, and brainstorming. Instant editing, no account required.",
+    ogTitle: templatesIndexSeo.title,
+    ogDescription: templatesIndexSeo.ogDescription,
     ogImage: "/readme-assets/promo-productivity.webp",
-    jsonLd: [
-      {
-        "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        "name": "Neuron Mapping Template Gallery",
-        "description": "Free, pre-built mind mapping templates for visual brainstorming and business strategy.",
-        "url": "https://neuron-mapping.rphobbyist.com/templates",
-        "isPartOf": {
-          "@type": "WebSite",
-          "name": "Neuron Mapping",
-          "url": "https://neuron-mapping.rphobbyist.com/"
-        }
-      },
-      {
-        "@context": "https://schema.org",
-        "@type": "BreadcrumbList",
-        "itemListElement": [
-          {
-            "@type": "ListItem",
-            "position": 1,
-            "name": "Home",
-            "item": "https://neuron-mapping.rphobbyist.com/"
-          },
-          {
-            "@type": "ListItem",
-            "position": 2,
-            "name": "Templates",
-            "item": "https://neuron-mapping.rphobbyist.com/templates"
-          }
-        ]
-      }
-    ]
+    jsonLd: TEMPLATES_JSON_LD
   });
 
   const filteredTemplates = useMemo(() => {
     return templates.filter((template) => {
       const matchesCategory = selectedCategory === "all" || template.category === selectedCategory;
-      const matchesSearch = 
-        template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        template.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        template.name.toLowerCase().includes(q) ||
+        template.description.toLowerCase().includes(q) ||
+        template.category.toLowerCase().includes(q) ||
+        (template.tags?.some(tag => tag.toLowerCase().includes(q)) ?? false);
       return matchesCategory && matchesSearch;
     });
   }, [selectedCategory, searchQuery]);
@@ -102,7 +115,7 @@ export default function TemplatesIndex() {
       <section className="relative py-16 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs mb-4">
-            <Sparkles className="w-3.5 h-3.5" /> 20+ Free Mind Map Templates
+            <Sparkles className="w-3.5 h-3.5" /> {templates.length}+ Free Mind Map Templates
           </div>
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-slate-950 tracking-tight max-w-3xl mx-auto">
             Kickstart Your Visual Brainstorming in Seconds
@@ -172,9 +185,13 @@ export default function TemplatesIndex() {
                 className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between hover:shadow-lg hover:border-indigo-200 transition-all group"
               >
                 <div>
+                  <div className="aspect-[4/3] bg-slate-50 rounded-xl border border-slate-100 overflow-hidden mb-4">
+                    <DynamicTemplatePreview nodes={template.nodes} />
+                  </div>
+
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md bg-slate-100 text-slate-600 group-hover:bg-indigo-50 group-hover:text-indigo-700 transition-colors">
-                      {template.category}
+                      {categoryNameById.get(template.category) ?? template.category}
                     </span>
                     <span className="text-[11px] font-semibold text-slate-400">
                       {template.nodes.length} nodes

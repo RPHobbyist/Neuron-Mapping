@@ -2,7 +2,8 @@ import { useState, useRef } from 'react';
 import { Upload, FileText, FileCode, FileType, X, Loader2, HelpCircle } from 'lucide-react';
 import { parseFile } from '@/utils/parsers';
 import { autoLayoutNodes } from '@/utils/layoutUtils';
-import { MindMapNode } from '@/types/mindmap';
+import { loadFromFile } from '@/utils/exportUtils';
+import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { MAX_FILE_SIZE } from '@/lib/constants';
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface FileUploadProps {
-    onDataParsed: (nodes: MindMapNode[]) => void;
+    onDataParsed: (nodes: MindMapNode[], meta?: { connectionStyle?: ConnectionStyle; drawings?: Drawing[] }) => void;
     onClose: () => void;
 }
 
@@ -56,6 +57,21 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
         }
         setIsParsing(true);
         try {
+            const extension = file.name.split('.').pop()?.toLowerCase();
+
+            if (extension === 'nmm') {
+                // .nmm files already carry their own layout, connection style,
+                // and drawings — load them the same way "Load Map File" does
+                // instead of the generic multi-format importer, which used to
+                // silently drop connectionStyle/drawings and re-run
+                // auto-layout over positions the user already saved.
+                const data = await loadFromFile(file);
+                toast.success(`Loaded "${data.name}"`);
+                onDataParsed(data.nodes, { connectionStyle: data.connectionStyle, drawings: data.drawings });
+                onClose();
+                return;
+            }
+
             const nodes = await parseFile(file);
             if (nodes.length === 0) {
                 toast.error('No valid content found in file');

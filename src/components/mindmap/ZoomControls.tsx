@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { Minus, Plus, Maximize, Focus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { MIN_ZOOM, MAX_ZOOM } from '@/lib/constants';
 
 interface ZoomControlsProps {
   zoom: number;
@@ -28,7 +29,7 @@ export const ZoomControls = ({
         {/* Zoom Out */}
         <button
           onClick={onZoomOut}
-          disabled={zoom <= 0.25}
+          disabled={zoom <= MIN_ZOOM}
           className={cn(
             "p-2 rounded-lg text-foreground transition-all",
             "hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105",
@@ -49,7 +50,7 @@ export const ZoomControls = ({
         {/* Zoom In */}
         <button
           onClick={onZoomIn}
-          disabled={zoom >= 2}
+          disabled={zoom >= MAX_ZOOM}
           className={cn(
             "p-2 rounded-lg text-foreground transition-all",
             "hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105",

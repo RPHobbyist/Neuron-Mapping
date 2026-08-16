@@ -21,7 +21,12 @@ interface TrustedTypes {
   getPolicies?: () => TrustedTypePolicy[];
 }
 
-interface WindowWithTrustedTypes extends Window {
+// Deliberately NOT `extends Window`: modern lib.dom.d.ts already types
+// `Window.trustedTypes` as the full spec `TrustedTypePolicyFactory`, which
+// this file's minimal, hand-rolled `TrustedTypes` shape doesn't satisfy —
+// extending would fail to compile. This is only ever reached via
+// `window as unknown as WindowWithTrustedTypes`, so no inheritance is needed.
+interface WindowWithTrustedTypes {
   trustedTypes?: TrustedTypes;
 }
 

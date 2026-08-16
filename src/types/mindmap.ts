@@ -18,6 +18,10 @@ export interface Relation {
   animationSpeed?: 'slow' | 'medium' | 'fast';
   animationDirection?: 'forward' | 'reverse';
   animationType?: 'dash' | 'arrow' | 'cross';
+  // Which end(s) of the line get an arrowhead. 'forward' = pointing at
+  // target (the historical default), 'reverse' = pointing at source,
+  // 'both' = mutual/bidirectional, 'none' = no arrowhead at all.
+  arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
 }
 
 export type NodePriority = 'high' | 'medium' | 'low' | null;
@@ -32,7 +36,7 @@ export interface MindMapNode {
   color: NodeColor;
   parentId: string | null;
   shape?: NodeShape;
-  nodeAnimation?: NodeAnimation; // New animation property
+  nodeAnimation?: NodeAnimation;
   // Line properties for the connection TO this node
   lineType?: ConnectionStyle;
   lineThickness?: LineThickness;
@@ -42,8 +46,11 @@ export interface MindMapNode {
   lineDouble?: boolean; // Parallel double lines
   lineGradient?: boolean; // Gradient from parent to child
   lineTension?: number; // Bezier curve tension (0-1)
-  lineAnimationDirection?: 'forward' | 'reverse'; // NEW
+  lineAnimationDirection?: 'forward' | 'reverse';
   lineAnimationType?: 'dash' | 'arrow' | 'cross';
+  // Which end(s) of the connection TO this node get an arrowhead. See
+  // Relation.arrowDirection for the meaning of each value.
+  lineArrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
   relations?: Relation[]; // Cross-links to other nodes
   width?: number; // Custom width (pixels)
   height?: number; // Custom height (pixels)
