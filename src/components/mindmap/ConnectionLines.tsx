@@ -278,8 +278,10 @@ function ConnectionLinesBase({
         c,
         label: c.lineLabel,
         isRelation: false,
-        // Resolve Props from Child Node's line settings
-        type: c.lineType || connectionStyle,
+        // A child's own line settings win; otherwise fall back to its parent's
+        // line settings (so e.g. the root node can set a default style for its
+        // branches), then the global default.
+        type: c.lineType || p.lineType || connectionStyle,
         color: c.lineColor || '#9ca3af', // Default to neutral gray (gray-400) if no specific line color
         thickness: c.lineThickness || 'medium',
         animated: !!c.lineAnimated,

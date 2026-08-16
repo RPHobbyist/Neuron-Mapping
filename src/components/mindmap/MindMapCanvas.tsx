@@ -925,6 +925,7 @@ export const MindMapCanvas = ({
                 shape: node.shape,
                 priority: node.priority,
                 lineType: node.lineType,
+                nodeAnimation: node.nodeAnimation,
                 icon: node.icon,
                 iconStyle: node.iconStyle
               }}

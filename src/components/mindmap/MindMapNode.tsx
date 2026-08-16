@@ -439,6 +439,7 @@ const MindMapNodeBase = ({
                   alt="Node attachment"
                   className="w-full h-full object-cover rounded pointer-events-none"
                   draggable={false}
+                  referrerPolicy="no-referrer"
                 />
               )}
 

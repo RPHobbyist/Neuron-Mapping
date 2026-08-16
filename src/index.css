@@ -204,20 +204,19 @@
   }
 
   .animate-blink {
-    animation: border-blink 1.5s ease-in-out infinite;
+    animation: border-blink 1s steps(1, end) infinite;
   }
 
   @keyframes border-blink {
 
     0%,
-    100% {
+    49% {
       opacity: 1;
-      transform: scale(1);
     }
 
-    50% {
-      opacity: 0.6;
-      transform: scale(0.98);
+    50%,
+    100% {
+      opacity: 0.25;
     }
   }
 
