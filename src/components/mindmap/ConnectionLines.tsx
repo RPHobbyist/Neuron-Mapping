@@ -2,6 +2,7 @@ import { memo, useMemo } from 'react';
 import { MindMapNode, ConnectionStyle, LineThickness, Side } from '@/types/mindmap';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 import { IRREGULAR_SHAPE_PATHS, SHAPE_SVG_INSET } from '@/utils/shapePaths';
+import { getAutoConnectionSides } from '@/utils/common';
 
 
 interface Props {
@@ -51,15 +52,7 @@ function coerceSide(v: unknown): Side | undefined {
   return v === 'left' || v === 'right' || v === 'top' || v === 'bottom' ? v : undefined;
 }
 
-function getSides(parent: MindMapNode, child: MindMapNode): { from: Side; to: Side } {
-  const dx = child.x - parent.x;
-  const dy = child.y - parent.y;
-
-  if (Math.abs(dx) >= Math.abs(dy)) {
-    return dx > 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' };
-  }
-  return dy > 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' };
-}
+const getSides = getAutoConnectionSides;
 
 interface Point { x: number; y: number }
 

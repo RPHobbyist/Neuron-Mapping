@@ -59,7 +59,7 @@ export const MindMapCanvas = ({
     nodes, setNodes, resetNodes, restoreFullState, undo, redo, canUndo, canRedo, saveSnapshot,
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
-    addChildNode, addRelation, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
+    addChildNode, addRelation, pinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
     deleteNode, deleteSelectedNodes, deleteRelation,
     connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle,
     drawings, setDrawings, replaceDrawings
@@ -628,7 +628,7 @@ export const MindMapCanvas = ({
                       onRequestLink={handleRequestLink}
                       onRequestNotes={handleRequestNotes}
                       onAddIcon={handleRequestIcon}
-                      onDragStart={saveSnapshot}
+                      onDragStart={() => { pinConnectionSides(node.id); saveSnapshot(); }}
                       editTrigger={editTrigger?.nodeId === node.id ? editTrigger.token : undefined}
                       zoom={zoom}
                       isDimmed={isFocusMode && focusedNodeIds ? !focusedNodeIds.has(node.id) : false}
@@ -799,6 +799,7 @@ export const MindMapCanvas = ({
                 key={`line-rel-${sourceId}-${targetId}`}
                 mode="line"
                 position={pos}
+                anchorWidth={0}
                 lineValues={values}
                 onLineUpdate={(updates) => {
                   const newRelations = sourceNode.relations?.map(r =>
@@ -842,6 +843,7 @@ export const MindMapCanvas = ({
                 key={`line-child-${childId}`}
                 mode="line"
                 position={pos}
+                anchorWidth={0}
                 lineValues={values}
                 onLineUpdate={(updates) => {
                   const nodeUpdates: Partial<NodeType> = {};

@@ -1,4 +1,4 @@
-import { MindMapNode } from '@/types/mindmap';
+import { MindMapNode, Side } from '@/types/mindmap';
 
 export const generateId = (): string => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -73,6 +73,16 @@ export const clamp = (value: number, min: number, max: number): number => {
 
 export const lerp = (start: number, end: number, t: number): number => {
     return start + (end - start) * t;
+};
+
+export const getAutoConnectionSides = (from: MindMapNode, to: MindMapNode): { from: Side; to: Side } => {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+
+    if (Math.abs(dx) >= Math.abs(dy)) {
+        return dx > 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' };
+    }
+    return dy > 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' };
 };
 
  

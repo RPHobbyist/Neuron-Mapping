@@ -1,11 +1,61 @@
 import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
-import { generateId, getDescendantIds } from '@/utils/common';
+import { generateId, getAutoConnectionSides } from '@/utils/common';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority, Drawing } from '@/types/mindmap';
 
 import { useHistory } from './useHistory';
+
+const DEFAULT_NODE_WIDTH = 150;
+const DEFAULT_NODE_HEIGHT = 60;
+const NODE_PLACEMENT_GAP = 30;
+
+const getNodeSize = (node: MindMapNode) => ({
+    width: node.measuredWidth || node.width || DEFAULT_NODE_WIDTH,
+    height: node.measuredHeight || node.height || DEFAULT_NODE_HEIGHT,
+});
+
+const rectsOverlap = (
+    x1: number, y1: number, w1: number, h1: number,
+    x2: number, y2: number, w2: number, h2: number
+) => (
+    Math.abs(x1 - x2) * 2 < w1 + w2 + NODE_PLACEMENT_GAP &&
+    Math.abs(y1 - y2) * 2 < h1 + h2 + NODE_PLACEMENT_GAP
+);
+
+const findClearPosition = (
+    startX: number,
+    startY: number,
+    originX: number,
+    originY: number,
+    width: number,
+    height: number,
+    others: MindMapNode[]
+) => {
+    const isClear = (x: number, y: number) => others.every((n) => {
+        const size = getNodeSize(n);
+        return !rectsOverlap(x, y, width, height, n.x, n.y, size.width, size.height);
+    });
+
+    if (isClear(startX, startY)) return { x: startX, y: startY };
+
+    const baseRadius = Math.max(Math.hypot(startX - originX, startY - originY), width, height);
+    const ringGap = Math.max(width, height) + NODE_PLACEMENT_GAP;
+
+    for (let ring = 1; ring <= 24; ring++) {
+        const radius = baseRadius + ring * ringGap;
+        const steps = 10 + ring * 4;
+        for (let i = 0; i < steps; i++) {
+            const angle = (i / steps) * Math.PI * 2;
+            const x = originX + Math.cos(angle) * radius;
+            const y = originY + Math.sin(angle) * radius;
+            if (isClear(x, y)) return { x, y };
+        }
+    }
+
+    return { x: startX, y: startY };
+};
 
 export const useMindMapNodes = (
     initialNodes: MindMapNode[] = [],
@@ -156,9 +206,9 @@ export const useMindMapNodes = (
             const children = prev.filter((n) => n.parentId === parentId);
             const angle = (children.length * 50 - 100) * (Math.PI / 180);
 
-            const parentW = parent.measuredWidth || parent.width || 150;
-            const parentH = parent.measuredHeight || parent.height || 60;
-            const sizeSlack = Math.max(0, (Math.max(parentW, parentH) - 150) / 2);
+            const parentW = parent.measuredWidth || parent.width || DEFAULT_NODE_WIDTH;
+            const parentH = parent.measuredHeight || parent.height || DEFAULT_NODE_HEIGHT;
+            const sizeSlack = Math.max(0, (Math.max(parentW, parentH) - DEFAULT_NODE_WIDTH) / 2);
             const distance = 250 + sizeSlack;
 
             let newColor: NodeColor = 'orange';
@@ -183,6 +233,15 @@ export const useMindMapNodes = (
                 newNode.x = parent.x + (isRight ? 1 : -1) * (200 + sizeSlack);
                 newNode.y = parent.y + (children.length * 60 - 100);
             }
+
+            const clearPos = findClearPosition(
+                newNode.x, newNode.y,
+                parent.x, parent.y,
+                DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT,
+                prev
+            );
+            newNode.x = clearPos.x;
+            newNode.y = clearPos.y;
 
             return [...prev, newNode];
         });
@@ -209,6 +268,58 @@ export const useMindMapNodes = (
         }));
         toast.success('Nodes connected');
     }, [selectedNodeIds, setNodes]);
+
+    const pinConnectionSides = useCallback((nodeId: string) => {
+        const movingIds = selectedNodeIds.has(nodeId) && selectedNodeIds.size > 1
+            ? selectedNodeIds
+            : new Set([nodeId]);
+
+        replaceNodes((prev) => {
+            const byId = new Map(prev.map(n => [n.id, n]));
+            let changed = false;
+
+            const next = prev.map((node) => {
+                let updated = node;
+
+                if (node.parentId) {
+                    const parent = byId.get(node.parentId);
+                    if (parent && movingIds.has(node.id) !== movingIds.has(parent.id) && (!node.lineParentSide || !node.lineChildSide)) {
+                        const auto = getAutoConnectionSides(parent, node);
+                        updated = {
+                            ...updated,
+                            lineParentSide: node.lineParentSide ?? auto.from,
+                            lineChildSide: node.lineChildSide ?? auto.to,
+                        };
+                        changed = true;
+                    }
+                }
+
+                if (node.relations?.length) {
+                    let relationsChanged = false;
+                    const relations = node.relations.map((r) => {
+                        if (r.sourceSide && r.targetSide) return r;
+                        const target = byId.get(r.targetId);
+                        if (!target || movingIds.has(node.id) === movingIds.has(target.id)) return r;
+                        const auto = getAutoConnectionSides(node, target);
+                        relationsChanged = true;
+                        return {
+                            ...r,
+                            sourceSide: r.sourceSide ?? auto.from,
+                            targetSide: r.targetSide ?? auto.to,
+                        };
+                    });
+                    if (relationsChanged) {
+                        updated = { ...updated, relations };
+                        changed = true;
+                    }
+                }
+
+                return updated;
+            });
+
+            return changed ? next : prev;
+        });
+    }, [selectedNodeIds, replaceNodes]);
 
     const updateNodePosition = useCallback((id: string, x: number, y: number) => {
         replaceNodes((prev) => {
@@ -260,24 +371,35 @@ export const useMindMapNodes = (
         setNodes((prev) => prev.map((node) => selectedNodeIds.has(node.id) ? { ...node, priority } : node));
     }, [selectedNodeIds, setNodes]);
 
+    const removeNodesKeepingChildren = useCallback((prev: MindMapNode[], idsToDelete: Set<string>) => {
+        const findSurvivingParentId = (parentId: string | null): string | null => {
+            if (parentId === null || !idsToDelete.has(parentId)) return parentId;
+            const parentNode = prev.find(n => n.id === parentId);
+            return findSurvivingParentId(parentNode ? parentNode.parentId : null);
+        };
+
+        return prev
+            .filter(n => !idsToDelete.has(n.id))
+            .map(n => {
+                let next = n;
+                if (n.parentId !== null && idsToDelete.has(n.parentId)) {
+                    next = { ...next, parentId: findSurvivingParentId(n.parentId) };
+                }
+                if (next.relations?.some(r => idsToDelete.has(r.targetId))) {
+                    next = { ...next, relations: next.relations.filter(r => !idsToDelete.has(r.targetId)) };
+                }
+                return next;
+            });
+    }, []);
+
     const deleteSelectedNodes = useCallback(() => {
         setNodes((prev) => {
-            const toDelete = new Set<string>();
-
-            selectedNodeIds.forEach(id => {
-                if (id === 'root') return;
-                getDescendantIds(id, prev).forEach(d => toDelete.add(d));
-            });
-
-            return prev
-                .filter(n => !toDelete.has(n.id))
-                .map(n => {
-                    if (n.relations) return { ...n, relations: n.relations.filter(r => !toDelete.has(r.targetId)) };
-                    return n;
-                });
+            const toDelete = new Set(selectedNodeIds);
+            toDelete.delete('root');
+            return removeNodesKeepingChildren(prev, toDelete);
         });
         setSelectedNodeIds(new Set());
-    }, [selectedNodeIds, setNodes]);
+    }, [selectedNodeIds, removeNodesKeepingChildren, setNodes]);
 
     const deleteNode = useCallback((id: string) => {
         if (selectedNodeIds.has(id) && selectedNodeIds.size > 1) {
@@ -286,18 +408,9 @@ export const useMindMapNodes = (
         }
         if (id === 'root') return;
 
-        setNodes((prev) => {
-            const toDelete = new Set(getDescendantIds(id, prev));
-
-            return prev
-                .filter(n => !toDelete.has(n.id))
-                .map(n => {
-                    if (n.relations) return { ...n, relations: n.relations.filter(r => !toDelete.has(r.targetId)) };
-                    return n;
-                });
-        });
+        setNodes((prev) => removeNodesKeepingChildren(prev, new Set([id])));
         setSelectedNodeIds(new Set());
-    }, [selectedNodeIds, deleteSelectedNodes, setNodes]);
+    }, [selectedNodeIds, deleteSelectedNodes, removeNodesKeepingChildren, setNodes]);
 
     const deleteRelation = useCallback((id: string) => {
         if (!id.startsWith('rel::')) return;
@@ -343,6 +456,7 @@ export const useMindMapNodes = (
         setSelectedLineId,
         addChildNode,
         addRelation,
+        pinConnectionSides,
         updateNodePosition,
         updateNodeText,
         replaceNodeText,
