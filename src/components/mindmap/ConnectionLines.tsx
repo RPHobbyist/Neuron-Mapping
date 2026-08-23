@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { MindMapNode, ConnectionStyle, LineThickness, Side } from '@/types/mindmap';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 import { IRREGULAR_SHAPE_PATHS, SHAPE_SVG_INSET } from '@/utils/shapePaths';
-import { getAutoConnectionSides, getNodeDimensions } from '@/utils/common';
+import { getAutoConnectionSides, getNodeDimensions, clamp } from '@/utils/common';
 
 
 interface Props {
@@ -234,14 +234,20 @@ function curved(a: Anchor, b: Anchor, t: number): string {
 
 interface Rect { x1: number; y1: number; x2: number; y2: number }
 
+interface LaneAdjustment { split: number; rank: number; count: number }
+
 const OBSTACLE_CLEARANCE = 14;
+const LANE_SPACING = 18;
+const MAX_GROUP_SPREAD = 96;
+const MIN_LEG = 18;
+const OBSTACLE_LANE_NUDGE = 6;
 
 function getNodeRect(node: MindMapNode): Rect {
   const { w, h } = getNodeDimensions(node);
   return { x1: node.x - w / 2, y1: node.y - h / 2, x2: node.x + w / 2, y2: node.y + h / 2 };
 }
 
-function avoidHorizontalY(y: number, xLo: number, xHi: number, obstacles: Rect[]): number {
+function avoidHorizontalY(y: number, xLo: number, xHi: number, obstacles: Rect[], laneNudge = 0): number {
   let top = Infinity, bottom = -Infinity, hit = false;
   for (const r of obstacles) {
     if (y > r.y1 && y < r.y2 && xHi > r.x1 && xLo < r.x2) {
@@ -253,10 +259,10 @@ function avoidHorizontalY(y: number, xLo: number, xHi: number, obstacles: Rect[]
   if (!hit) return y;
   const upY = top - OBSTACLE_CLEARANCE;
   const downY = bottom + OBSTACLE_CLEARANCE;
-  return Math.abs(y - upY) <= Math.abs(y - downY) ? upY : downY;
+  return (Math.abs(y - upY) <= Math.abs(y - downY) ? upY : downY) + laneNudge;
 }
 
-function avoidVerticalX(x: number, yLo: number, yHi: number, obstacles: Rect[]): number {
+function avoidVerticalX(x: number, yLo: number, yHi: number, obstacles: Rect[], laneNudge = 0): number {
   let left = Infinity, right = -Infinity, hit = false;
   for (const r of obstacles) {
     if (x > r.x1 && x < r.x2 && yHi > r.y1 && yLo < r.y2) {
@@ -268,43 +274,55 @@ function avoidVerticalX(x: number, yLo: number, yHi: number, obstacles: Rect[]):
   if (!hit) return x;
   const leftX = left - OBSTACLE_CLEARANCE;
   const rightX = right + OBSTACLE_CLEARANCE;
-  return Math.abs(x - leftX) <= Math.abs(x - rightX) ? leftX : rightX;
+  return (Math.abs(x - leftX) <= Math.abs(x - rightX) ? leftX : rightX) + laneNudge;
 }
 
-function hRunCmds(fromX: number, toX: number, y: number, obstacles: Rect[]): string {
+function hRunCmds(fromX: number, toX: number, y: number, obstacles: Rect[], laneNudge = 0): string {
   const lo = Math.min(fromX, toX), hi = Math.max(fromX, toX);
-  const detourY = avoidHorizontalY(y, lo, hi, obstacles);
+  const detourY = avoidHorizontalY(y, lo, hi, obstacles, laneNudge);
   if (detourY === y) return `L ${toX} ${y}`;
   return `L ${fromX} ${detourY} L ${toX} ${detourY} L ${toX} ${y}`;
 }
 
-function vRunCmds(fromY: number, toY: number, x: number, obstacles: Rect[]): string {
+function vRunCmds(fromY: number, toY: number, x: number, obstacles: Rect[], laneNudge = 0): string {
   const lo = Math.min(fromY, toY), hi = Math.max(fromY, toY);
-  const detourX = avoidVerticalX(x, lo, hi, obstacles);
+  const detourX = avoidVerticalX(x, lo, hi, obstacles, laneNudge);
   if (detourX === x) return `L ${x} ${toY}`;
   return `L ${detourX} ${fromY} L ${detourX} ${toY} L ${x} ${toY}`;
 }
 
-function orthogonal(a: Anchor, b: Anchor, t: number, obstacles: Rect[]): string {
-  if (a.side === 'left' || a.side === 'right') {
-    const mx = a.x + (b.x - a.x) * t;
-    return [
-      `M ${a.x} ${a.y}`,
-      hRunCmds(a.x, mx, a.y, obstacles),
-      vRunCmds(a.y, b.y, mx, obstacles),
-      hRunCmds(mx, b.x, b.y, obstacles),
-    ].join(' ');
-  }
-  const my = a.y + (b.y - a.y) * t;
-  return [
-    `M ${a.x} ${a.y}`,
-    vRunCmds(a.y, my, a.x, obstacles),
-    hRunCmds(a.x, b.x, my, obstacles),
-    vRunCmds(my, b.y, b.x, obstacles),
-  ].join(' ');
+interface OrthogonalResult { path: string; bendAxis: 'x' | 'y'; bendValue: number }
+
+function laneNudgeFor(lane: LaneAdjustment | undefined): number {
+  if (!lane || lane.count <= 1) return 0;
+  return (lane.rank - (lane.count - 1) / 2) * OBSTACLE_LANE_NUDGE;
 }
 
-interface ResolvedConnection { path: string; a: Anchor; b: Anchor; from: Side; to: Side }
+function orthogonal(a: Anchor, b: Anchor, t: number, obstacles: Rect[], lane?: LaneAdjustment): OrthogonalResult {
+  const nudge = laneNudgeFor(lane);
+
+  if (a.side === 'left' || a.side === 'right') {
+    const mx = lane ? lane.split : a.x + (b.x - a.x) * t;
+    const path = [
+      `M ${a.x} ${a.y}`,
+      hRunCmds(a.x, mx, a.y, obstacles),
+      vRunCmds(a.y, b.y, mx, obstacles, nudge),
+      hRunCmds(mx, b.x, b.y, obstacles),
+    ].join(' ');
+    return { path, bendAxis: 'x', bendValue: mx };
+  }
+
+  const my = lane ? lane.split : a.y + (b.y - a.y) * t;
+  const path = [
+    `M ${a.x} ${a.y}`,
+    vRunCmds(a.y, my, a.x, obstacles),
+    hRunCmds(a.x, b.x, my, obstacles, nudge),
+    vRunCmds(my, b.y, b.x, obstacles),
+  ].join(' ');
+  return { path, bendAxis: 'y', bendValue: my };
+}
+
+interface ResolvedConnection { path: string; a: Anchor; b: Anchor; from: Side; to: Side; bendAxis?: 'x' | 'y'; bendValue?: number }
 
 function resolveConnection(
   p: MindMapNode,
@@ -314,6 +332,7 @@ function resolveConnection(
   fromOverride?: Side,
   toOverride?: Side,
   obstacles: Rect[] = [],
+  laneAdjustment?: LaneAdjustment,
 ): ResolvedConnection {
   const base = style === 'dashed' || style === 'dotted' ? 'curved' : style;
   const auto = getSides(p, c);
@@ -328,8 +347,13 @@ function resolveConnection(
 
   const a = getAnchor(p, from);
   const b = getAnchor(c, to);
-  const path = base === 'orthogonal' ? orthogonal(a, b, tension, obstacles) : curved(a, b, tension);
-  return { path, a, b, from, to };
+
+  if (base === 'orthogonal') {
+    const { path, bendAxis, bendValue } = orthogonal(a, b, tension, obstacles, laneAdjustment);
+    return { path, a, b, from, to, bendAxis, bendValue };
+  }
+
+  return { path: curved(a, b, tension), a, b, from, to };
 }
 
 function pathLength(path: string): number {
@@ -436,6 +460,94 @@ function useVisualConnections(nodes: MindMapNode[], connectionStyle: ConnectionS
   }, [nodes, nodeById, connectionStyle]);
 }
 
+interface LaneMember {
+  id: string;
+  a: Anchor;
+  b: Anchor;
+  parentId: string;
+  childId: string;
+  from: Side;
+  to: Side;
+  tension: number;
+}
+
+function applyLaneSplits(group: LaneMember[], result: Map<string, LaneAdjustment>): void {
+  const isHorizontal = group[0].from === 'left' || group[0].from === 'right';
+
+  const ranked = group
+    .map(m => ({
+      m,
+      raw: isHorizontal ? m.a.x + (m.b.x - m.a.x) * m.tension : m.a.y + (m.b.y - m.a.y) * m.tension,
+      rankKey: isHorizontal ? m.b.y : m.b.x,
+    }))
+    .sort((x, y) => x.rankKey - y.rankKey);
+
+  const count = ranked.length;
+  const center = ranked.reduce((sum, w) => sum + w.raw, 0) / count;
+  const spacing = Math.min(LANE_SPACING, MAX_GROUP_SPREAD / (count - 1));
+
+  ranked.forEach(({ m }, rank) => {
+    const desired = center + (rank - (count - 1) / 2) * spacing;
+    const loAnchor = isHorizontal ? m.a.x : m.a.y;
+    const hiAnchor = isHorizontal ? m.b.x : m.b.y;
+    const dir = hiAnchor >= loAnchor ? 1 : -1;
+    const lo = loAnchor + dir * MIN_LEG;
+    const hi = hiAnchor - dir * MIN_LEG;
+    const split = clamp(desired, Math.min(lo, hi), Math.max(lo, hi));
+    result.set(m.id, { split, rank, count });
+  });
+}
+
+function computeOrthogonalLaneSplits(connections: VisualConnection[]): Map<string, LaneAdjustment> {
+  const resolved: LaneMember[] = connections
+    .filter(conn => conn.type === 'orthogonal')
+    .map(conn => {
+      const auto = getSides(conn.p, conn.c);
+      const from = conn.fromOverride ?? auto.from;
+      const to = conn.toOverride ?? auto.to;
+      return {
+        id: conn.id,
+        a: getAnchor(conn.p, from),
+        b: getAnchor(conn.c, to),
+        parentId: conn.p.id,
+        childId: conn.c.id,
+        from,
+        to,
+        tension: conn.tension,
+      };
+    });
+
+  const result = new Map<string, LaneAdjustment>();
+  const assigned = new Set<string>();
+
+  const fromGroups = new Map<string, LaneMember[]>();
+  resolved.forEach(m => {
+    const key = `from:${m.parentId}:${m.from}`;
+    const group = fromGroups.get(key);
+    if (group) group.push(m); else fromGroups.set(key, [m]);
+  });
+  fromGroups.forEach(group => {
+    if (group.length < 2) return;
+    applyLaneSplits(group, result);
+    group.forEach(m => assigned.add(m.id));
+  });
+
+  const toGroups = new Map<string, LaneMember[]>();
+  resolved.forEach(m => {
+    if (assigned.has(m.id)) return;
+    const axis = m.from === 'left' || m.from === 'right' ? 'x' : 'y';
+    const key = `to:${m.childId}:${m.to}:${axis}`;
+    const group = toGroups.get(key);
+    if (group) group.push(m); else toGroups.set(key, [m]);
+  });
+  toGroups.forEach(group => {
+    if (group.length < 2) return;
+    applyLaneSplits(group, result);
+  });
+
+  return result;
+}
+
 
 function ConnectionLinesBase({
   nodes,
@@ -447,6 +559,11 @@ function ConnectionLinesBase({
 }: Props) {
 
   const connections = useVisualConnections(nodes, connectionStyle);
+
+  const orthogonalLaneSplits = useMemo(
+    () => computeOrthogonalLaneSplits(connections),
+    [connections]
+  );
 
   const nodeRectsById = useMemo(() => {
     const map = new Map<string, Rect>();
@@ -497,7 +614,7 @@ function ConnectionLinesBase({
               .filter(([nodeId]) => nodeId !== p.id && nodeId !== c.id)
               .map(([, rect]) => rect)
             : [];
-          const { path, a, b, from } = resolveConnection(p, c, type, tension, fromOverride, toOverride, obstacles);
+          const { path, a, b, bendAxis, bendValue } = resolveConnection(p, c, type, tension, fromOverride, toOverride, obstacles, orthogonalLaneSplits.get(id));
           const sel = selectedLineId === id;
 
           const arrowDir = animated && animationType === 'arrow' ? 'none' : resolveArrowDirection(conn);
@@ -508,15 +625,8 @@ function ConnectionLinesBase({
           let my = (a.y + b.y) / 2;
 
           if (type === 'orthogonal') {
-            if (from === 'left' || from === 'right') {
-              const midX = a.x + (b.x - a.x) * tension;
-              mx = midX;
-              my = (a.y + b.y) / 2;
-            } else {
-              const midY = a.y + (b.y - a.y) * tension;
-              mx = (a.x + b.x) / 2;
-              my = midY;
-            }
+            if (bendAxis === 'x') mx = bendValue ?? mx;
+            else if (bendAxis === 'y') my = bendValue ?? my;
           }
 
           const labelText = conn.label;
