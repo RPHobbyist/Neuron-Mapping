@@ -221,28 +221,26 @@ function getIntersection(node: MindMapNode, target: { x: number; y: number }): {
 }
 
 function curved(a: Anchor, b: Anchor, t: number): string {
+  const isHorizontal = (side: Side) => side === 'left' || side === 'right';
+  const sameAxis = isHorizontal(a.side) === isHorizontal(b.side);
+  const MIXED_AXIS_MAX_DIST = 40;
 
-  let dist = 0;
-
-  if ((a.side === 'left' || a.side === 'right') && (b.side === 'left' || b.side === 'right')) {
-    dist = Math.abs(b.x - a.x) * t;
-  }
-  else if ((a.side === 'top' || a.side === 'bottom') && (b.side === 'top' || b.side === 'bottom')) {
-    dist = Math.abs(b.y - a.y) * t;
-  }
-  else {
-    dist = Math.max(Math.abs(b.x - a.x), Math.abs(b.y - a.y)) * t;
-  }
+  const distFor = (side: Side) => {
+    const raw = (isHorizontal(side) ? Math.abs(b.x - a.x) : Math.abs(b.y - a.y)) * t;
+    return sameAxis ? raw : Math.min(raw, MIXED_AXIS_MAX_DIST);
+  };
+  const distA = distFor(a.side);
+  const distB = distFor(b.side);
 
   let ax = a.x, ay = a.y, bx = b.x, by = b.y;
-  if (a.side === 'right') ax += dist;
-  if (a.side === 'left') ax -= dist;
-  if (a.side === 'bottom') ay += dist;
-  if (a.side === 'top') ay -= dist;
-  if (b.side === 'left') bx -= dist;
-  if (b.side === 'right') bx += dist;
-  if (b.side === 'top') by -= dist;
-  if (b.side === 'bottom') by += dist;
+  if (a.side === 'right') ax += distA;
+  if (a.side === 'left') ax -= distA;
+  if (a.side === 'bottom') ay += distA;
+  if (a.side === 'top') ay -= distA;
+  if (b.side === 'left') bx -= distB;
+  if (b.side === 'right') bx += distB;
+  if (b.side === 'top') by -= distB;
+  if (b.side === 'bottom') by += distB;
 
   return `M ${a.x} ${a.y} C ${ax} ${ay}, ${bx} ${by}, ${b.x} ${b.y}`;
 }

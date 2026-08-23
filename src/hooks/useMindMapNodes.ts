@@ -372,13 +372,23 @@ export const useMindMapNodes = (
     }, [selectedNodeIds, setNodes]);
 
     const removeNodesKeepingChildren = useCallback((prev: MindMapNode[], idsToDelete: Set<string>) => {
+        const findSurvivingParentId = (parentId: string | null): string | null => {
+            if (parentId === null || !idsToDelete.has(parentId)) return parentId;
+            const parentNode = prev.find(n => n.id === parentId);
+            return findSurvivingParentId(parentNode ? parentNode.parentId : null);
+        };
+
         return prev
             .filter(n => !idsToDelete.has(n.id))
             .map(n => {
-                if (n.relations?.some(r => idsToDelete.has(r.targetId))) {
-                    return { ...n, relations: n.relations.filter(r => !idsToDelete.has(r.targetId)) };
+                let next = n;
+                if (n.parentId !== null && idsToDelete.has(n.parentId)) {
+                    next = { ...next, parentId: findSurvivingParentId(n.parentId) };
                 }
-                return n;
+                if (next.relations?.some(r => idsToDelete.has(r.targetId))) {
+                    next = { ...next, relations: next.relations.filter(r => !idsToDelete.has(r.targetId)) };
+                }
+                return next;
             });
     }, []);
 
