@@ -20,7 +20,7 @@ import { AnimatePresence } from 'framer-motion';
 import { IconLibraryDialog } from './IconLibraryDialog';
 import { SmartAddPanel } from './SmartAddPanel';
 import { findBestParent } from '@/utils/smartPlacement';
-import { MIN_ZOOM, MAX_ZOOM } from '@/lib/constants';
+import { MIN_ZOOM, MAX_ZOOM, DETACHED_PARENT_ID } from '@/lib/constants';
 
 const GalaxyView = lazy(() => import('./GalaxyView').then(module => ({ default: module.GalaxyView })));
 
@@ -60,7 +60,7 @@ export const MindMapCanvas = ({
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
     addChildNode, addRelation, pinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
-    deleteNode, deleteSelectedNodes, deleteRelation,
+    deleteNode, deleteSelectedNodes, deleteRelation, reconnectRelation,
     connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle,
     drawings, setDrawings, replaceDrawings
   } = useMindMapNodes(initialNodes, connectionStyle, initialDrawings);
@@ -99,6 +99,13 @@ export const MindMapCanvas = ({
   const [drawingMode, setDrawingMode] = useState<'none' | 'pen' | 'eraser'>('none');
   const [currentPath, setCurrentPath] = useState<{ x: number, y: number }[]>([]);
 
+  const [lineDrag, setLineDrag] = useState<{
+    connectionId: string;
+    endpoint: 'from' | 'to';
+    pos: { x: number, y: number };
+    hoverNodeId: string | null;
+  } | null>(null);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && drawingMode !== 'none') {
@@ -111,14 +118,31 @@ export const MindMapCanvas = ({
   }, [drawingMode]);
 
 
-  const getMousePos = (e: React.MouseEvent) => {
+  const screenToCanvas = useCallback((clientX: number, clientY: number) => {
     if (!contentRef.current) return { x: 0, y: 0 };
     const rect = contentRef.current.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left) / zoom,
-      y: (e.clientY - rect.top) / zoom
+      x: (clientX - rect.left) / zoom,
+      y: (clientY - rect.top) / zoom
     };
-  };
+  }, [zoom]);
+
+  const getMousePos = (e: React.MouseEvent) => screenToCanvas(e.clientX, e.clientY);
+
+  const getNodeBounds = (node: NodeType) => ({
+    w: node.measuredWidth || node.width || (node.id === 'root' ? 128 : Math.max(100, node.text.length * 8 + 48)),
+    h: node.measuredHeight || node.height || (node.id === 'root' ? 128 : 50),
+  });
+
+  const findNodeAtPosition = useCallback((pos: { x: number, y: number }, excludeIds: Set<string>) => {
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const n = nodes[i];
+      if (excludeIds.has(n.id)) continue;
+      const { w, h } = getNodeBounds(n);
+      if (Math.abs(pos.x - n.x) <= w / 2 && Math.abs(pos.y - n.y) <= h / 2) return n.id;
+    }
+    return null;
+  }, [nodes]);
 
   const distToSegment = (p: { x: number, y: number }, a: { x: number, y: number }, b: { x: number, y: number }) => {
     const l2 = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
@@ -155,6 +179,63 @@ export const MindMapCanvas = ({
     }
     return descendants;
   }, []);
+
+  const handleEndpointDragStart = useCallback((connectionId: string, endpoint: 'from' | 'to', e: React.PointerEvent) => {
+    const isRelation = connectionId.startsWith('rel::');
+    const startClientX = e.clientX;
+    const startClientY = e.clientY;
+
+    const excludeIds = isRelation
+      ? new Set<string>()
+      : getDescendants(connectionId.split('::')[1], nodes);
+
+    let didDrag = false;
+    let snapshotSaved = false;
+    const DRAG_THRESHOLD = 3;
+
+    const handleMove = (moveEvent: MouseEvent) => {
+      if (!didDrag) {
+        if (Math.hypot(moveEvent.clientX - startClientX, moveEvent.clientY - startClientY) < DRAG_THRESHOLD) return;
+        didDrag = true;
+        if (!snapshotSaved) {
+          snapshotSaved = true;
+          saveSnapshot();
+        }
+      }
+
+      const pos = screenToCanvas(moveEvent.clientX, moveEvent.clientY);
+      const hoverNodeId = findNodeAtPosition(pos, excludeIds);
+      setLineDrag({ connectionId, endpoint, pos, hoverNodeId });
+    };
+
+    const handleUp = () => {
+      document.removeEventListener('mousemove', handleMove);
+      document.removeEventListener('mouseup', handleUp);
+
+      if (didDrag) {
+        setLineDrag(current => {
+          if (current) {
+            if (isRelation) {
+              reconnectRelation(connectionId, endpoint, current.hoverNodeId);
+            } else {
+              const [, childId] = connectionId.split('::');
+              if (current.hoverNodeId) {
+                updateNode(childId, { parentId: current.hoverNodeId });
+                setSelectedLineId(`${current.hoverNodeId}::${childId}`);
+              } else {
+                updateNode(childId, { parentId: DETACHED_PARENT_ID });
+                setSelectedLineId(null);
+              }
+            }
+          }
+          return null;
+        });
+      }
+    };
+
+    document.addEventListener('mousemove', handleMove);
+    document.addEventListener('mouseup', handleUp);
+  }, [nodes, getDescendants, screenToCanvas, findNodeAtPosition, saveSnapshot, reconnectRelation, updateNode, setSelectedLineId]);
 
   const toggleFocusMode = useCallback(() => {
     if (isFocusMode) {
@@ -674,7 +755,53 @@ export const MindMapCanvas = ({
                 selectedLineId={selectedLineId}
                 visibleLineIds={visibleLineIds}
                 onSetConnectionSide={handleSetConnectionSide}
+                onEndpointDragStart={handleEndpointDragStart}
               />
+
+              {lineDrag && (() => {
+                const isRelation = lineDrag.connectionId.startsWith('rel::');
+                const parts = lineDrag.connectionId.split('::');
+                const fixedNodeId = isRelation
+                  ? (lineDrag.endpoint === 'from' ? parts[2] : parts[1])
+                  : (lineDrag.endpoint === 'from' ? parts[1] : parts[0]);
+                const fixedNode = nodes.find(n => n.id === fixedNodeId);
+                const hoverNode = lineDrag.hoverNodeId ? nodes.find(n => n.id === lineDrag.hoverNodeId) : null;
+                if (!fixedNode) return null;
+
+                return (
+                  <svg
+                    className="absolute pointer-events-none overflow-visible"
+                    style={{ left: -5000, top: -5000, width: 10000, height: 10000, zIndex: 20 }}
+                  >
+                    <g transform="translate(5000, 5000)">
+                      <line
+                        x1={fixedNode.x}
+                        y1={fixedNode.y}
+                        x2={lineDrag.pos.x}
+                        y2={lineDrag.pos.y}
+                        stroke="#f97316"
+                        strokeWidth={2 / zoom}
+                        strokeDasharray="6 4"
+                      />
+                      {hoverNode && (() => {
+                        const { w, h } = getNodeBounds(hoverNode);
+                        return (
+                          <rect
+                            x={hoverNode.x - w / 2 - 4}
+                            y={hoverNode.y - h / 2 - 4}
+                            width={w + 8}
+                            height={h + 8}
+                            rx={10}
+                            fill="none"
+                            stroke="#22c55e"
+                            strokeWidth={3 / zoom}
+                          />
+                        );
+                      })()}
+                    </g>
+                  </svg>
+                );
+              })()}
             </div>
 
             {selectionBox && (
@@ -814,6 +941,7 @@ export const MindMapCanvas = ({
                   replaceNode(sourceId, { relations: newRelations });
                 }}
                 onLiveEditStart={saveSnapshot}
+                onDelete={() => deleteRelation(selectedLineId)}
                 onClose={() => { setSelectedLineId(null); setIsPropertiesOpen(false); }}
               />
             );
@@ -874,6 +1002,7 @@ export const MindMapCanvas = ({
                   replaceNode(childId, nodeUpdates);
                 }}
                 onLiveEditStart={saveSnapshot}
+                onDelete={() => { updateNode(childId, { parentId: DETACHED_PARENT_ID }); setSelectedLineId(null); }}
                 onClose={() => { setSelectedLineId(null); setIsPropertiesOpen(false); }}
               />
             );

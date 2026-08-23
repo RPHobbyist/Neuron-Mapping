@@ -372,23 +372,13 @@ export const useMindMapNodes = (
     }, [selectedNodeIds, setNodes]);
 
     const removeNodesKeepingChildren = useCallback((prev: MindMapNode[], idsToDelete: Set<string>) => {
-        const findSurvivingParentId = (parentId: string | null): string | null => {
-            if (parentId === null || !idsToDelete.has(parentId)) return parentId;
-            const parentNode = prev.find(n => n.id === parentId);
-            return findSurvivingParentId(parentNode ? parentNode.parentId : null);
-        };
-
         return prev
             .filter(n => !idsToDelete.has(n.id))
             .map(n => {
-                let next = n;
-                if (n.parentId !== null && idsToDelete.has(n.parentId)) {
-                    next = { ...next, parentId: findSurvivingParentId(n.parentId) };
+                if (n.relations?.some(r => idsToDelete.has(r.targetId))) {
+                    return { ...n, relations: n.relations.filter(r => !idsToDelete.has(r.targetId)) };
                 }
-                if (next.relations?.some(r => idsToDelete.has(r.targetId))) {
-                    next = { ...next, relations: next.relations.filter(r => !idsToDelete.has(r.targetId)) };
-                }
-                return next;
+                return n;
             });
     }, []);
 
@@ -424,6 +414,49 @@ export const useMindMapNodes = (
         }));
         setSelectedLineId(null);
     }, [setNodes]);
+
+    const reconnectRelation = useCallback((relationId: string, endpoint: 'from' | 'to', newNodeId: string | null) => {
+        if (!relationId.startsWith('rel::')) return;
+        const [, sourceId, targetId] = relationId.split('::');
+
+        const sourceNode = nodes.find(n => n.id === sourceId);
+        const relation = sourceNode?.relations?.find(r => r.targetId === targetId);
+        if (!sourceNode || !relation) return;
+
+        const finalSourceId = endpoint === 'from' ? newNodeId : sourceId;
+        const finalTargetId = endpoint === 'to' ? newNodeId : targetId;
+
+        const isNoOp = finalSourceId === sourceId && finalTargetId === targetId;
+        const isSelfLoop = finalSourceId === finalTargetId;
+        const isDuplicate = !isNoOp && !!finalSourceId && !!finalTargetId && nodes
+            .find(n => n.id === finalSourceId)?.relations?.some(r => r.targetId === finalTargetId);
+
+        if (isNoOp) return;
+
+        if (!finalSourceId || !finalTargetId || isSelfLoop || isDuplicate) {
+            setNodes(prev => prev.map(n => n.id === sourceId
+                ? { ...n, relations: n.relations!.filter(r => r.targetId !== targetId) }
+                : n));
+            setSelectedLineId(null);
+            return;
+        }
+
+        setNodes(prev => prev.map(n => {
+            const isOldSource = n.id === sourceId;
+            const isNewSource = n.id === finalSourceId;
+            if (!isOldSource && !isNewSource) return n;
+
+            let relations = n.relations || [];
+            if (isOldSource) {
+                relations = relations.filter(r => r.targetId !== targetId);
+            }
+            if (isNewSource) {
+                relations = [...relations, { ...relation, targetId: finalTargetId, sourceSide: undefined, targetSide: undefined }];
+            }
+            return { ...n, relations };
+        }));
+        setSelectedLineId(`rel::${finalSourceId}::${finalTargetId}`);
+    }, [nodes, setNodes]);
 
     const updateNode = useCallback((id: string, updates: Partial<MindMapNode>) => {
         setNodes((prev) => prev.map((node) => (node.id === id ? { ...node, ...updates } : node)));
@@ -470,7 +503,8 @@ export const useMindMapNodes = (
         updateSelectedNodesPriority,
         deleteNode,
         deleteSelectedNodes,
-        deleteRelation
+        deleteRelation,
+        reconnectRelation
     };
 };
  

@@ -387,6 +387,17 @@ export const PropertiesPanel = ({
                         )}
                     </div>
                 </div>
+
+                {onDelete && (
+                    <div className="pt-2">
+                        <button
+                            onClick={onDelete}
+                            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-medium text-destructive hover:bg-destructive/10 rounded-lg transition-colors border border-transparent hover:border-destructive/20"
+                        >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Line
+                        </button>
+                    </div>
+                )}
             </div>
         );
     };

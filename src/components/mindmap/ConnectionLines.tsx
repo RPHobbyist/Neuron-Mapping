@@ -604,6 +604,7 @@ interface ConnectionHandlesProps {
   selectedLineId?: string | null;
   visibleLineIds?: Set<string>;
   onSetConnectionSide?: (connectionId: string, endpoint: 'from' | 'to', side: Side | null) => void;
+  onEndpointDragStart?: (connectionId: string, endpoint: 'from' | 'to', e: React.PointerEvent) => void;
 }
 
 const SIDES: Side[] = ['left', 'right', 'top', 'bottom'];
@@ -615,12 +616,15 @@ function ConnectionHandlesBase({
   selectedLineId,
   visibleLineIds,
   onSetConnectionSide,
+  onEndpointDragStart,
 }: ConnectionHandlesProps) {
   const connections = useVisualConnections(nodes, connectionStyle);
   const conn = connections.find(c => c.id === selectedLineId);
 
   if (!conn) return null;
   if (visibleLineIds && !conn.isRelation && !visibleLineIds.has(conn.id)) return null;
+
+  const { a: fromAnchor, b: toAnchor } = resolveConnection(conn.p, conn.c, conn.type, conn.tension, conn.fromOverride, conn.toOverride);
 
   const renderDots = (node: MindMapNode, activeSide: Side | undefined, endpoint: 'from' | 'to') =>
     SIDES.map(side => {
@@ -671,6 +675,36 @@ function ConnectionHandlesBase({
       <g transform={`translate(${OFF}, ${OFF})`}>
         {renderDots(conn.p, conn.fromOverride, 'from')}
         {renderDots(conn.c, conn.toOverride, 'to')}
+        {onEndpointDragStart && (
+          <>
+            <circle
+              cx={fromAnchor.x}
+              cy={fromAnchor.y}
+              r={9 / zoom}
+              fill="white"
+              stroke="#f97316"
+              strokeWidth={2.5 / zoom}
+              style={{ cursor: 'grab', pointerEvents: 'all' }}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => { e.stopPropagation(); onEndpointDragStart(conn.id, 'from', e); }}
+            >
+              <title>Drag to reconnect this end to another block</title>
+            </circle>
+            <circle
+              cx={toAnchor.x}
+              cy={toAnchor.y}
+              r={9 / zoom}
+              fill="white"
+              stroke="#f97316"
+              strokeWidth={2.5 / zoom}
+              style={{ cursor: 'grab', pointerEvents: 'all' }}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => { e.stopPropagation(); onEndpointDragStart(conn.id, 'to', e); }}
+            >
+              <title>Drag to reconnect this end to another block</title>
+            </circle>
+          </>
+        )}
       </g>
     </svg>
   );
