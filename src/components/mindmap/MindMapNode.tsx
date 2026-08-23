@@ -30,6 +30,7 @@ interface MindMapNodeProps {
   onRequestLink?: (id: string) => void;
   onRequestNotes?: (id: string) => void;
   onDragStart?: () => void;
+  onDragEnd?: () => void;
   editTrigger?: number;
   zoom: number;
   isDimmed?: boolean;
@@ -50,6 +51,7 @@ const MindMapNodeBase = ({
   onRequestLink,
   onRequestNotes,
   onDragStart,
+  onDragEnd,
   editTrigger,
   zoom,
   isDimmed,
@@ -129,6 +131,7 @@ const MindMapNodeBase = ({
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDragStart?.();
+    onDragEnd?.();
     setIsEditing(true);
   };
 
@@ -185,6 +188,7 @@ const MindMapNodeBase = ({
       setIsDragging(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      if (didDragRef.current) onDragEnd?.();
       setTimeout(() => { didDragRef.current = false; }, 0);
     };
 
@@ -222,6 +226,7 @@ const MindMapNodeBase = ({
       setIsResizing(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
+      onDragEnd?.();
     };
 
     document.addEventListener('mousemove', handleMouseMove);

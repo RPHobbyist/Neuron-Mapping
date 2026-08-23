@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { generateId, getAutoConnectionSides } from '@/utils/common';
@@ -269,10 +269,18 @@ export const useMindMapNodes = (
         toast.success('Nodes connected');
     }, [selectedNodeIds, setNodes]);
 
+    const freshSidePinsRef = useRef<{ parentLinkNodeIds: Set<string>; relationPins: Map<string, Set<string>> }>({
+        parentLinkNodeIds: new Set(),
+        relationPins: new Map(),
+    });
+
     const pinConnectionSides = useCallback((nodeId: string) => {
         const movingIds = selectedNodeIds.has(nodeId) && selectedNodeIds.size > 1
             ? selectedNodeIds
             : new Set([nodeId]);
+
+        const parentLinkNodeIds = new Set<string>();
+        const relationPins = new Map<string, Set<string>>();
 
         replaceNodes((prev) => {
             const byId = new Map(prev.map(n => [n.id, n]));
@@ -290,6 +298,7 @@ export const useMindMapNodes = (
                             lineParentSide: node.lineParentSide ?? auto.from,
                             lineChildSide: node.lineChildSide ?? auto.to,
                         };
+                        parentLinkNodeIds.add(node.id);
                         changed = true;
                     }
                 }
@@ -302,6 +311,8 @@ export const useMindMapNodes = (
                         if (!target || movingIds.has(node.id) === movingIds.has(target.id)) return r;
                         const auto = getAutoConnectionSides(node, target);
                         relationsChanged = true;
+                        if (!relationPins.has(node.id)) relationPins.set(node.id, new Set());
+                        relationPins.get(node.id)!.add(r.targetId);
                         return {
                             ...r,
                             sourceSide: r.sourceSide ?? auto.from,
@@ -319,7 +330,36 @@ export const useMindMapNodes = (
 
             return changed ? next : prev;
         });
+
+        freshSidePinsRef.current = { parentLinkNodeIds, relationPins };
     }, [selectedNodeIds, replaceNodes]);
+
+    const unpinConnectionSides = useCallback(() => {
+        const { parentLinkNodeIds, relationPins } = freshSidePinsRef.current;
+        if (parentLinkNodeIds.size === 0 && relationPins.size === 0) return;
+
+        replaceNodes((prev) => prev.map((node) => {
+            let updated = node;
+
+            if (parentLinkNodeIds.has(node.id)) {
+                updated = { ...updated, lineParentSide: undefined, lineChildSide: undefined };
+            }
+
+            const targets = relationPins.get(node.id);
+            if (targets && node.relations?.length) {
+                updated = {
+                    ...updated,
+                    relations: node.relations.map((r) =>
+                        targets.has(r.targetId) ? { ...r, sourceSide: undefined, targetSide: undefined } : r
+                    ),
+                };
+            }
+
+            return updated;
+        }));
+
+        freshSidePinsRef.current = { parentLinkNodeIds: new Set(), relationPins: new Map() };
+    }, [replaceNodes]);
 
     const updateNodePosition = useCallback((id: string, x: number, y: number) => {
         replaceNodes((prev) => {
@@ -500,6 +540,7 @@ export const useMindMapNodes = (
         addChildNode,
         addRelation,
         pinConnectionSides,
+        unpinConnectionSides,
         updateNodePosition,
         updateNodeText,
         replaceNodeText,

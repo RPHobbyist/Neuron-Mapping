@@ -2,7 +2,7 @@ import { memo, useMemo } from 'react';
 import { MindMapNode, ConnectionStyle, LineThickness, Side } from '@/types/mindmap';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 import { IRREGULAR_SHAPE_PATHS, SHAPE_SVG_INSET } from '@/utils/shapePaths';
-import { getAutoConnectionSides } from '@/utils/common';
+import { getAutoConnectionSides, getNodeDimensions } from '@/utils/common';
 
 
 interface Props {
@@ -29,19 +29,6 @@ const ANIMATION_CONFIG = {
   DASH_PATTERN: '10 5',
 } as const;
 
-
-function getSize(node: MindMapNode): { w: number; h: number } {
-  if (node.measuredWidth && node.measuredHeight) {
-    return { w: node.measuredWidth, h: node.measuredHeight };
-  }
-  if (node.width && node.height) {
-    return { w: node.width, h: node.height };
-  }
-  if (node.id === 'root' || node.shape === 'circle') {
-    return { w: 128, h: 128 };
-  }
-  return { w: Math.max(100, node.text.length * 8 + 48), h: 50 };
-}
 
 function isCircle(node: MindMapNode): boolean {
   return node.id === 'root' || node.shape === 'circle';
@@ -155,7 +142,7 @@ function polygonRayIntersection(dx: number, dy: number, poly: Point[]): Point | 
 }
 
 function getAnchor(node: MindMapNode, side: Side): { x: number; y: number; side: Side } {
-  const { w, h } = getSize(node);
+  const { w, h } = getNodeDimensions(node);
   const hw = w / 2;
   const hh = h / 2;
 
@@ -183,7 +170,7 @@ function getAnchor(node: MindMapNode, side: Side): { x: number; y: number; side:
 interface Anchor { x: number; y: number; side: Side }
 
 function getIntersection(node: MindMapNode, target: { x: number; y: number }): { x: number; y: number } {
-  const { w, h } = getSize(node);
+  const { w, h } = getNodeDimensions(node);
   const cx = node.x;
   const cy = node.y;
   const dx = target.x - cx;
@@ -245,13 +232,76 @@ function curved(a: Anchor, b: Anchor, t: number): string {
   return `M ${a.x} ${a.y} C ${ax} ${ay}, ${bx} ${by}, ${b.x} ${b.y}`;
 }
 
-function orthogonal(a: Anchor, b: Anchor, t: number): string {
+interface Rect { x1: number; y1: number; x2: number; y2: number }
+
+const OBSTACLE_CLEARANCE = 14;
+
+function getNodeRect(node: MindMapNode): Rect {
+  const { w, h } = getNodeDimensions(node);
+  return { x1: node.x - w / 2, y1: node.y - h / 2, x2: node.x + w / 2, y2: node.y + h / 2 };
+}
+
+function avoidHorizontalY(y: number, xLo: number, xHi: number, obstacles: Rect[]): number {
+  let top = Infinity, bottom = -Infinity, hit = false;
+  for (const r of obstacles) {
+    if (y > r.y1 && y < r.y2 && xHi > r.x1 && xLo < r.x2) {
+      hit = true;
+      top = Math.min(top, r.y1);
+      bottom = Math.max(bottom, r.y2);
+    }
+  }
+  if (!hit) return y;
+  const upY = top - OBSTACLE_CLEARANCE;
+  const downY = bottom + OBSTACLE_CLEARANCE;
+  return Math.abs(y - upY) <= Math.abs(y - downY) ? upY : downY;
+}
+
+function avoidVerticalX(x: number, yLo: number, yHi: number, obstacles: Rect[]): number {
+  let left = Infinity, right = -Infinity, hit = false;
+  for (const r of obstacles) {
+    if (x > r.x1 && x < r.x2 && yHi > r.y1 && yLo < r.y2) {
+      hit = true;
+      left = Math.min(left, r.x1);
+      right = Math.max(right, r.x2);
+    }
+  }
+  if (!hit) return x;
+  const leftX = left - OBSTACLE_CLEARANCE;
+  const rightX = right + OBSTACLE_CLEARANCE;
+  return Math.abs(x - leftX) <= Math.abs(x - rightX) ? leftX : rightX;
+}
+
+function hRunCmds(fromX: number, toX: number, y: number, obstacles: Rect[]): string {
+  const lo = Math.min(fromX, toX), hi = Math.max(fromX, toX);
+  const detourY = avoidHorizontalY(y, lo, hi, obstacles);
+  if (detourY === y) return `L ${toX} ${y}`;
+  return `L ${fromX} ${detourY} L ${toX} ${detourY} L ${toX} ${y}`;
+}
+
+function vRunCmds(fromY: number, toY: number, x: number, obstacles: Rect[]): string {
+  const lo = Math.min(fromY, toY), hi = Math.max(fromY, toY);
+  const detourX = avoidVerticalX(x, lo, hi, obstacles);
+  if (detourX === x) return `L ${x} ${toY}`;
+  return `L ${detourX} ${fromY} L ${detourX} ${toY} L ${x} ${toY}`;
+}
+
+function orthogonal(a: Anchor, b: Anchor, t: number, obstacles: Rect[]): string {
   if (a.side === 'left' || a.side === 'right') {
     const mx = a.x + (b.x - a.x) * t;
-    return `M ${a.x} ${a.y} L ${mx} ${a.y} L ${mx} ${b.y} L ${b.x} ${b.y}`;
+    return [
+      `M ${a.x} ${a.y}`,
+      hRunCmds(a.x, mx, a.y, obstacles),
+      vRunCmds(a.y, b.y, mx, obstacles),
+      hRunCmds(mx, b.x, b.y, obstacles),
+    ].join(' ');
   }
   const my = a.y + (b.y - a.y) * t;
-  return `M ${a.x} ${a.y} L ${a.x} ${my} L ${b.x} ${my} L ${b.x} ${b.y}`;
+  return [
+    `M ${a.x} ${a.y}`,
+    vRunCmds(a.y, my, a.x, obstacles),
+    hRunCmds(a.x, b.x, my, obstacles),
+    vRunCmds(my, b.y, b.x, obstacles),
+  ].join(' ');
 }
 
 interface ResolvedConnection { path: string; a: Anchor; b: Anchor; from: Side; to: Side }
@@ -263,6 +313,7 @@ function resolveConnection(
   tension: number,
   fromOverride?: Side,
   toOverride?: Side,
+  obstacles: Rect[] = [],
 ): ResolvedConnection {
   const base = style === 'dashed' || style === 'dotted' ? 'curved' : style;
   const auto = getSides(p, c);
@@ -277,8 +328,17 @@ function resolveConnection(
 
   const a = getAnchor(p, from);
   const b = getAnchor(c, to);
-  const path = base === 'orthogonal' ? orthogonal(a, b, tension) : curved(a, b, tension);
+  const path = base === 'orthogonal' ? orthogonal(a, b, tension, obstacles) : curved(a, b, tension);
   return { path, a, b, from, to };
+}
+
+function pathLength(path: string): number {
+  const pts = samplePath(path);
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) {
+    len += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  }
+  return len;
 }
 
 function getDash(s: ConnectionStyle): string | undefined {
@@ -388,6 +448,12 @@ function ConnectionLinesBase({
 
   const connections = useVisualConnections(nodes, connectionStyle);
 
+  const nodeRectsById = useMemo(() => {
+    const map = new Map<string, Rect>();
+    nodes.forEach(n => map.set(n.id, getNodeRect(n)));
+    return map;
+  }, [nodes]);
+
   const SIZE = 10000;
   const OFF = SIZE / 2;
 
@@ -426,7 +492,12 @@ function ConnectionLinesBase({
 
           const width = STROKE[thickness];
           const dash = getDash(type);
-          const { path, a, b, from } = resolveConnection(p, c, type, tension, fromOverride, toOverride);
+          const obstacles = type === 'orthogonal'
+            ? Array.from(nodeRectsById.entries())
+              .filter(([nodeId]) => nodeId !== p.id && nodeId !== c.id)
+              .map(([, rect]) => rect)
+            : [];
+          const { path, a, b, from } = resolveConnection(p, c, type, tension, fromOverride, toOverride, obstacles);
           const sel = selectedLineId === id;
 
           const arrowDir = animated && animationType === 'arrow' ? 'none' : resolveArrowDirection(conn);
@@ -486,9 +557,7 @@ function ConnectionLinesBase({
               />
 
               {animated && animationType === 'arrow' && (() => {
-                const lineLength = type === 'orthogonal'
-                  ? Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
-                  : Math.hypot(b.x - a.x, b.y - a.y);
+                const lineLength = type === 'orthogonal' ? pathLength(path) : Math.hypot(b.x - a.x, b.y - a.y);
                 const spacing = ANIMATION_CONFIG.ARROW_SPACING;
                 const arrowCount = Math.min(
                   ANIMATION_CONFIG.MAX_ANIMATED_GLYPHS,
@@ -523,9 +592,7 @@ function ConnectionLinesBase({
               })()}
 
               {animated && animationType === 'cross' && (() => {
-                const lineLength = type === 'orthogonal'
-                  ? Math.abs(b.x - a.x) + Math.abs(b.y - a.y)
-                  : Math.hypot(b.x - a.x, b.y - a.y);
+                const lineLength = type === 'orthogonal' ? pathLength(path) : Math.hypot(b.x - a.x, b.y - a.y);
                 const spacing = ANIMATION_CONFIG.CROSS_SPACING;
                 const crossCount = Math.min(
                   ANIMATION_CONFIG.MAX_ANIMATED_GLYPHS,

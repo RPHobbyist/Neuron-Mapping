@@ -59,7 +59,7 @@ export const MindMapCanvas = ({
     nodes, setNodes, resetNodes, restoreFullState, undo, redo, canUndo, canRedo, saveSnapshot,
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
-    addChildNode, addRelation, pinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
+    addChildNode, addRelation, pinConnectionSides, unpinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
     deleteNode, deleteSelectedNodes, deleteRelation, reconnectRelation,
     connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle,
     drawings, setDrawings, replaceDrawings
@@ -710,6 +710,7 @@ export const MindMapCanvas = ({
                       onRequestNotes={handleRequestNotes}
                       onAddIcon={handleRequestIcon}
                       onDragStart={() => { pinConnectionSides(node.id); saveSnapshot(); }}
+                      onDragEnd={unpinConnectionSides}
                       editTrigger={editTrigger?.nodeId === node.id ? editTrigger.token : undefined}
                       zoom={zoom}
                       isDimmed={isFocusMode && focusedNodeIds ? !focusedNodeIds.has(node.id) : false}

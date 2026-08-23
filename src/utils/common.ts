@@ -75,11 +75,29 @@ export const lerp = (start: number, end: number, t: number): number => {
     return start + (end - start) * t;
 };
 
+export const getNodeDimensions = (node: MindMapNode): { w: number; h: number } => {
+    if (node.measuredWidth && node.measuredHeight) {
+        return { w: node.measuredWidth, h: node.measuredHeight };
+    }
+    if (node.width && node.height) {
+        return { w: node.width, h: node.height };
+    }
+    if (node.id === 'root' || node.shape === 'circle') {
+        return { w: 128, h: 128 };
+    }
+    return { w: Math.max(100, node.text.length * 8 + 48), h: 50 };
+};
+
 export const getAutoConnectionSides = (from: MindMapNode, to: MindMapNode): { from: Side; to: Side } => {
     const dx = to.x - from.x;
     const dy = to.y - from.y;
 
-    if (Math.abs(dx) >= Math.abs(dy)) {
+    const fromSize = getNodeDimensions(from);
+    const toSize = getNodeDimensions(to);
+    const gapX = Math.abs(dx) - (fromSize.w / 2 + toSize.w / 2);
+    const gapY = Math.abs(dy) - (fromSize.h / 2 + toSize.h / 2);
+
+    if (gapX >= gapY) {
         return dx > 0 ? { from: 'right', to: 'left' } : { from: 'left', to: 'right' };
     }
     return dy > 0 ? { from: 'bottom', to: 'top' } : { from: 'top', to: 'bottom' };
