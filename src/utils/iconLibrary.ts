@@ -1,83 +1,63 @@
 import {
-  // Development
   Code, Terminal, GitBranch, GitCommit, GitMerge, GitPullRequest, Bug, Binary, Braces, FileCode,
   FileJson, FileCog, Blocks, Component, Package, Puzzle, Webhook, Workflow, Cpu, Microchip,
 
-  // Database & Storage
   Database, Server, HardDrive, ServerCog, DatabaseBackup, Archive, Folder, FolderOpen, FolderTree, File,
   FileText, Files, Save, Download, Upload, CloudDownload, CloudUpload, FolderArchive, FolderCheck, FolderClosed,
 
-  // Network & Cloud
   Network, Wifi, WifiOff, Bluetooth, BluetoothConnected, Signal, Globe, Globe2, Cloud, CloudOff,
   Antenna, Satellite, Radio, Rss, Router, Cast, Airplay, Share, Share2, ExternalLink,
 
-  // Devices
   Laptop, Laptop2, Monitor, MonitorSmartphone, Smartphone, Tablet, TabletSmartphone, Keyboard, Mouse, MousePointer,
   Printer, Camera, Video, Webcam, Tv, Tv2, Watch, Headphones, Speaker, ScreenShare,
 
-  // Security
   Lock, LockOpen, Unlock, Key, KeyRound, Shield, ShieldCheck, ShieldAlert, ShieldOff, ShieldQuestion,
   Fingerprint, Scan, ScanLine, ScanFace, Eye, EyeOff, Verified, BadgeCheck, UserCheck, Lock as LockIcon,
 
-  // Data & Charts
   BarChart, BarChart2, BarChart3, BarChart4, LineChart, PieChart, TrendingUp, TrendingDown, Activity, Gauge,
   Calculator, Percent, Hash, Binary as BinaryIcon, Table, Table2, Sigma, Infinity as InfinityIcon, Diff, Equal,
 
-  // UI Elements
   Layout, LayoutDashboard, LayoutGrid, LayoutList, LayoutTemplate, Grid, Grid2x2, Grid3x3, List, ListOrdered,
   ListTree, Menu, MenuSquare, Sidebar, SidebarClose, SidebarOpen, PanelLeft, PanelRight, PanelTop, PanelBottom,
 
-  // Arrows & Navigation
   ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ArrowDownLeft, ArrowUpLeft, ArrowDownRight,
   ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, ChevronsLeft, ChevronsRight,
   MoveUp, MoveDown, MoveLeft, MoveRight, Maximize, Minimize, Maximize2, Minimize2,
 
-  // Shapes
   Circle, CircleDot, CircleOff, Square, SquareDot, Hexagon, Pentagon, Octagon, Triangle, Diamond,
   Star, Heart, HeartOff, Box, Boxes, Cylinder, Gem,
 
-  // Media
   Play, Pause, PlayCircle, PauseCircle, StopCircle, SkipForward, SkipBack, FastForward, Rewind,
   Volume, Volume1, Volume2, VolumeX, Music, Music2, Music3, Music4, Image, ImagePlus,
 
-  // Communication
   Mail, MailOpen, MailPlus, Inbox, Send, SendHorizontal, MessageCircle, MessageSquare, MessagesSquare,
   Phone, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, AtSign, Bell, BellRing, BellOff, Voicemail,
 
-  // Business
   Briefcase, Building, Building2, Landmark, DollarSign, Euro, PoundSterling, Coins, CreditCard, Wallet,
   Receipt, Banknote, PiggyBank, TrendingUp as Profit, Calculator as Calc, Calendar, CalendarDays, Clock, Timer, Hourglass,
 
-  // People
   User, UserCircle, UserSquare, UserPlus, UserMinus, UserX, UserCheck as UserVerified, Users, Users2, Contact,
   Contact2, UserCog, Crown, Baby, Accessibility, PersonStanding, Footprints, HeartHandshake, Handshake, Hand,
 
-  // Nature & Weather
   Sun, Moon, CloudSun, CloudMoon, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Snowflake,
   Thermometer, ThermometerSun, ThermometerSnowflake, Umbrella, Droplet, Droplets, Waves, Mountain, MountainSnow, Trees,
 
-  // Transport
   Car, CarFront, Bus, Train, TrainFront, Plane, PlaneTakeoff, PlaneLanding, Ship, Anchor,
   Bike, Rocket, Navigation, Navigation2, Map, MapPin, MapPinned, Compass, Route, Milestone,
 
-  // Food & Drink
   Coffee, Wine, Beer, UtensilsCrossed, ChefHat, Apple, Banana, Cherry, Citrus, Grape,
   Carrot, Salad, Sandwich, Pizza, Cookie, Cake, CakeSlice, IceCream, Candy, Popcorn,
 
-  // Actions
   Check, CheckCircle, CheckCircle2, CheckSquare, X, XCircle, XSquare, Plus, PlusCircle, PlusSquare,
   Minus, MinusCircle, MinusSquare, Edit, Edit2, Edit3, Trash, Trash2, Copy, ClipboardCopy,
   Undo, Undo2, Redo, Redo2, RefreshCw, RefreshCcw, RotateCw, RotateCcw, Replace, Eraser,
 
-  // Status
   AlertCircle, AlertTriangle, AlertOctagon, Info, HelpCircle, CircleHelp, Loader, Loader2, Hourglass as Loading,
   CheckCircle as Success, XCircle as Error, AlertCircle as Warning, Clock as Pending, Zap, ZapOff, Flame, FlameKindling,
 
-  // Tools
   Wrench, Settings, Settings2, Cog, SlidersHorizontal, SlidersVertical, Palette, Paintbrush,
   Brush, Pipette, Ruler, Scissors, Magnet, Flashlight, Plug, PlugZap, Power, PowerOff,
 
-  // Misc
   Bookmark, BookmarkPlus, Tag, Tags, Flag, FlagTriangleRight, Pin, PinOff, Link, Link2,
   Unlink, Unlink2, QrCode, Barcode, Scan as ScanIcon, Search, SearchX, ZoomIn, ZoomOut, Focus,
   Home, HomeIcon, Store, ShoppingCart, ShoppingBag, Gift, Award, Trophy, Medal, Target,
@@ -464,7 +444,6 @@ export const iconCategories: Record<string, { label: string; icons: { name: stri
   }
 };
 
-// Build icon map for quick lookup
 export const iconMap: Record<string, LucideIcon> = {};
 for (const category of Object.values(iconCategories)) {
   for (const icon of category.icons) {

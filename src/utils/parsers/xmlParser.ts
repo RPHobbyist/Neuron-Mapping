@@ -1,15 +1,11 @@
 import { MindMapNode } from '@/types/mindmap';
 import { createRootNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
-/**
- * Parse XML or OPML format.
- */
 export function parseXML(content: string): MindMapNode[] {
     try {
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, "text/xml");
         
-        // Check for parse errors
         const parseError = xmlDoc.getElementsByTagName("parsererror");
         if (parseError.length > 0) {
             console.error('XML Parse Error', parseError[0].textContent);
@@ -18,7 +14,6 @@ export function parseXML(content: string): MindMapNode[] {
 
         const nodes: MindMapNode[] = [];
 
-        // Check for OPML structure
         const opmlBody = xmlDoc.querySelector('body');
         if (opmlBody) {
             return parseOPML(opmlBody);
@@ -79,9 +74,6 @@ export function parseXML(content: string): MindMapNode[] {
     }
 }
 
-/**
- * Dedicated OPML parser logic
- */
 function parseOPML(body: Element): MindMapNode[] {
     const nodes: MindMapNode[] = [];
     const rootId = generateId();

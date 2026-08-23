@@ -21,41 +21,24 @@ interface TrustedTypes {
   getPolicies?: () => TrustedTypePolicy[];
 }
 
-// Deliberately NOT `extends Window`: modern lib.dom.d.ts already types
-// `Window.trustedTypes` as the full spec `TrustedTypePolicyFactory`, which
-// this file's minimal, hand-rolled `TrustedTypes` shape doesn't satisfy —
-// extending would fail to compile. This is only ever reached via
-// `window as unknown as WindowWithTrustedTypes`, so no inheritance is needed.
 interface WindowWithTrustedTypes {
   trustedTypes?: TrustedTypes;
 }
 
 interface SEOConfig {
-  /** Page title - will be appended with " | Neuron Mapping" */
   title: string;
-  /** Meta description for this page (optional, updates <meta name="description">) */
   description?: string;
-  /** Canonical URL for this page (optional, updates <link rel="canonical">) */
   canonical?: string;
-  /** Open Graph title (optional, defaults to title) */
   ogTitle?: string;
-  /** Open Graph description (optional, defaults to description) */
   ogDescription?: string;
-  /** Open Graph image URL (optional) */
   ogImage?: string;
-  /** Robots directive (optional, e.g. "noindex, nofollow") */
   robots?: string;
-  /** JSON-LD Structured Data objects (optional) */
   jsonLd?: object | object[];
 }
 
 const BRAND_SUFFIX = " | Neuron Mapping";
 const BASE_URL = import.meta.env.VITE_BASE_URL || window.location.origin;
 
-/**
- * Lightweight SEO hook that updates document.title, meta tags, and canonical links.
- * No external library needed.
- */
 export function useDocumentSEO({ 
   title, 
   description, 
@@ -67,13 +50,11 @@ export function useDocumentSEO({
   jsonLd
 }: SEOConfig) {
   useEffect(() => {
-    // 1. Set page title
     const fullTitle = title.includes("Neuron Mapping")
       ? title
       : `${title}${BRAND_SUFFIX}`;
     document.title = fullTitle;
 
-    // 2. Helper to get or create meta tags
     const updateMetaTag = (nameOrProperty: string, content: string, isProperty = false) => {
       const selector = isProperty 
         ? `meta[property="${nameOrProperty}"]` 
@@ -94,7 +75,6 @@ export function useDocumentSEO({
       }
     };
 
-    // 3. Update standard meta tags
     if (description) updateMetaTag("description", description);
     if (robots) {
       updateMetaTag("robots", robots);
@@ -102,7 +82,6 @@ export function useDocumentSEO({
       updateMetaTag("robots", "index, follow");
     }
     
-    // 4. Update Canonical Link
     const fullCanonical = canonical 
       ? (canonical.startsWith("http") ? canonical : `${BASE_URL}${canonical}`)
       : window.location.origin + window.location.pathname;
@@ -117,7 +96,6 @@ export function useDocumentSEO({
       document.head.appendChild(linkCanonical);
     }
 
-    // 5. Update Open Graph Tags
     updateMetaTag("og:title", ogTitle || title, true);
     if (ogDescription || description) {
       updateMetaTag("og:description", ogDescription || description || "", true);
@@ -127,7 +105,6 @@ export function useDocumentSEO({
     }
     updateMetaTag("og:url", fullCanonical, true);
 
-    // 6. Update Twitter Tags
     updateMetaTag("twitter:title", ogTitle || title);
     if (ogDescription || description) {
       updateMetaTag("twitter:description", ogDescription || description || "");
@@ -136,7 +113,6 @@ export function useDocumentSEO({
       updateMetaTag("twitter:image", ogImage.startsWith("http") ? ogImage : `${BASE_URL}${ogImage}`);
     }
 
-    // 7. Inject JSON-LD Structured Data
     const scriptId = "structured-data-script";
     let script = document.getElementById(scriptId) as HTMLScriptElement;
     

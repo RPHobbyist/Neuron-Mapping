@@ -1,63 +1,18 @@
 import { z } from 'zod';
 
-import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
-import { sanitizeText } from '@/utils/parsers/parserUtils';
+import { MindMapNodeSchema as NodeSchema, DrawingSchema, ConnectionStyleSchema } from '@/lib/schemas';
 import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
-
-const DrawingSchema = z.object({
-    id: z.string(),
-    points: z.array(z.object({
-        x: z.number(),
-        y: z.number(),
-    })),
-    color: z.string(),
-});
-
-const NodeSchema = z.object({
-    id: z.string(),
-    text: z.string().transform(v => sanitizeText(v)),
-    x: z.number(),
-    y: z.number(),
-    color: z.string(),
-    parentId: z.string().nullable(),
-    shape: z.string().optional(),
-    nodeAnimation: z.string().optional(),
-    lineType: z.string().optional(),
-    lineThickness: z.string().optional(),
-    lineColor: z.string().optional(),
-    lineLabel: z.string().optional(),
-    lineAnimated: z.boolean().optional(),
-    lineDouble: z.boolean().optional(),
-    lineGradient: z.boolean().optional(),
-    lineTension: z.number().optional(),
-    lineAnimationDirection: z.string().optional(),
-    lineAnimationType: z.string().optional(),
-    lineArrowDirection: z.string().optional(),
-    relations: z.array(z.unknown()).optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    measuredWidth: z.number().optional(),
-    measuredHeight: z.number().optional(),
-    image: z.string().optional().transform(v => sanitizeImageUrl(v)),
-    icon: z.string().optional(),
-    iconStyle: z.string().optional(),
-    link: z.string().optional().transform(v => sanitizeUrl(v)),
-    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
-    priority: z.string().nullable().optional(),
-    tags: z.array(z.string()).optional(),
-});
 
 const MindMapFileSchema = z.object({
     version: z.literal('1.0'),
     name: z.string(),
     nodes: z.array(NodeSchema),
-    connectionStyle: z.string().optional(),
+    connectionStyle: ConnectionStyleSchema.optional(),
     createdAt: z.string(),
     updatedAt: z.string(),
     drawings: z.array(DrawingSchema).optional(),
 });
 
-// File format for saving mind maps
 export interface NeuronMindMapFile {
     version: '1.0';
     name: string;
@@ -68,9 +23,6 @@ export interface NeuronMindMapFile {
     drawings?: Drawing[];
 }
 
-/**
- * Save mind map to a .nmm file (JSON format)
- */
 export const saveToFile = (
     nodes: MindMapNode[],
     mapName: string,
@@ -100,9 +52,6 @@ export const saveToFile = (
     URL.revokeObjectURL(url);
 };
 
-/**
- * Load mind map from a .nmm file
- */
 export const loadFromFile = (file: File): Promise<NeuronMindMapFile> => {
     return new Promise((resolve, reject) => {
         if (file.size > 5 * 1024 * 1024) {
@@ -127,10 +76,6 @@ export const loadFromFile = (file: File): Promise<NeuronMindMapFile> => {
     });
 };
 
-/**
- * Export mind map canvas to high-quality PNG
- * Uses html-to-image library for better SVG support
- */
 export const exportToPNG = async (
     element: HTMLElement,
     mapName: string
@@ -140,12 +85,11 @@ export const exportToPNG = async (
 
         const dataUrl = await toPng(element, {
             quality: 1.0,
-            pixelRatio: 3, // 3x for higher quality
+            pixelRatio: 3,
             backgroundColor: '#f9fafb',
             cacheBust: true,
-            skipFonts: false, // Include fonts for proper text rendering
+            skipFonts: false,
             style: {
-                // Ensure consistent font rendering
                 fontFamily: 'system-ui, -apple-system, sans-serif',
             },
         });
@@ -162,9 +106,6 @@ export const exportToPNG = async (
     }
 };
 
-/**
- * Export mind map canvas to high-quality PDF
- */
 export const exportToPDF = async (
     element: HTMLElement,
     mapName: string
@@ -173,11 +114,12 @@ export const exportToPDF = async (
         const { toCanvas } = await import('html-to-image');
         const { jsPDF } = await import('jspdf');
 
+        const PIXEL_RATIO = 3;
         const canvas = await toCanvas(element, {
-            pixelRatio: 3, // 3x for higher quality PDF
+            pixelRatio: PIXEL_RATIO,
             backgroundColor: '#f9fafb',
             cacheBust: true,
-            skipFonts: false, // Include fonts
+            skipFonts: false,
             style: {
                 fontFamily: 'system-ui, -apple-system, sans-serif',
             },
@@ -187,15 +129,14 @@ export const exportToPDF = async (
         const imgWidth = canvas.width;
         const imgHeight = canvas.height;
 
-        // Calculate PDF dimensions - use actual size for better quality
-        const pdfWidth = imgWidth * 0.264583; // Convert pixels to mm (assuming 96 DPI)
-        const pdfHeight = imgHeight * 0.264583;
+        const pdfWidth = (imgWidth / PIXEL_RATIO) * 0.264583;
+        const pdfHeight = (imgHeight / PIXEL_RATIO) * 0.264583;
 
         const pdf = new jsPDF({
             orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
             unit: 'mm',
             format: [pdfWidth, pdfHeight],
-            compress: false, // No compression for quality
+            compress: false,
         });
 
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
@@ -206,9 +147,6 @@ export const exportToPDF = async (
     }
 };
 
-/**
- * Generate a thumbnail image (Base64) from the canvas element
- */
 export const generateThumbnail = async (
     element: HTMLElement
 ): Promise<string> => {
@@ -217,7 +155,7 @@ export const generateThumbnail = async (
 
         const dataUrl = await toPng(element, {
             quality: 0.6,
-            pixelRatio: 0.8, // Slightly lower resolution for thumbnails
+            pixelRatio: 0.8,
             backgroundColor: '#f9fafb',
             cacheBust: true,
             skipFonts: false,

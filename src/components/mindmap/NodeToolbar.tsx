@@ -6,7 +6,7 @@ interface NodeToolbarProps {
     onAddImage: () => void;
     onAddLink: () => void;
     onAddNotes?: () => void;
-    onAddIcon?: () => void; // New prop
+    onAddIcon?: () => void;
     className?: string;
 }
 
@@ -24,7 +24,7 @@ export const NodeToolbar = ({
             "animate-in fade-in slide-in-from-bottom-2 duration-200",
             className
         )}
-            onMouseDown={(e) => e.stopPropagation()} // Prevent drag/select when clicking toolbar
+            onMouseDown={(e) => e.stopPropagation()}
         >
             <button
                 onClick={onAddIcon}

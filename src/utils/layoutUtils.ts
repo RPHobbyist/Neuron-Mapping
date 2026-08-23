@@ -1,28 +1,22 @@
 import { MindMapNode } from '@/types/mindmap';
 
-// =============================================================================
-// CONFIGURATION
-// =============================================================================
 
 const CONFIG = {
     HORIZONTAL: {
-        PARENT_CHILD_GAP: 200,  // Gap between parent and child
-        SIBLING_GAP: 60,        // Gap between siblings
+        PARENT_CHILD_GAP: 200,
+        SIBLING_GAP: 60,
     },
     VERTICAL: {
-        LEVEL_GAP: 150,         // Gap between levels
-        SIBLING_GAP: 40,        // Gap between siblings
+        LEVEL_GAP: 150,
+        SIBLING_GAP: 40,
     },
     RADIAL: {
-        RING_GAP: 300,          // Radius increment per level
-        MIN_ANGLE_GAP: 0.1,     // Minimum angle between siblings (radians)
-        TREE_SPACING: 1800,     // Horizontal gap between separate radial trees
+        RING_GAP: 300,
+        MIN_ANGLE_GAP: 0.1,
+        TREE_SPACING: 1800,
     },
 } as const;
 
-// =============================================================================
-// TYPES
-// =============================================================================
 
 interface TreeNode {
     id: string;
@@ -32,38 +26,26 @@ interface TreeNode {
     height: number;
     x: number;
     y: number;
-    // Computed during layout
     subtreeHeight?: number;
     subtreeWidth?: number;
     weight?: number;
     angle?: number;
-    rx?: number;  // Relative X to parent
-    ry?: number;  // Relative Y to parent
+    rx?: number;
+    ry?: number;
 }
 
 type LayoutDirection = 'horizontal' | 'vertical' | 'radial';
 
-// =============================================================================
-// MAIN EXPORT
-// =============================================================================
 
-/**
- * Auto-layout nodes in the specified direction.
- * Builds a tree structure, calculates positions, then returns updated nodes.
- */
 export const autoLayoutNodes = (
     nodes: MindMapNode[],
     direction: LayoutDirection = 'horizontal'
 ): MindMapNode[] => {
     if (nodes.length === 0) return [];
 
-    // Build tree structure
     const { nodeMap, rootNodes } = buildTree(nodes);
     if (rootNodes.length === 0) return nodes;
 
-    // Layout each root tree (supports multiple disconnected trees — e.g. an
-    // orphaned node whose parentId no longer resolves to anything, which
-    // buildTree() falls back to treating as an extra root).
     let offsetY = 0;
     let radialOffsetX = 0;
     rootNodes.forEach(root => {
@@ -84,11 +66,6 @@ export const autoLayoutNodes = (
                 break;
             case 'radial':
                 layoutRadial(root);
-                // layoutRadial() always centers a tree on (0,0) — with no
-                // offset here, multiple disconnected root trees would all
-                // radiate from the exact same origin and their nodes would
-                // collide, rather than being stacked apart like the other
-                // two layout directions already are above.
                 if (radialOffsetX !== 0) {
                     offsetTree(root, radialOffsetX, 0);
                 }
@@ -97,7 +74,6 @@ export const autoLayoutNodes = (
         }
     });
 
-    // Return updated nodes
     return Array.from(nodeMap.values()).map(tn => ({
         ...tn.node,
         x: tn.x,
@@ -105,15 +81,11 @@ export const autoLayoutNodes = (
     }));
 };
 
-// =============================================================================
-// TREE BUILDING
-// =============================================================================
 
 function buildTree(nodes: MindMapNode[]): { nodeMap: Map<string, TreeNode>; rootNodes: TreeNode[] } {
     const nodeMap = new Map<string, TreeNode>();
     const rootNodes: TreeNode[] = [];
 
-    // Create TreeNode wrappers
     nodes.forEach(node => {
         nodeMap.set(node.id, {
             id: node.id,
@@ -126,7 +98,6 @@ function buildTree(nodes: MindMapNode[]): { nodeMap: Map<string, TreeNode>; root
         });
     });
 
-    // Build parent-child relationships
     nodes.forEach(node => {
         const treeNode = nodeMap.get(node.id)!;
         if (node.parentId) {
@@ -134,7 +105,6 @@ function buildTree(nodes: MindMapNode[]): { nodeMap: Map<string, TreeNode>; root
             if (parent) {
                 parent.children.push(treeNode);
             } else {
-                // Orphan: treat as root
                 rootNodes.push(treeNode);
             }
         } else {
@@ -145,9 +115,6 @@ function buildTree(nodes: MindMapNode[]): { nodeMap: Map<string, TreeNode>; root
     return { nodeMap, rootNodes };
 }
 
-// =============================================================================
-// HORIZONTAL LAYOUT (Mind Map Style)
-// =============================================================================
 
 function layoutHorizontal(root: TreeNode): void {
     if (root.children.length === 0) {
@@ -155,21 +122,16 @@ function layoutHorizontal(root: TreeNode): void {
         return;
     }
 
-    // Calculate weights for all children first
     root.children.forEach(child => calculateSubtreeWeight(child));
 
-    // Split children into left and right groups, balanced by weight
     const { left, right } = balanceChildrenByWeight(root.children);
 
-    // Recursively layout each side
     left.forEach(child => layoutHorizontalBranch(child, 'left'));
     right.forEach(child => layoutHorizontalBranch(child, 'right'));
 
-    // Position children relative to root
     positionHorizontalChildren(root, left, 'left');
     positionHorizontalChildren(root, right, 'right');
 
-    // Calculate root's subtree height
     const leftHeight = calculateGroupHeight(left);
     const rightHeight = calculateGroupHeight(right);
     root.subtreeHeight = Math.max(root.height, leftHeight, rightHeight);
@@ -183,12 +145,10 @@ function layoutHorizontalBranch(node: TreeNode, direction: 'left' | 'right'): vo
 
     node.children.forEach(child => layoutHorizontalBranch(child, direction));
 
-    // Calculate subtree height
     const childrenHeight = node.children.reduce((sum, c) => sum + (c.subtreeHeight || c.height), 0)
         + (node.children.length - 1) * CONFIG.HORIZONTAL.SIBLING_GAP;
     node.subtreeHeight = Math.max(node.height, childrenHeight);
 
-    // Position children relative to this node
     let currentY = -childrenHeight / 2;
     node.children.forEach(child => {
         const dx = node.width / 2 + CONFIG.HORIZONTAL.PARENT_CHILD_GAP + child.width / 2;
@@ -217,7 +177,6 @@ function balanceChildrenByWeight(children: TreeNode[]): { left: TreeNode[]; righ
         return { left: [], right: children };
     }
 
-    // Sort by weight descending for better balancing
     const sorted = [...children].sort((a, b) => (b.weight || 1) - (a.weight || 1));
 
     const left: TreeNode[] = [];
@@ -225,7 +184,6 @@ function balanceChildrenByWeight(children: TreeNode[]): { left: TreeNode[]; righ
     let leftWeight = 0;
     let rightWeight = 0;
 
-    // Greedy assignment: add each child to the lighter side
     sorted.forEach(child => {
         const w = child.weight || 1;
         if (leftWeight <= rightWeight) {
@@ -255,9 +213,6 @@ function calculateSubtreeWeight(node: TreeNode): number {
     return node.weight;
 }
 
-// =============================================================================
-// VERTICAL LAYOUT (Org Chart Style)
-// =============================================================================
 
 function layoutVertical(root: TreeNode): void {
     layoutVerticalBranch(root);
@@ -272,7 +227,6 @@ function layoutVerticalBranch(node: TreeNode): void {
 
     node.children.forEach(child => layoutVerticalBranch(child));
 
-    // Calculate subtree dimensions
     const childrenWidth = node.children.reduce((sum, c) => sum + (c.subtreeWidth || c.width), 0)
         + (node.children.length - 1) * CONFIG.VERTICAL.SIBLING_GAP;
     node.subtreeWidth = Math.max(node.width, childrenWidth);
@@ -280,7 +234,6 @@ function layoutVerticalBranch(node: TreeNode): void {
     const maxChildHeight = Math.max(...node.children.map(c => c.subtreeHeight || c.height));
     node.subtreeHeight = node.height + CONFIG.VERTICAL.LEVEL_GAP + maxChildHeight;
 
-    // Position children
     let currentX = -childrenWidth / 2;
     node.children.forEach(child => {
         child.rx = currentX + (child.subtreeWidth || child.width) / 2;
@@ -289,9 +242,6 @@ function layoutVerticalBranch(node: TreeNode): void {
     });
 }
 
-// =============================================================================
-// RADIAL LAYOUT
-// =============================================================================
 
 function layoutRadial(root: TreeNode): void {
     calculateSubtreeWeight(root);
@@ -314,7 +264,6 @@ function layoutRadialBranch(node: TreeNode, startAngle: number, sweep: number, l
             CONFIG.RADIAL.MIN_ANGLE_GAP
         );
 
-        // Position child at center of its allocated sector
         const angle = currentAngle + childSweep / 2;
         const radius = level * CONFIG.RADIAL.RING_GAP;
 
@@ -328,9 +277,6 @@ function layoutRadialBranch(node: TreeNode, startAngle: number, sweep: number, l
     });
 }
 
-// =============================================================================
-// UTILITIES
-// =============================================================================
 
 function applyRelativePositions(node: TreeNode, parentX: number, parentY: number): void {
     node.x = parentX + (node.rx || 0);
@@ -338,8 +284,6 @@ function applyRelativePositions(node: TreeNode, parentX: number, parentY: number
     node.children.forEach(child => applyRelativePositions(child, node.x, node.y));
 }
 
-/** Shifts every node in a tree (already positioned in absolute coordinates,
- *  as layoutRadial produces) by a fixed offset. */
 function offsetTree(node: TreeNode, dx: number, dy: number): void {
     node.x += dx;
     node.y += dy;

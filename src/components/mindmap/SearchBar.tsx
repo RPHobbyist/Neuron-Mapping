@@ -41,7 +41,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
 
 
 
-    // Keyboard shortcut Ctrl+F
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
@@ -71,7 +70,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
     const applyFilters = useCallback((searchQuery: string, color: NodeColor | 'all', priority: NodePriority | 'all') => {
         let matches = nodes;
 
-        // Text filter
         if (searchQuery.trim()) {
             const lowerQuery = searchQuery.toLowerCase();
             matches = matches.filter(node =>
@@ -79,12 +77,10 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
             );
         }
 
-        // Color filter
         if (color !== 'all') {
             matches = matches.filter(node => node.color === color);
         }
 
-        // Priority filter
         if (priority !== 'all') {
             matches = matches.filter(node => node.priority === priority);
         }
@@ -92,7 +88,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         setResults(matches);
         setSelectedIndex(0);
 
-        // Highlight logic
         if (searchQuery.trim() || color !== 'all' || priority !== 'all') {
             onHighlight(matches.map(n => n.id));
         } else {
@@ -100,7 +95,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         }
     }, [nodes, onHighlight]);
 
-    // Re-run filters when nodes change (keep results in sync)
     useEffect(() => {
         if (isOpen && (query || colorFilter !== 'all' || priorityFilter !== 'all')) {
             applyFilters(query, colorFilter, priorityFilter);
@@ -110,7 +104,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
 
     const handleSearch = useCallback((searchQuery: string) => {
         setQuery(searchQuery);
-        // applyFilters called via useEffect dependency on query
     }, []);
 
     const handleColorFilter = (color: NodeColor | 'all') => {
@@ -122,7 +115,7 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        e.stopPropagation(); // Stop propagation to prevent canvas events
+        e.stopPropagation();
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -132,9 +125,9 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
             setSelectedIndex(i => Math.max(i - 1, 0));
         } else if (e.key === 'Enter' && results.length > 0) {
             e.preventDefault();
-            e.stopPropagation(); // Double ensure
+            e.stopPropagation();
             onNodeSelect(results[selectedIndex].id);
-            onHighlight([]); // Clear highlight on select
+            onHighlight([]);
             setIsOpen(false);
         } else if (e.key === 'Escape') {
             e.preventDefault();
@@ -152,7 +145,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         onHighlight([]);
     }, [onHighlight]);
 
-    // Close on click outside
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
@@ -226,7 +218,6 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                             </div>
                         </div>
 
-                        {/* Filter Panel */}
                         {showFilters && (
                             <div className="mt-2 p-2 bg-muted/50 rounded-lg space-y-2">
                                 <div className="flex items-center gap-2">

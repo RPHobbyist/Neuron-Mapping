@@ -18,7 +18,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[450px] p-0 gap-0 border shadow-lg bg-white rounded-xl">
-                {/* Simple Header */}
                 <div className="p-6 pb-2 relative">
                     <div className="mb-4">
                         <div className="inline-flex items-center px-2 py-1 rounded-full bg-indigo-100 text-indigo-600 text-[10px] font-medium mb-3">
@@ -31,9 +30,7 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                     </div>
                 </div>
 
-                {/* Content Section */}
                 <div className="px-6 py-2 space-y-5 max-h-[400px] overflow-y-auto">
-                    {/* NEW: Drawing Canvas */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-purple-50 flex items-center justify-center shrink-0 border border-purple-100">
                             <Zap className="w-4 h-4 text-purple-600" />
@@ -46,7 +43,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: Smart Add */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0 border border-emerald-100">
                             <Wand2 className="w-4 h-4 text-emerald-600" />
@@ -59,7 +55,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: 3D Galaxy View */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0 border border-indigo-100">
                             <Globe className="w-4 h-4 text-indigo-600" />
@@ -72,7 +67,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: Focus Mode */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0 border border-amber-100">
                             <Focus className="w-4 h-4 text-amber-600" />
@@ -85,7 +79,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: History Snapshots */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100">
                             <History className="w-4 h-4 text-slate-600" />
@@ -98,7 +91,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                         </div>
                     </div>
 
-                    {/* NEW: Performance */}
                     <div className="flex gap-4 items-start">
                         <div className="w-8 h-8 rounded-lg bg-green-50 flex items-center justify-center shrink-0 border border-green-100">
                             <Rocket className="w-4 h-4 text-green-600" />
@@ -160,7 +152,6 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
                     </div>
                 </div>
 
-                {/* Footer Section */}
                 <div className="p-6 pt-6 flex justify-end">
                     <button
                         onClick={() => onOpenChange(false)}

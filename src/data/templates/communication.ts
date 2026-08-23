@@ -1,7 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
-// Six Thinking Hats
 const sixThinkingHatsNodes: MindMapNode[] = [
     { id: 'root', text: 'Topic', x: 0, y: 0, color: 'root', parentId: null },
     { id: 'white', text: 'White (Facts)', x: -250, y: -150, color: 'grey', parentId: 'root' },
@@ -12,7 +11,6 @@ const sixThinkingHatsNodes: MindMapNode[] = [
     { id: 'blue', text: 'Blue (Process)', x: 250, y: 150, color: 'blue', parentId: 'root' },
 ];
 
-// Argument Map
 const argumentMapNodes: MindMapNode[] = [
     { id: 'root', text: 'Main Contention', x: 0, y: -200, color: 'root', parentId: null },
     { id: 'r1', text: 'Reason 1', x: -200, y: -50, color: 'green', parentId: 'root' },
@@ -25,7 +23,6 @@ const argumentMapNodes: MindMapNode[] = [
     { id: 'reb', text: 'Rebuttal', x: 0, y: 100, color: 'orange', parentId: 'obj1' },
 ];
 
-// Empathy Map - Says / Thinks / Does / Feels
 const empathyMapNodes: MindMapNode[] = [
     { id: 'root', text: 'User', x: 0, y: 0, color: 'root', parentId: null },
 

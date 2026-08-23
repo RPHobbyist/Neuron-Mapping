@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 
 interface FileUploadProps {
-    onDataParsed: (nodes: MindMapNode[], meta?: { connectionStyle?: ConnectionStyle; drawings?: Drawing[] }) => void;
+    onDataParsed: (nodes: MindMapNode[], meta?: { name?: string; connectionStyle?: ConnectionStyle; drawings?: Drawing[] }) => void;
     onClose: () => void;
 }
 
@@ -60,14 +60,9 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
             const extension = file.name.split('.').pop()?.toLowerCase();
 
             if (extension === 'nmm') {
-                // .nmm files already carry their own layout, connection style,
-                // and drawings — load them the same way "Load Map File" does
-                // instead of the generic multi-format importer, which used to
-                // silently drop connectionStyle/drawings and re-run
-                // auto-layout over positions the user already saved.
                 const data = await loadFromFile(file);
                 toast.success(`Loaded "${data.name}"`);
-                onDataParsed(data.nodes, { connectionStyle: data.connectionStyle, drawings: data.drawings });
+                onDataParsed(data.nodes, { name: data.name, connectionStyle: data.connectionStyle, drawings: data.drawings });
                 onClose();
                 return;
             }
@@ -76,7 +71,6 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
             if (nodes.length === 0) {
                 toast.error('No valid content found in file');
             } else {
-                // Apply auto-layout immediately for a "very good" initial experience
                 const layoutNodes = autoLayoutNodes(nodes, 'horizontal');
                 toast.success(`Successfully parsed ${nodes.length} nodes from ${file.name}`);
                 onDataParsed(layoutNodes);
@@ -111,7 +105,6 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
                                     <DialogTitle>File Format Guide</DialogTitle>
                                 </DialogHeader>
                                 <div className="space-y-6 text-sm">
-                                    {/* TXT Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileText className="w-4 h-4" /> Text File (.txt)
@@ -129,7 +122,6 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
                                         </pre>
                                     </div>
 
-                                    {/* MD Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileText className="w-4 h-4" /> Markdown (.md)
@@ -147,11 +139,17 @@ Or with lists:
 - Item 1
   - Child 1.1
   - Child 1.2
-- Item 2`}
+- Item 2
+
+Task lists work too:
+- [ ] To do
+- [x] Done`}
                                         </pre>
+                                        <p className="text-muted-foreground mt-2 text-xs">
+                                            Bold, italic, code, links and checkboxes are stripped from node text automatically.
+                                        </p>
                                     </div>
 
-                                    {/* CSV Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileType className="w-4 h-4" /> CSV File (.csv)
@@ -164,9 +162,11 @@ Or with lists:
 Fruits,Apple,Banana,Orange
 Vegetables,Carrot,Broccoli,Spinach`}
                                         </pre>
+                                        <p className="text-muted-foreground mt-2 text-xs">
+                                            Rows that repeat the same first column value (e.g. exported one row per item) merge into a single branch instead of duplicating it.
+                                        </p>
                                     </div>
 
-                                    {/* XML Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileCode className="w-4 h-4" /> XML File (.xml)
@@ -187,7 +187,6 @@ Vegetables,Carrot,Broccoli,Spinach`}
                                         </pre>
                                     </div>
 
-                                    {/* OPML Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileCode className="w-4 h-4" /> OPML File (.opml)
@@ -209,7 +208,6 @@ Vegetables,Carrot,Broccoli,Spinach`}
                                         </pre>
                                     </div>
 
-                                    {/* JSON Format */}
                                     <div>
                                         <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
                                             <FileCode className="w-4 h-4" /> JSON File (.json)
@@ -225,6 +223,19 @@ Vegetables,Carrot,Broccoli,Spinach`}
       "SubPhase": ["Task C"]
     }
   }
+}`}
+                                        </pre>
+                                        <p className="text-muted-foreground mt-2 mb-2 text-xs">
+                                            Tree exports from other apps (with <code className="bg-muted px-1 rounded">name</code>/<code className="bg-muted px-1 rounded">text</code>/<code className="bg-muted px-1 rounded">title</code> + <code className="bg-muted px-1 rounded">children</code>) are also recognized directly:
+                                        </p>
+                                        <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
+                                            {`{
+  "name": "Project",
+  "children": [
+    { "name": "Phase 1", "children": [
+      { "name": "Task A" }
+    ]}
+  ]
 }`}
                                         </pre>
                                     </div>
@@ -264,7 +275,7 @@ Vegetables,Carrot,Broccoli,Spinach`}
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept=".txt,.md,.markdown,.json,.csv,.xml,.opml"
+                            accept=".txt,.md,.markdown,.json,.csv,.xml,.opml,.nmm"
                             onChange={handleFileSelect}
                         />
 

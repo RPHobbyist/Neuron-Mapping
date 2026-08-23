@@ -12,6 +12,7 @@ interface ExportMenuProps {
     onExportPNG: () => void;
     onExportPDF: () => void;
     isExporting?: boolean;
+    disableImageExport?: boolean;
 }
 
 export const ExportMenu = ({
@@ -19,6 +20,7 @@ export const ExportMenu = ({
     onExportPNG,
     onExportPDF,
     isExporting = false,
+    disableImageExport = false,
 }: ExportMenuProps) => {
     return (
         <DropdownMenu>
@@ -45,19 +47,31 @@ export const ExportMenu = ({
 
                 <DropdownMenuSeparator />
 
-                <DropdownMenuItem onClick={onExportPNG} className="cursor-pointer">
+                <DropdownMenuItem
+                    onClick={onExportPNG}
+                    disabled={disableImageExport}
+                    className="cursor-pointer"
+                >
                     <Image className="w-4 h-4 mr-2" />
                     <div className="flex flex-col">
                         <span>Export as PNG</span>
-                        <span className="text-xs text-muted-foreground">High-quality image</span>
+                        <span className="text-xs text-muted-foreground">
+                            {disableImageExport ? 'Switch to 2D view to export' : 'High-quality image'}
+                        </span>
                     </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={onExportPDF} className="cursor-pointer">
+                <DropdownMenuItem
+                    onClick={onExportPDF}
+                    disabled={disableImageExport}
+                    className="cursor-pointer"
+                >
                     <FileText className="w-4 h-4 mr-2" />
                     <div className="flex flex-col">
                         <span>Export as PDF</span>
-                        <span className="text-xs text-muted-foreground">Print-ready document</span>
+                        <span className="text-xs text-muted-foreground">
+                            {disableImageExport ? 'Switch to 2D view to export' : 'Print-ready document'}
+                        </span>
                     </div>
                 </DropdownMenuItem>
             </DropdownMenuContent>

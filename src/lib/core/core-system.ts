@@ -8,12 +8,7 @@
  * (at your option) any later version.
  */
 
-/**
- * System Identity Configuration
- * Critical for application integrity and environment synchronization.
- */
 export const SYSTEM_CONFIG = {
-    // Assets from environment or defaults
     get githubUrl() {
         return import.meta.env.VITE_GITHUB_URL || "https://github.com/RPHobbyist/Neuron-Mapping";
     },
@@ -33,7 +28,6 @@ export const SYSTEM_CONFIG = {
         return import.meta.env.VITE_BRAND_LOGO || "/logo.svg";
     },
 
-    // Protected Identifiers
     get appName() {
         return "Neuron Mapping";
     },
@@ -54,12 +48,10 @@ export const SYSTEM_CONFIG = {
         return import.meta.env.VITE_BASE_URL || "https://neuron-mapping.rphobbyist.com";
     },
 
-    // Identity Logic
     get isOfficial() {
         return import.meta.env.VITE_IS_OFFICIAL === 'true';
     },
 
-    // License Validation Header
     get licenseRef() {
         return `GNU AGPLv3 License - Copyright (c) 2026 ${this.vendor}`;
     }

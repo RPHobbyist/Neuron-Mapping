@@ -35,34 +35,28 @@ const Index = () => {
   const [activeMap, setActiveMap] = useState<ActiveMap | null>(null);
   const { savedMaps, saveMap, deleteMap } = useSavedMaps();
 
-  // Pre-populate template if requested via URL query param e.g. /workspace?template=swot-analysis
   useEffect(() => {
     if (templateQuery && !activeMap) {
       const targetTemplate = templates.find((t) => t.id === templateQuery);
       if (targetTemplate) {
-        clearAutoSave();
-        setActiveMap({
-          nodes: targetTemplate.nodes || [],
-          connectionStyle: targetTemplate.connectionStyle || 'curved',
-          templateId: targetTemplate.id,
+        clearAutoSave().then(() => {
+          setActiveMap({
+            nodes: targetTemplate.nodes || [],
+            connectionStyle: targetTemplate.connectionStyle || 'curved',
+            templateId: targetTemplate.id,
+          });
         });
       }
-      // Consume the param either way so it doesn't linger in the URL — left
-      // in place, refreshing the page after switching to a different (or
-      // blank) map would re-trigger this effect, wipe the autosaved work
-      // via clearAutoSave(), and force-reload this template again.
       setSearchParams((prev) => {
         const next = new URLSearchParams(prev);
         next.delete('template');
         return next;
       }, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateQuery]);
 
-  const handleSelectTemplate = useCallback((template: Template) => {
-    // Clear auto-save so the new template isn't overwritten by old data
-    clearAutoSave();
+  const handleSelectTemplate = useCallback(async (template: Template) => {
+    await clearAutoSave();
     setActiveMap({
       nodes: template.nodes || [],
       connectionStyle: template.connectionStyle || 'curved',
@@ -70,9 +64,8 @@ const Index = () => {
     });
   }, []);
 
-  const handleSelectSavedMap = useCallback((map: SavedMindMap) => {
-    // Clear auto-save so the loaded map isn't overwritten by old data
-    clearAutoSave();
+  const handleSelectSavedMap = useCallback(async (map: SavedMindMap) => {
+    await clearAutoSave();
     setActiveMap({
       nodes: map.nodes,
       connectionStyle: map.connectionStyle,
@@ -97,8 +90,8 @@ const Index = () => {
     setActiveMap(null);
   }, []);
 
-  const handleLoadFromFile = useCallback((nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: Drawing[]) => {
-    clearAutoSave();
+  const handleLoadFromFile = useCallback(async (nodes: MindMapNode[], name: string, connectionStyle?: ConnectionStyle, drawings?: Drawing[]) => {
+    await clearAutoSave();
     setActiveMap({
       nodes,
       connectionStyle: connectionStyle || 'curved',
@@ -114,8 +107,6 @@ const Index = () => {
   const handleSave = useCallback(async (name: string, nodes: MindMapNode[], thumbnail: string | undefined, connectionStyle: ConnectionStyle, drawings?: Drawing[]) => {
     if (!activeMap) return;
 
-    // Let a storage failure here propagate — MindMapCanvas's handleSave
-    // awaits this and only shows "Saved!" once it actually resolves.
     const saved = await saveMap(
       name,
       nodes,
@@ -126,7 +117,6 @@ const Index = () => {
       drawings
     );
 
-    // Update active map with saved id and style
     setActiveMap(prev => prev ? { ...prev, id: saved.id, name: saved.name, connectionStyle, drawings } : null);
   }, [activeMap, saveMap]);
 

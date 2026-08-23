@@ -8,33 +8,6 @@
  * (at your option) any later version.
  */
 
-/**
- * Postbuild step: this is a pure client-side SPA (public/_redirects rewrites every
- * path to /index.html), so without this script every route — including the 20+
- * /templates/:id pages listed in sitemap.xml — ships the homepage's <title>, meta
- * description, canonical link, Open Graph tags, and JSON-LD in its raw HTML. That's
- * invisible to a human (React overwrites it all on mount via useDocumentSEO), but it
- * is exactly what non-JS clients see: social-media link unfurlers (Slack, Twitter/X,
- * LinkedIn, WhatsApp, Discord, iMessage) never run JavaScript, so sharing a template
- * page would always show the generic homepage preview card. Search engines that don't
- * render JS (Bing, DuckDuckGo) would also see every one of those URLs claim the
- * homepage as their canonical, which reads as duplicate content and can suppress them
- * from the index entirely.
- *
- * This script runs after `vite build` and writes a real, fully-formed index.html per
- * route (/, /templates, /templates/<id>) using the already-hashed asset references
- * from the build output. Cloudflare Pages (and most static hosts) resolve
- * "/templates/swot-analysis" to "/templates/swot-analysis/index.html" automatically
- * when that file exists, taking priority over the SPA fallback redirect — so this
- * needs no routing changes. React Router then hydrates normally from any of these
- * shells, and useDocumentSEO seamlessly takes over (it reuses the same
- * #structured-data-script id, so it replaces rather than duplicates the JSON-LD).
- *
- * The title/description/JSON-LD generated here intentionally mirror what
- * Landing.tsx / TemplatesIndex.tsx / TemplateDetail.tsx compute at runtime via
- * useDocumentSEO — keep them in sync if those change.
- */
-
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -61,18 +34,10 @@ function escapeAttr(str: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** Prevents a literal "</script>" inside JSON-LD text from closing the tag early. */
 function safeJsonLd(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003C");
 }
 
-/**
- * Same as html.replace(pattern, replacement), but fails the build instead of
- * silently no-op'ing when `pattern` doesn't match. A plain .replace() here
- * would otherwise ship a route with stale/wrong SEO tags with no signal at
- * all if dist/index.html's markup ever shifts enough that one of these
- * regexes stops matching (e.g. an attribute gets reordered).
- */
 function replaceOnce(html: string, pattern: RegExp, replacement: string, label: string): string {
   if (!pattern.test(html)) {
     throw new Error(
@@ -229,8 +194,6 @@ function main() {
 
   console.log("Generating prerendered SEO pages...");
 
-  // Home ("/") — overwrite dist/index.html in place with its own JSON-LD
-  // (FAQPage + BreadcrumbList), matching Landing.tsx's useDocumentSEO call.
   writeRoute(base, {
     routePath: "/",
     title: homeSeo.title,
@@ -246,7 +209,6 @@ function main() {
     ]
   });
 
-  // Templates gallery — matches TemplatesIndex.tsx's useDocumentSEO call.
   writeRoute(base, {
     routePath: "/templates",
     title: templatesIndexSeo.title,
@@ -268,7 +230,6 @@ function main() {
     ]
   });
 
-  // One page per template — matches TemplateDetail.tsx's useDocumentSEO call.
   for (const template of templates) {
     const title = templateSeoTitle(template.name);
     const description = templateSeoDescription(template.name, template.nodes.length);
@@ -314,8 +275,6 @@ function main() {
     });
   }
 
-  // Sitemap: regenerate from the real template list so it can never drift out of
-  // sync with what actually exists, with a lastmod that reflects this build.
   const sitemapPath = path.join(DIST, "sitemap.xml");
   writeFileSync(sitemapPath, generateSitemap(), "utf-8");
   console.log(`  wrote sitemap.xml (${templates.length + 2} urls)`);

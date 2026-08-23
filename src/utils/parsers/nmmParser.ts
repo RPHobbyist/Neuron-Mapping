@@ -1,66 +1,41 @@
 import { MindMapNode } from '@/types/mindmap';
 import { z } from 'zod';
-import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
-import { sanitizeText } from './parserUtils';
-
-// Re-use NodeSchema from exportUtils for consistency
-const NodeSchema = z.object({
-    id: z.string(),
-    text: z.string().transform(v => sanitizeText(v)),
-    x: z.number(),
-    y: z.number(),
-    color: z.string(),
-    parentId: z.string().nullable(),
-    shape: z.string().optional(),
-    nodeAnimation: z.string().optional(),
-    lineType: z.string().optional(),
-    lineThickness: z.string().optional(),
-    lineColor: z.string().optional(),
-    lineLabel: z.string().optional(),
-    lineAnimated: z.boolean().optional(),
-    lineDouble: z.boolean().optional(),
-    lineGradient: z.boolean().optional(),
-    lineTension: z.number().optional(),
-    lineAnimationDirection: z.string().optional(),
-    lineAnimationType: z.string().optional(),
-    lineArrowDirection: z.string().optional(),
-    relations: z.array(z.unknown()).optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    measuredWidth: z.number().optional(),
-    measuredHeight: z.number().optional(),
-    image: z.string().optional().transform(v => sanitizeImageUrl(v)),
-    icon: z.string().optional(),
-    iconStyle: z.string().optional(),
-    link: z.string().optional().transform(v => sanitizeUrl(v)),
-    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
-    priority: z.string().nullable().optional(),
-    tags: z.array(z.string()).optional(),
-});
+import { MindMapNodeSchema as NodeSchema } from '@/lib/schemas';
+import { generateId } from '@/utils/common';
 
 const MindMapFileSchema = z.object({
     nodes: z.array(NodeSchema),
 });
 
-/**
- * Parse .nmm (Neuron Mind Map) JSON content.
- * Extracts the 'nodes' array for use in the mind map canvas.
- */
+function remapNodeIds(nodes: MindMapNode[]): MindMapNode[] {
+    const idMap = new Map<string, string>();
+    nodes.forEach(n => idMap.set(n.id, generateId()));
+
+    return nodes.map(n => ({
+        ...n,
+        id: idMap.get(n.id)!,
+        parentId: n.parentId ? (idMap.get(n.parentId) ?? n.parentId) : n.parentId,
+        relations: n.relations?.map(r => ({
+            ...r,
+            targetId: idMap.get(r.targetId) ?? r.targetId,
+            sourceId: r.sourceId ? (idMap.get(r.sourceId) ?? r.sourceId) : r.sourceId,
+        })),
+    }));
+}
+
 export function parseNMM(content: string): MindMapNode[] {
     try {
         const parsed = JSON.parse(content);
         const data = MindMapFileSchema.parse(parsed);
-        return data.nodes as MindMapNode[];
+        return remapNodeIds(data.nodes as MindMapNode[]);
     } catch (error) {
         console.error('NMM Parse Error:', error);
-        // Fallback: If it's a valid JSON array of nodes, validate through Zod schema
         try {
             const parsed = JSON.parse(content);
             if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-                return z.array(NodeSchema).parse(parsed) as MindMapNode[];
+                return remapNodeIds(z.array(NodeSchema).parse(parsed) as MindMapNode[]);
             }
         } catch (e) {
-            // Ignore fallback error
         }
         return [];
     }

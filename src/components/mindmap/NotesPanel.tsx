@@ -12,7 +12,6 @@ interface NotesPanelProps {
 export const NotesPanel = ({ content, onUpdate, onClose, isOpen }: NotesPanelProps) => {
     const [value, setValue] = useState(content);
 
-    // Sync local state when prop changes (e.g. source node changed)
     useEffect(() => {
         setValue(content || '');
     }, [content]);
@@ -24,7 +23,6 @@ export const NotesPanel = ({ content, onUpdate, onClose, isOpen }: NotesPanelPro
             "fixed right-0 top-0 bottom-0 w-80 bg-white shadow-xl border-l z-50 flex flex-col transition-transform duration-300",
             isOpen ? "translate-x-0" : "translate-x-full"
         )}>
-            {/* Header */}
             <div className="flex items-center justify-between p-4 border-b">
                 <div className="flex items-center gap-2 text-slate-700 font-semibold">
                     <FileText className="w-5 h-5" />
@@ -35,7 +33,6 @@ export const NotesPanel = ({ content, onUpdate, onClose, isOpen }: NotesPanelPro
                 </button>
             </div>
 
-            {/* Content */}
             <div className="flex-1 p-4 flex flex-col gap-2">
                 <textarea
                     value={value}

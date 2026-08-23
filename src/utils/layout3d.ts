@@ -3,11 +3,6 @@ import * as THREE from 'three';
 
 export type LayoutType = '2d-projection' | 'sphere' | 'grid' | 'force';
 
-// Deterministic pseudo-random generator seeded from a string (a node id), so
-// the same node always starts the force simulation from the same initial
-// position across separate re-runs — otherwise every recomputation (which
-// now only happens when the map's structure actually changes; see GalaxyView)
-// would still reshuffle every node via a fresh Math.random() seed.
 function seededRandom(seed: string): () => number {
     let h = 1779033703 ^ seed.length;
     for (let i = 0; i < seed.length; i++) {
@@ -25,21 +20,15 @@ function seededRandom(seed: string): () => number {
 export const calculateLayout = (
     nodes: MindMapNode[],
     type: LayoutType,
-    scaleFactor: number = 100 // Normalized scale used in GalaxyView
+    scaleFactor: number = 100
 ): Record<string, [number, number, number]> => {
 
     const positions: Record<string, [number, number, number]> = {};
     const count = nodes.length;
-    // Normalized against the default of 100 so existing callers (which all
-    // pass 100) see no change; only sphere/grid/force respond to it —
-    // 2d-projection intentionally keeps its own fixed projectionScale,
-    // which must stay in sync with GalaxyNode's drag-math constant.
     const scale = scaleFactor / 100;
 
     switch (type) {
         case '2d-projection': {
-            // Use smaller divisor to spread nodes apart in 3D space
-            // Lower value = more spread out (15 gives good separation for dense maps)
             const projectionScale = 15;
             nodes.forEach(node => {
                 positions[node.id] = [node.x / projectionScale, -node.y / projectionScale, 0];
@@ -49,7 +38,6 @@ export const calculateLayout = (
 
 
         case 'sphere': {
-            // Radial sphere layout - distributes all nodes evenly on a sphere surface
             const root = nodes.find(n => !n.parentId) || nodes[0];
 
             if (root) positions[root.id] = [0, 0, 0];
@@ -59,16 +47,14 @@ export const calculateLayout = (
 
             if (n === 0) break;
 
-            // Use golden spiral for even distribution on sphere
-            const radius = Math.max(8, Math.sqrt(n) * 4) * scale; // Scale radius with node count
+            const radius = Math.max(8, Math.sqrt(n) * 4) * scale;
             const goldenRatio = (1 + Math.sqrt(5)) / 2;
             const angleIncrement = Math.PI * 2 * goldenRatio;
 
             otherNodes.forEach((node, i) => {
-                // Distribute evenly from pole to pole
                 const t = i / Math.max(n - 1, 1);
-                const inclination = Math.acos(1 - 2 * t); // theta: 0 to PI
-                const azimuth = angleIncrement * i; // phi: golden angle spiral
+                const inclination = Math.acos(1 - 2 * t);
+                const azimuth = angleIncrement * i;
 
                 const x = Math.sin(inclination) * Math.cos(azimuth) * radius;
                 const y = Math.cos(inclination) * radius;
@@ -94,8 +80,6 @@ export const calculateLayout = (
         }
 
         case 'force': {
-            // Force-Directed Layout
-            // Initialize random (but deterministic per node id) starting positions
             const tempNodes = nodes.map(n => {
                 const rand = seededRandom(n.id);
                 return {
@@ -109,13 +93,12 @@ export const calculateLayout = (
             });
 
             const iterations = 150;
-            const repulsion = 80 * scale * scale; // Repulsion falls off with distance^2, so it must scale with the square of the spatial scale to keep relative node spacing consistent
-            const attraction = 0.2;  // Weaker attraction for wider tree
-            const centerPull = 0.02; // Weaker center pull
-            const springTargetDist = 4 * scale; // Target parent-child distance
+            const repulsion = 80 * scale * scale;
+            const attraction = 0.2;
+            const centerPull = 0.02;
+            const springTargetDist = 4 * scale;
 
             for (let i = 0; i < iterations; i++) {
-                // Repulsion (All nodes repel)
                 for (let a = 0; a < count; a++) {
                     for (let b = a + 1; b < count; b++) {
                         const n1 = tempNodes[a];
@@ -135,7 +118,6 @@ export const calculateLayout = (
                     }
                 }
 
-                // Attraction (Parent-Child)
                 nodes.forEach(node => {
                     if (node.parentId) {
                         const child = tempNodes.find(n => n.id === node.id);
@@ -165,14 +147,12 @@ export const calculateLayout = (
                     }
                 });
 
-                // Center Pull & Update
                 tempNodes.forEach(n => {
                     if (!n.isRoot) {
                         n.vx -= n.x * centerPull;
                         n.vy -= n.y * centerPull;
                         n.vz -= n.z * centerPull;
 
-                        // Damping
                         n.vx *= 0.8;
                         n.vy *= 0.8;
                         n.vz *= 0.8;
@@ -181,7 +161,6 @@ export const calculateLayout = (
                         n.y += n.vy * 0.1;
                         n.z += n.vz * 0.1;
                     } else {
-                        // Root fixes at 0
                         n.x = 0; n.y = 0; n.z = 0;
                     }
                 });

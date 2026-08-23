@@ -1,28 +1,32 @@
 import { MindMapNode } from '@/types/mindmap';
 import { createRootNode, createChildNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
-/**
- * Parse JSON content recursively into mind map nodes.
- */
 export function parseJSON(content: string): MindMapNode[] {
     try {
         const data = JSON.parse(content);
         const nodes: MindMapNode[] = [];
         const rootId = generateId();
 
-        // Determine root label
-        const rootName = Array.isArray(data)
-            ? 'Array'
-            : (typeof data === 'object' && data !== null)
-                ? 'Root'
-                : 'Value';
+        const rootShape = getTreeNodeShape(data);
+
+        const rootName = rootShape
+            ? rootShape.label
+            : Array.isArray(data)
+                ? 'Array'
+                : (typeof data === 'object' && data !== null)
+                    ? 'Root'
+                    : 'Value';
 
         nodes.push({
             ...createRootNode(rootName),
             id: rootId
         });
 
-        processValue(data, rootId, 0, nodes);
+        if (rootShape) {
+            processArray(rootShape.children, rootId, 0, nodes);
+        } else {
+            processValue(data, rootId, 0, nodes);
+        }
         return nodes;
     } catch (error) {
         console.error('JSON Parse Error:', error);
@@ -30,9 +34,24 @@ export function parseJSON(content: string): MindMapNode[] {
     }
 }
 
-// Matches the recursion guard already used by the XML/OPML parser — without
-// it, a deeply/pathologically nested JSON file can overflow the call stack.
 const MAX_DEPTH = 50;
+
+const TREE_LABEL_KEYS = ['text', 'name', 'title', 'label'];
+const TREE_CHILDREN_KEYS = ['children', 'items', 'nodes'];
+
+function getTreeNodeShape(value: unknown): { label: string; children: unknown[] } | null {
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    const obj = value as Record<string, unknown>;
+
+    const labelKey = TREE_LABEL_KEYS.find(key => typeof obj[key] === 'string');
+    if (!labelKey) return null;
+
+    const childrenKey = TREE_CHILDREN_KEYS.find(key => Array.isArray(obj[key]));
+    return {
+        label: obj[labelKey] as string,
+        children: childrenKey ? (obj[childrenKey] as unknown[]) : []
+    };
+}
 
 function processValue(value: unknown, parentId: string, depth: number, nodes: MindMapNode[]): void {
     if (depth > MAX_DEPTH) return;
@@ -44,7 +63,25 @@ function processValue(value: unknown, parentId: string, depth: number, nodes: Mi
 }
 
 function processArray(arr: unknown[], parentId: string, depth: number, nodes: MindMapNode[]): void {
+    if (depth > MAX_DEPTH) return;
     arr.forEach((item, index) => {
+        const shape = getTreeNodeShape(item);
+        if (shape) {
+            const nodeId = generateId();
+            nodes.push({
+                id: nodeId,
+                text: sanitizeText(shape.label),
+                x: 0,
+                y: 0,
+                color: getColorByDepth(depth),
+                parentId
+            });
+            if (shape.children.length > 0) {
+                processArray(shape.children, nodeId, depth + 1, nodes);
+            }
+            return;
+        }
+
         const isLeaf = typeof item !== 'object' || item === null;
         const nodeId = generateId();
 
@@ -79,7 +116,6 @@ function processObject(obj: Record<string, unknown>, parentId: string, depth: nu
         if (typeof value === 'object' && value !== null) {
             processValue(value, nodeId, depth + 1, nodes);
         } else {
-            // Create leaf node for primitive values
             const leafId = generateId();
             nodes.push({
                 id: leafId,

@@ -6,11 +6,6 @@ export const LicenseUpdateAnnouncement = ({ onAcknowledge }: { onAcknowledge?: (
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {
-        // Some environments (storage blocked, hardened privacy settings)
-        // throw on property access rather than just returning null — this
-        // component is mounted on every route inside the app-wide
-        // ErrorBoundary, so an uncaught throw here used to blank the entire
-        // app with "Something went wrong" instead of just skipping the notice.
         try {
             const hasSeen = localStorage.getItem("license-update-acknowledged-agplv3");
             if (!hasSeen) {
@@ -31,9 +26,6 @@ export const LicenseUpdateAnnouncement = ({ onAcknowledge }: { onAcknowledge?: (
         onAcknowledge?.();
     };
 
-    // Escape / overlay-click also needs to go through handleClose — routing
-    // it straight to setIsOpen(false) let the dialog be dismissed without
-    // ever writing the acknowledged flag, so it reappeared on every load.
     const handleOpenChange = (open: boolean) => {
         if (!open) {
             handleClose();

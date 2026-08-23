@@ -21,11 +21,6 @@ import { templatesIndexSeo } from "@/data/seoContent";
 
 const categoryNameById = new Map(categories.map((c) => [c.id, c.name]));
 
-// Static content — hoisted to module scope (rather than an inline literal in
-// the useDocumentSEO() call) so it's a stable reference across renders.
-// useDocumentSEO's effect keys on this value, and an inline literal would be
-// a new array every render, re-running its DOM queries, JSON.stringify, and
-// Trusted Types policy lookup on every state change on this page.
 const TEMPLATES_JSON_LD = [
   {
     "@context": "https://schema.org",
@@ -88,7 +83,6 @@ export default function TemplatesIndex() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500/20 selection:text-indigo-900">
-      {/* HEADER NAVBAR */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
@@ -111,7 +105,6 @@ export default function TemplatesIndex() {
         </div>
       </header>
 
-      {/* HERO SECTION */}
       <section className="relative py-16 bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs mb-4">
@@ -124,7 +117,6 @@ export default function TemplatesIndex() {
             Choose from industry-standard frameworks for business strategy, project roadmaps, legal workflows, and creative planning. 100% private, local-first, no account required.
           </p>
 
-          {/* SEARCH BAR */}
           <div className="mt-8 max-w-xl mx-auto relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
             <input
@@ -138,9 +130,7 @@ export default function TemplatesIndex() {
         </div>
       </section>
 
-      {/* CATEGORY TABS & TEMPLATE GRID */}
       <main className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-        {/* Category Filters */}
         <div className="flex items-center gap-2 overflow-x-auto pb-4 scrollbar-none mb-8">
           <button
             onClick={() => setSelectedCategory("all")}
@@ -167,7 +157,6 @@ export default function TemplatesIndex() {
           ))}
         </div>
 
-        {/* Templates Grid */}
         {filteredTemplates.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
             <LayoutGrid className="w-12 h-12 text-slate-300 mx-auto mb-3" />
@@ -227,7 +216,6 @@ export default function TemplatesIndex() {
         )}
       </main>
 
-      {/* FOOTER */}
       <footer className="border-t border-slate-200 bg-white py-12 mt-16 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} Neuron Mapping by RP Hobbyist. Free & Open-Source under GNU AGPLv3.</p>

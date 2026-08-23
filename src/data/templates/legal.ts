@@ -1,7 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
-// Legal Case - Vertical Flow
 const legalCaseProcessNodes: MindMapNode[] = [
     { id: 'root', text: 'Legal Case', x: 0, y: -300, color: 'root', parentId: null },
     { id: 'start', text: 'Instructions', x: 0, y: -200, color: 'teal', parentId: 'root' },
@@ -10,7 +9,6 @@ const legalCaseProcessNodes: MindMapNode[] = [
     { id: 'doc', text: 'Documentation', x: 0, y: 70, color: 'teal', parentId: 'review' },
     { id: 'dispute', text: 'Dispute?', x: 0, y: 160, color: 'pink', parentId: 'doc' },
 
-    // Branches
     { id: 'settle', text: 'Settle', x: -200, y: 250, color: 'green', parentId: 'dispute' },
     { id: 'proceed', text: 'Proceeding', x: 200, y: 250, color: 'orange', parentId: 'dispute' },
 
@@ -18,7 +16,6 @@ const legalCaseProcessNodes: MindMapNode[] = [
     { id: 'trial', text: 'Trial', x: 200, y: 340, color: 'orange', parentId: 'proceed' },
 ];
 
-// Compliance Review Checklist
 const complianceChecklistNodes: MindMapNode[] = [
     { id: 'root', text: 'Compliance Review', x: 0, y: -250, color: 'root', parentId: null },
 

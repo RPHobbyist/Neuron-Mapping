@@ -27,11 +27,10 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
         if (isOpen) {
             setTimeout(() => inputRef.current?.focus(), 100);
         } else {
-            setText(''); // Reset on close
+            setText('');
         }
     }, [isOpen]);
 
-    // Preview where this will land before committing, so "smart" placement is visible, not a guess.
     const previewParent = useMemo(() => {
         if (!text.trim() || nodes.length === 0) return null;
         const parentId = findBestParent(nodes, text, selectedNodeIds);
@@ -44,7 +43,6 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
 
         onAdd(text.trim());
         setText('');
-        // Stays open (rather than closing) so several ideas can be fired off in a row; Esc or the X closes it.
         setTimeout(() => inputRef.current?.focus(), 0);
     };
 
@@ -67,7 +65,6 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
                     transition={{ duration: 0.2 }}
                     className="fixed bottom-24 right-6 z-50 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden"
                 >
-                    {/* Header */}
                     <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/50 dark:bg-slate-900/50">
                         <div className="flex items-center gap-2">
                             <Wand2 className="w-4 h-4 text-emerald-600" />
@@ -82,7 +79,6 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
                         </button>
                     </div>
 
-                    {/* Body */}
                     <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-2">
                         <p className="text-xs text-muted-foreground">
                             Type anything. We'll find the best place to add it to your map automatically.
@@ -96,7 +92,6 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
                             className="w-full min-h-[80px] p-3 text-sm bg-slate-50 dark:bg-slate-950 border border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 transition-all font-medium"
                         />
 
-                        {/* Live placement preview */}
                         <div className="min-h-[18px] flex items-center gap-1.5 text-[11px] text-muted-foreground">
                             {previewParent && (
                                 <>

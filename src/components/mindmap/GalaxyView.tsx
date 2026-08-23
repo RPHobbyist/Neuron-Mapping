@@ -6,6 +6,7 @@ import { MindMapNode } from '@/types/mindmap';
 import { calculateLayout, LayoutType } from '@/utils/layout3d';
 import { GalaxyNode } from './3d/GalaxyNode';
 import { GalaxyConnection } from './3d/GalaxyConnection';
+import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 
 import { ThreeEvent } from '@react-three/fiber';
 
@@ -36,12 +37,6 @@ export function GalaxyView({
 
     const origin = useMemo(() => new THREE.Vector3(0, 0, 0), []);
 
-    // Structural fingerprint (ids + parent relationships only, order-stable)
-    // — used so the Force Field layout only re-simulates when the map's
-    // structure actually changes. `nodes` gets a new array reference on
-    // every edit (rename, recolor, ...), and without this, Force Field mode
-    // would reseed and fully re-run its O(n^2)/150-iteration simulation on
-    // every single keystroke, scrambling the whole layout each time.
     const structuralKey = useMemo(
         () => nodes.map(n => `${n.id}:${n.parentId ?? ''}`).join('|'),
         [nodes]
@@ -54,15 +49,10 @@ export function GalaxyView({
             vectorMap[id] = new THREE.Vector3(...pos);
         }
         return vectorMap;
-        // Other layout modes (2d-projection especially) need to react to
-        // live x/y/order changes, so they still depend on `nodes` directly;
-        // only 'force' is pinned to the structural key instead.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [layoutMode === 'force' ? structuralKey : nodes, layoutMode]);
 
     return (
         <div className="w-full h-full bg-slate-950 relative">
-            {/* UI Controls */}
             <div className="absolute top-4 right-4 z-50 flex gap-2 items-center">
                 <div className="bg-black/60 backdrop-blur text-white/80 text-xs px-1 py-1 rounded-lg border border-white/10 flex items-center">
                     <select
@@ -88,7 +78,6 @@ export function GalaxyView({
             <Canvas camera={{ position: [0, 0, 20], fov: 50 }} dpr={[1, 2]}>
                 <color attach="background" args={['#020617']} />
 
-                {/* Atmosphere */}
                 <fog attach="fog" args={['#020617', 50, 400]} />
                 <Stars radius={150} depth={50} count={3000} factor={4} saturation={0} fade speed={0.5} />
 
@@ -102,7 +91,6 @@ export function GalaxyView({
                 <OrbitControls makeDefault enableDamping dampingFactor={0.05} maxDistance={500} minDistance={5} />
 
                 <group>
-                    {/* Nodes */}
                     {nodes.map(node => {
                         const pos = targetPositions[node.id] || origin;
                         return (
@@ -119,7 +107,6 @@ export function GalaxyView({
                         );
                     })}
 
-                    {/* Parent-Child Connections */}
                     {nodes.map(node => {
                         if (!node.parentId) return null;
                         const parent = nodes.find(n => n.id === node.parentId);
@@ -133,12 +120,17 @@ export function GalaxyView({
                                 key={`${parent.id}-${node.id}`}
                                 startPos={startPos}
                                 endPos={endPos}
+                                color={node.lineColor || parent.lineColor || '#9ca3af'}
+                                type={node.lineType || parent.lineType || 'curved'}
+                                thickness={node.lineThickness || 'medium'}
+                                animated={!!node.lineAnimated}
+                                label={node.lineLabel}
+                                arrowDirection={node.lineArrowDirection ?? 'none'}
                                 onSelect={(e) => onLineSelect?.(parent.id, node.id)}
                             />
                         );
                     })}
 
-                    {/* Relations (Loops/Cross-links) */}
                     {nodes.flatMap(node => (
                         (node.relations || []).map((relation, idx) => {
                             const target = nodes.find(n => n.id === relation.targetId);
@@ -152,7 +144,12 @@ export function GalaxyView({
                                     key={`rel-${node.id}-${target.id}-${idx}`}
                                     startPos={startPos}
                                     endPos={endPos}
-                                    color={relation.color || '#f59e0b'}
+                                    color={relation.color || DEFAULT_RELATION_COLOR}
+                                    type={relation.type || DEFAULT_RELATION_TYPE}
+                                    thickness={relation.thickness || 'medium'}
+                                    animated={!!relation.animated}
+                                    label={relation.label}
+                                    arrowDirection={relation.arrowDirection ?? 'forward'}
                                     onSelect={(e) => onLineSelect?.(node.id, target.id, `rel::${node.id}::${target.id}`)}
                                 />
                             );

@@ -6,10 +6,8 @@ import { MindMapNode } from '@/types/mindmap';
 import { colorStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
 
-// Must match projectionScale in layout3d.ts for correct drag behavior
 const SCALE_FACTOR = 15;
 
-// Map node colors to actual hex values for 3D label styling
 const colorToHex: Record<string, { bg: string; text: string; border: string }> = {
     root: { bg: '#1e293b', text: '#ffffff', border: '#475569' },
     orange: { bg: '#fed7aa', text: '#9a3412', border: '#fb923c' },
@@ -52,7 +50,6 @@ export const GalaxyNode = ({
     const [hovered, setHovered] = useState(false);
     const [active, setActive] = useState(false);
 
-    // Drag Logic
     const { camera, raycaster, controls } = useThree();
     const isDragging = useRef(false);
     const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), []);
@@ -61,10 +58,9 @@ export const GalaxyNode = ({
     const nodeColor = node.color || 'orange';
     const isRoot = node.parentId === null;
 
-    // Support custom hex colors (starting with #) or predefined color names
     const isCustomHex = nodeColor.startsWith('#');
     const colorHex = isCustomHex
-        ? { bg: nodeColor + '40', text: '#ffffff', border: nodeColor } // Use hex with 25% opacity for bg
+        ? { bg: nodeColor + '40', text: '#ffffff', border: nodeColor }
         : (colorToHex[nodeColor] || colorToHex.orange);
 
     const hasSavedSnapshot = useRef(false);
@@ -75,10 +71,6 @@ export const GalaxyNode = ({
         hasSavedSnapshot.current = false;
         (e.target as unknown as HTMLElement).setPointerCapture(e.pointerId);
         setActive(true);
-        // Disable orbit controls for the duration of the drag — otherwise
-        // dragging a node also orbits the camera at the same time, and since
-        // the drag re-projects through the camera on every frame, the node
-        // ends up chasing a target that's itself sliding underneath it.
         if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
         onClick?.(e as unknown as ThreeEvent<MouseEvent>);
     };
@@ -92,24 +84,12 @@ export const GalaxyNode = ({
 
     const handlePointerMove = (e: ThreeEvent<PointerEvent>) => {
         if (isDragging.current && onMove) {
-            // Save the undo snapshot on the first real movement of this drag
-            // gesture, not on pointerdown — otherwise a plain click-to-select
-            // (no movement) would push a snapshot too, same as the 2D node's
-            // equivalent bug. Unlike the 2D drag path, nothing here called
-            // saveSnapshot at all before, so 3D moves were neither undoable
-            // nor redoable.
             if (!hasSavedSnapshot.current) {
                 hasSavedSnapshot.current = true;
                 onDragStart?.();
             }
             raycaster.setFromCamera(e.pointer, camera);
             const hit = raycaster.ray.intersectPlane(plane, planeIntersect);
-            // intersectPlane returns null when the ray is parallel to (or
-            // pointing away from) the plane — reachable simply by orbiting
-            // the camera during a drag. Previously the stale planeIntersect
-            // from a prior frame (or its initial (0,0,0)) was used anyway,
-            // which could snap the node to the origin, and at near-grazing
-            // angles the intersection point itself can be enormous.
             if (!hit) return;
             const newX = planeIntersect.x * SCALE_FACTOR;
             const newY = -planeIntersect.y * SCALE_FACTOR;
@@ -130,9 +110,6 @@ export const GalaxyNode = ({
 
     useFrame((state, delta) => {
         if (groupRef.current) {
-            // 0.1 was tuned as a per-frame factor at 60fps; converting it to
-            // a decay rate keeps the settle speed tied to wall-clock time
-            // instead of the actual frame rate (delta).
             const t = 1 - Math.pow(0.9, delta * 60);
             groupRef.current.position.lerp(targetPosition, t);
         }
@@ -142,13 +119,13 @@ export const GalaxyNode = ({
         }
     });
 
-    // Resolve icon if present
     const IconComponent = useMemo(() => {
         if (!node.icon) return null;
         return iconMap[node.icon] || null;
     }, [node.icon]);
 
-    // 3D sphere material color
+    const isIconOnly = !!node.icon && node.iconStyle === 'plain';
+
     const sphereColor = new THREE.Color(colorHex.border);
 
     return (
@@ -161,7 +138,6 @@ export const GalaxyNode = ({
             onPointerOver={() => setHovered(true)}
             onPointerOut={() => setHovered(false)}
         >
-            {/* Glowing sphere */}
             <Float speed={2} rotationIntensity={0.2} floatIntensity={0.3}>
                 <mesh scale={isRoot ? 1.5 : 0.8}>
                     <sphereGeometry args={[1, 32, 32]} />
@@ -174,7 +150,6 @@ export const GalaxyNode = ({
                     />
                 </mesh>
 
-                {/* Outer selection ring */}
                 {isSelected && (
                     <mesh ref={ringRef} scale={isRoot ? 2.0 : 1.3}>
                         <torusGeometry args={[1, 0.05, 16, 64]} />
@@ -183,7 +158,6 @@ export const GalaxyNode = ({
                 )}
             </Float>
 
-            {/* Label & Icon */}
             <Html
                 position={[0, isRoot ? 1.8 : 1.0, 0]}
                 center
@@ -196,33 +170,37 @@ export const GalaxyNode = ({
                     transform transition-transform duration-200
                     ${hovered || isSelected ? 'scale-110' : 'scale-100'}
                 `}>
-                    {/* Render Icon if present */}
                     {IconComponent && (
-                        <div
-                            className="p-1.5 rounded-full backdrop-blur-md mb-1 shadow-lg"
-                            style={{
-                                backgroundColor: colorHex.bg,
-                                borderWidth: '1px',
-                                borderColor: colorHex.border
-                            }}
-                        >
-
-                            <IconComponent className="w-5 h-5" style={{ color: colorHex.text }} />
-                        </div>
+                        isIconOnly ? (
+                            <IconComponent className="w-6 h-6 drop-shadow-lg" style={{ color: colorHex.border }} />
+                        ) : (
+                            <div
+                                className="p-1.5 rounded-full backdrop-blur-md mb-1 shadow-lg"
+                                style={{
+                                    backgroundColor: colorHex.bg,
+                                    borderWidth: '1px',
+                                    borderColor: colorHex.border
+                                }}
+                            >
+                                <IconComponent className="w-5 h-5" style={{ color: colorHex.text }} />
+                            </div>
+                        )
                     )}
 
-                    <div
-                        className="px-3 py-1.5 rounded-lg border shadow-lg whitespace-nowrap flex items-center justify-center"
-                        style={{
-                            backgroundColor: colorHex.bg,
-                            borderColor: colorHex.border,
-                            color: colorHex.text,
-                            fontSize: isRoot ? '1.25rem' : '0.875rem',
-                            fontWeight: isRoot ? 700 : 600
-                        }}
-                    >
-                        {node.text}
-                    </div>
+                    {!isIconOnly && (
+                        <div
+                            className="px-3 py-1.5 rounded-lg border shadow-lg whitespace-nowrap flex items-center justify-center"
+                            style={{
+                                backgroundColor: colorHex.bg,
+                                borderColor: colorHex.border,
+                                color: colorHex.text,
+                                fontSize: isRoot ? '1.25rem' : '0.875rem',
+                                fontWeight: isRoot ? 700 : 600
+                            }}
+                        >
+                            {node.text}
+                        </div>
+                    )}
                 </div>
             </Html>
         </group>

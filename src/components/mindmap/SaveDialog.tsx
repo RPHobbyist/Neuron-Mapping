@@ -23,7 +23,6 @@ export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '' }: SaveDi
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Backdrop */}
           <motion.div
             className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
             initial={{ opacity: 0 }}
@@ -32,7 +31,6 @@ export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '' }: SaveDi
             onClick={onClose}
           />
 
-          {/* Dialog */}
           <motion.div
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -40,7 +38,6 @@ export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '' }: SaveDi
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
           >
             <div className="bg-card rounded-2xl shadow-2xl border border-border p-6">
-              {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-foreground">Save Mind Map</h2>
                 <button
@@ -51,7 +48,6 @@ export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '' }: SaveDi
                 </button>
               </div>
 
-              {/* Form */}
               <form onSubmit={handleSubmit}>
                 <div className="mb-6">
                   <label htmlFor="mapName" className="block text-sm font-medium text-foreground mb-2">

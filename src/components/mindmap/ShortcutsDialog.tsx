@@ -27,7 +27,6 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-[450px] p-0 gap-0 border shadow-lg bg-white rounded-xl">
-                {/* Header */}
                 <div className="p-6 pb-2 relative">
 
 
@@ -41,7 +40,6 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
                     </div>
                 </div>
 
-                {/* Content */}
                 <div className="px-6 py-2">
                     <div className="grid grid-cols-1 gap-2">
                         {shortcuts.map((shortcut) => (
@@ -60,7 +58,6 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
                     </div>
                 </div>
 
-                {/* Footer */}
                 <div className="p-6 pt-4 flex justify-end">
                     <button
                         onClick={() => onOpenChange(false)}

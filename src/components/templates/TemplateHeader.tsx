@@ -9,7 +9,6 @@ interface TemplateHeaderProps {
 export const TemplateHeader = ({ onBack }: TemplateHeaderProps) => {
   return (
     <header className="flex items-center justify-between px-6 py-4 border-b border-border/40 glass-toolbar">
-      {/* Logo */}
       <motion.div
         className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
         initial={{ opacity: 0, x: -20 }}
@@ -31,7 +30,6 @@ export const TemplateHeader = ({ onBack }: TemplateHeaderProps) => {
         </div>
       </motion.div>
 
-      {/* Right Actions */}
       <motion.div
         className="flex items-center gap-3"
         initial={{ opacity: 0, x: 20 }}

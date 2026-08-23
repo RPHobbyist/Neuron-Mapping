@@ -6,7 +6,6 @@ interface DynamicTemplatePreviewProps {
     animated?: boolean;
 }
 
-// Extended color mapping with gradients and fresher colors
 const colorThemes: Record<string, { from: string; to: string; border: string; text: string; shadow: string }> = {
     teal: { from: '#f0fdfa', to: '#ccfbf1', border: '#14b8a6', text: '#0f766e', shadow: 'rgba(20, 184, 166, 0.15)' },
     purple: { from: '#faf5ff', to: '#f3e8ff', border: '#a855f7', text: '#7c3aed', shadow: 'rgba(168, 85, 247, 0.15)' },
@@ -75,10 +74,21 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
     const baseNodeHeight = nodeCount > 20 ? 15 : nodeCount > 10 ? 25 : 32;
     const baseFontSize = nodeCount > 20 ? 6 : nodeCount > 10 ? 8 : 10;
 
-    const sizeMultiplier = scale < 0.3 ? 1.5 : 1;
-    const nodeWidth = baseNodeWidth * sizeMultiplier;
-    const nodeHeight = baseNodeHeight * sizeMultiplier;
-    const fontSize = baseFontSize * sizeMultiplier;
+    let minGapX = Infinity;
+    let minGapY = Infinity;
+    nodes.forEach(node => {
+        if (!node.parentId) return;
+        const parent = nodeMap.get(node.parentId);
+        if (!parent) return;
+        const dx = Math.abs(node.x - parent.x) * scale;
+        const dy = Math.abs(node.y - parent.y) * scale;
+        if (dx > 2) minGapX = Math.min(minGapX, dx);
+        if (dy > 2) minGapY = Math.min(minGapY, dy);
+    });
+
+    const nodeWidth = Math.max(18, Math.min(baseNodeWidth, isFinite(minGapX) ? minGapX * 0.85 : baseNodeWidth));
+    const nodeHeight = Math.max(10, Math.min(baseNodeHeight, isFinite(minGapY) ? minGapY * 0.55 : baseNodeHeight));
+    const fontSize = Math.max(5, Math.min(baseFontSize, nodeHeight * 0.5));
 
     return (
         <svg
@@ -87,7 +97,6 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
             preserveAspectRatio="xMidYMid meet"
         >
             <defs>
-                {/* Create gradients for each color */}
                 {Object.entries(colorThemes).map(([key, theme]) => (
                     <linearGradient key={key} id={`grad-${key}`} x1="0%" y1="0%" x2="0%" y2="100%">
                         <stop offset="0%" stopColor={theme.from} />
@@ -95,16 +104,13 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                     </linearGradient>
                 ))}
 
-                {/* Subtle drop shadow filter */}
                 <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
                     <feDropShadow dx="1" dy="2" stdDeviation="1.5" floodColor="#000000" floodOpacity="0.08" />
                 </filter>
             </defs>
 
-            {/* Background (optional) */}
             <rect width="100%" height="100%" fill="#ffffff" opacity="0" />
 
-            {/* Connections */}
             <g className="connections">
                 {nodes.map(node => {
                     if (!node.parentId) return null;
@@ -126,8 +132,6 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                     const cp2x = x2 - dx * 0.5;
                     const cp2y = y2;
 
-                    // Heuristic, not a real layout-direction flag: taller-than-wide gaps get a
-                    // vertical S-curve instead of the default horizontal one.
                     const isVertical = Math.abs(dy) > Math.abs(dx) * 1.5;
 
                     let d = `M ${x1} ${y1} C ${cp1x} ${y1}, ${cp2x} ${y2}, ${x2} ${y2}`;
@@ -150,7 +154,6 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                 })}
             </g>
 
-            {/* Nodes */}
             <g className="nodes">
                 {nodes.map(node => {
                     const x = normalizeX(node.x);
@@ -160,9 +163,9 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                     const themeKey = isRoot ? 'root' : (colorThemes[node.color] ? node.color : 'grey');
                     const theme = colorThemes[themeKey];
 
-                    const w = isRoot ? nodeWidth * 1.3 : nodeWidth;
-                    const h = isRoot ? nodeHeight * 1.3 : nodeHeight;
-                    const fs = isRoot ? fontSize * 1.2 : fontSize;
+                    const w = isRoot ? nodeWidth * 1.2 : nodeWidth;
+                    const h = isRoot ? nodeHeight * 1.15 : nodeHeight;
+                    const fs = isRoot ? fontSize * 1.15 : fontSize;
                     const r = h / 2;
 
                     const charWidth = fs * 0.6;
@@ -179,7 +182,7 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
                                 width={w}
                                 height={h}
                                 rx={r}
-                                fill={isRoot ? theme.from : `url(#grad-${themeKey})`} // Solid for root, gradient for others
+                                fill={isRoot ? theme.from : `url(#grad-${themeKey})`}
                                 stroke={theme.border}
                                 strokeWidth={isRoot ? 0 : 1}
                             />

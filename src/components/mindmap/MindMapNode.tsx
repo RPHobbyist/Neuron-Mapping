@@ -8,21 +8,8 @@ import { toast } from 'sonner';
 import { colorStyles, getShapeStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
 import { sanitizeUrl, getContrastTextColor } from '@/utils/common';
+import { IRREGULAR_SHAPES, IRREGULAR_SHAPE_PATHS, SHAPE_SVG_INSET, scalePathToBox } from '@/utils/shapePaths';
 
-// Shapes rendered via a custom SVG path instead of the div's own box/background
-const IRREGULAR_SHAPES = ['cloud', 'hexagon', 'diamond'];
-
-const IRREGULAR_SHAPE_PATHS: Record<string, string> = {
-  cloud: "M77.56,38.98 C75.01,19.57 63.65,5 50,5 C39.16,5 29.75,14.23 25.06,27.73 C13.78,29.53 5,43.87 5,61.25 C5,79.87 15.09,95 27.5,95 L76.25,95 C86.6,95 95,82.4 95,66.88 C95,52.03 87.31,39.99 77.56,38.98 Z",
-  hexagon: "M25,5 L75,5 L95,50 L75,95 L25,95 L5,50 Z",
-  diamond: "M41.52,13.49 Q50,5 58.49,13.49 L86.52,41.52 Q95,50 86.52,58.49 L58.49,86.52 Q50,95 41.52,86.52 L13.49,58.49 Q5,50 13.49,41.52 L41.52,13.49 Z",
-};
-
-// The snake border effect is a short bright "head" segment followed by
-// progressively fainter, thinner copies riding the same dash animation
-// with a small phase delay — since the delay is shorter than the dash
-// length, the copies overlap and blend into a tapering comet-like tail
-// instead of reading as a hard-edged block sliding around the border.
 const SNAKE_TRAIL = [
   { delay: 0, opacity: 1, width: 4 },
   { delay: 0.16, opacity: 0.55, width: 3.25 },
@@ -43,10 +30,9 @@ interface MindMapNodeProps {
   onRequestLink?: (id: string) => void;
   onRequestNotes?: (id: string) => void;
   onDragStart?: () => void;
-  /** Bumped by the parent (e.g. on F2/Space) to force this node into edit mode. */
   editTrigger?: number;
   zoom: number;
-  isDimmed?: boolean; // For focus mode - dims non-focused nodes
+  isDimmed?: boolean;
   isHighlighted?: boolean;
   onAddIcon?: (id: string) => void;
 }
@@ -77,9 +63,8 @@ const MindMapNodeBase = ({
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
+  const [renderBox, setRenderBox] = useState<{ w: number; h: number } | null>(null);
 
-  // Parent bumps editTrigger (e.g. on F2/Space) to request edit mode for
-  // this specific node without the component tree needing to lift isEditing.
   useEffect(() => {
     if (editTrigger !== undefined) {
       setIsEditing(true);
@@ -90,38 +75,27 @@ const MindMapNodeBase = ({
     if (isEditing && inputRef.current) {
       inputRef.current.focus();
       inputRef.current.select();
-      // Auto-height on mount
       inputRef.current.style.height = 'auto';
       inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
     }
   }, [isEditing]);
 
-  // Report measured size for auto-layout nodes. This is a passive layout
-  // measurement, not a user edit, so it must never go through undo/redo
-  // history — onMeasureNode routes to a history-exempt update.
   useEffect(() => {
     if (!nodeRef.current || !onMeasureNode) return;
 
     const element = nodeRef.current;
     let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
 
-    // Create observer
     const observer = new ResizeObserver(() => {
-      // getBoundingClientRect is safer for total visible size than contentRect
       const rect = element.getBoundingClientRect();
-      // Compensate for zoom scale to get logical (unscaled) size
       const w = rect.width / zoom;
       const h = rect.height / zoom;
 
-      // Only update if significantly different (ignore sub-pixel noise)
-      // AND if not currently dragging/resizing (to avoid conflict)
       if (!isDragging && !isResizing) {
         if (
           Math.abs(w - (node.measuredWidth || 0)) > 2 ||
           Math.abs(h - (node.measuredHeight || 0)) > 2
         ) {
-          // Use a small timeout to debounce/defer state update
-          // This prevents "ResizeObserver loop limit exceeded" and excessive renders
           if (pendingTimeout) clearTimeout(pendingTimeout);
           pendingTimeout = setTimeout(() => {
             onMeasureNode(node.id, w, h);
@@ -137,9 +111,24 @@ const MindMapNodeBase = ({
     };
   }, [node.id, onMeasureNode, node.measuredWidth, node.measuredHeight, isDragging, isResizing, zoom]);
 
+  useEffect(() => {
+    if (!nodeRef.current || !IRREGULAR_SHAPES.includes(node.shape || '')) {
+      setRenderBox(null);
+      return;
+    }
+
+    const element = nodeRef.current;
+    const observer = new ResizeObserver(() => {
+      setRenderBox({ w: element.offsetWidth, h: element.offsetHeight });
+    });
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [node.shape]);
+
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDragStart?.(); // Save snapshot before text editing starts
+    onDragStart?.();
     setIsEditing(true);
   };
 
@@ -159,13 +148,8 @@ const MindMapNodeBase = ({
     onTextChange(node.id, target.value);
   };
 
-  // Tracks whether the current mouse gesture actually moved past the drag
-  // threshold. This is a ref (not state) so handleClick can read it
-  // synchronously — React 18 can flush the isDragging state reset from the
-  // native mouseup listener before the browser's trailing click event fires,
-  // which otherwise makes every drag end by collapsing the selection.
   const didDragRef = useRef(false);
-  const DRAG_THRESHOLD = 3; // px, in screen space
+  const DRAG_THRESHOLD = 3;
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isEditing) return;
@@ -181,8 +165,6 @@ const MindMapNodeBase = ({
       const totalDeltaX = moveEvent.clientX - dragStartRef.current.x;
       const totalDeltaY = moveEvent.clientY - dragStartRef.current.y;
 
-      // Don't count as a drag (and don't push undo history) until the
-      // pointer has actually moved — a plain click/select is not an edit.
       if (!didDragRef.current) {
         if (Math.hypot(totalDeltaX, totalDeltaY) < DRAG_THRESHOLD) return;
         didDragRef.current = true;
@@ -203,8 +185,6 @@ const MindMapNodeBase = ({
       setIsDragging(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      // Keep didDragRef true through the synchronous trailing click event;
-      // clear it on the next tick so the next plain click isn't suppressed.
       setTimeout(() => { didDragRef.current = false; }, 0);
     };
 
@@ -261,16 +241,10 @@ const MindMapNodeBase = ({
   const isIrregularShape = IRREGULAR_SHAPES.includes(node.shape || '');
   const shapePath = isIrregularShape ? IRREGULAR_SHAPE_PATHS[node.shape!] : '';
 
-  // For custom hex colors, generate style object; for predefined names, use colorStyles
-  const style = isRoot
-    ? colorStyles.root
-    : isCustomHex
-      ? { bg: '', text: '', border: '' } // Custom colors use inline styles, not Tailwind classes
-      : (colorStyles[node.color] || colorStyles.orange);
+  const style = isCustomHex
+    ? { bg: '', text: '', border: '' }
+    : (colorStyles[node.color] || (isRoot ? colorStyles.root : colorStyles.orange));
 
-  // Custom inline styles for hex colors. Cloud/hexagon/diamond shapes get their
-  // fill from the SVG path below, so skip the rectangular background/border here
-  // or it paints over the shape's silhouette.
   const customColorStyle = isCustomHex ? {
     ...(isIrregularShape ? {} : { backgroundColor: node.color, borderColor: node.color }),
     color: getContrastTextColor(node.color!)
@@ -278,6 +252,10 @@ const MindMapNodeBase = ({
 
   const shapeStyles = getShapeStyles(node.shape, isRoot);
   const effectiveShape = node.shape || (isRoot ? 'circle' : 'rounded');
+
+  const contentClipPath = isIrregularShape && renderBox
+    ? `path('${scalePathToBox(shapePath, renderBox.w, renderBox.h, SHAPE_SVG_INSET)}')`
+    : undefined;
 
   const isIconOnly = node.icon && node.iconStyle === 'plain';
 
@@ -306,7 +284,6 @@ const MindMapNodeBase = ({
         ref={nodeRef}
         className={cn(
           'relative px-4 py-3 overflow-hidden transition-shadow',
-          // Only apply standard node styles if NOT in icon-only mode
           !isIconOnly && [
             !isIrregularShape && 'border shadow-sm',
             !isIrregularShape && style.bg,
@@ -314,21 +291,21 @@ const MindMapNodeBase = ({
             !isIrregularShape && 'hover:shadow-md',
             shapeStyles.className,
           ],
-          style.text, // Text color for icon
+          style.text,
           (isSelected && !isIrregularShape) && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
           isHighlighted && 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-background z-10 shadow-[0_0_15px_rgba(250,204,21,0.5)]',
           node.nodeAnimation === 'ring' && 'animate-ring',
           node.nodeAnimation === 'blink' && 'animate-blink',
-          isIconOnly && "bg-transparent border-none shadow-none p-0" // Icon-only: no padding, no background
+          isIconOnly && "bg-transparent border-none shadow-none p-0"
         )}
         style={{
           ...(!isIconOnly ? shapeStyles.style : {}),
           ...(!isIconOnly && node.width ? { width: node.width, minWidth: node.width } : {}),
           ...(!isIconOnly && node.height ? { height: node.height, minHeight: node.height } : {}),
           ...(!isIconOnly && customColorStyle ? customColorStyle : {}),
+          ...(!isIconOnly && contentClipPath ? { clipPath: contentClipPath } : {}),
         }}
       >
-        {/* Snake Animation Layer for Standard Shapes */}
         {node.nodeAnimation === 'snake' && !isIrregularShape && (
           <div className="absolute inset-0 z-0 pointer-events-none">
             <svg width="100%" height="100%" className="overflow-visible">
@@ -359,20 +336,17 @@ const MindMapNodeBase = ({
           </div>
         )}
 
-        {/* Unified SVG Background for Irregular Shapes (Cloud, Hexagon, Diamond) */}
         {isIrregularShape && (
           <div className="absolute inset-[-4px] z-0 pointer-events-none drop-shadow-sm">
             <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-              {/* Main Shape Path */}
               <path
                 d={shapePath}
-                fill={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-bg))`}
-                stroke={isCustomHex ? node.color : `hsl(var(--node-${node.color || 'orange'}-border))`}
-                strokeWidth="2.5"
+                fill={isCustomHex ? node.color : `hsl(var(--node-${node.color === 'root' ? 'black' : (node.color || 'orange')}-bg))`}
+                stroke={isSelected ? 'hsl(var(--primary))' : (isCustomHex ? node.color : `hsl(var(--node-${node.color === 'root' ? 'black' : (node.color || 'orange')}-border))`)}
+                strokeWidth={isSelected ? '4' : '2.5'}
                 vectorEffect="non-scaling-stroke"
                 strokeLinejoin="round"
               />
-              {/* Snake Animation Path (Irregular Shapes) */}
               {node.nodeAnimation === 'snake' && SNAKE_TRAIL.map(({ delay, opacity, width }, i) => (
                 <path
                   key={i}
@@ -396,25 +370,6 @@ const MindMapNodeBase = ({
           </div>
         )}
 
-        {/* Selection Ring (Shape-matched) — drawn in its own, larger-inset
-            layer so it reads as an offset halo (like the ring-offset-2 used
-            on regular shapes) instead of a border traced on the fill edge. */}
-        {isIrregularShape && isSelected && (
-          <div className="absolute inset-[-10px] z-0 pointer-events-none">
-            <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" className="w-full h-full">
-              <path
-                d={shapePath}
-                fill="none"
-                stroke="hsl(var(--primary))"
-                strokeWidth="3"
-                vectorEffect="non-scaling-stroke"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-        )}
-
-        {/* Content Wrapper to stay above background animations */}
         <div className="relative z-10 w-full">
           {isEditing ? (
             <textarea
@@ -423,16 +378,12 @@ const MindMapNodeBase = ({
               onChange={handleInput}
               onBlur={handleBlur}
               onKeyDown={handleKeyDown}
-              className={cn(
-                'w-full bg-transparent text-center font-medium outline-none min-w-[50px] resize-none overflow-hidden',
-                isRoot ? 'text-white' : 'text-inherit'
-              )}
+              className="w-full bg-transparent text-center font-medium outline-none min-w-[50px] resize-none overflow-hidden text-inherit"
               onClick={(e) => e.stopPropagation()}
               rows={1}
             />
           ) : (
             <div className="flex flex-col items-center gap-2">
-              {/* Image Rendering */}
               {node.image && (
                 <img
                   src={node.image}
@@ -443,21 +394,19 @@ const MindMapNodeBase = ({
                 />
               )}
 
-              {/* Icon Rendering */}
               {node.icon && iconMap[node.icon] && (() => {
                 const IconComponent = iconMap[node.icon];
                 const isBoxed = node.iconStyle === 'boxed';
                 const isPlain = node.iconStyle === 'plain';
 
-                // Get icon color based on node color
                 const iconColorClass = isBoxed
                   ? "text-primary"
-                  : style.text || "text-current";
+                  : (isCustomHex ? undefined : (style.text || "text-current"));
+                const iconInlineColor = (!isBoxed && isPlain && isCustomHex) ? node.color : undefined;
 
-                // Calculate icon size - use node dimensions for plain icons, default for others
                 const iconSize = isPlain && node.width
                   ? Math.min(node.width, node.height || node.width)
-                  : 32; // Default 32px (w-8 h-8)
+                  : 32;
 
                 return (
                   <div className={cn(
@@ -469,24 +418,23 @@ const MindMapNodeBase = ({
                       className={cn("stroke-[1.5]", iconColorClass)}
                       style={{
                         width: iconSize,
-                        height: iconSize
+                        height: iconSize,
+                        ...(iconInlineColor ? { color: iconInlineColor } : {})
                       }}
                     />
                   </div>
                 );
               })()}
 
-              {/* Text Rendering - Hidden if strictly in "Icon Only" (plain) mode */}
               {(!node.icon || node.iconStyle !== 'plain') && (
                 <span className={cn(
-                  'text-center block font-medium break-words whitespace-pre-wrap',
-                  isRoot ? 'text-white font-bold leading-tight' : 'text-inherit'
+                  'text-center block font-medium break-words whitespace-pre-wrap text-inherit',
+                  isRoot && 'font-bold leading-tight'
                 )}>
                   {node.text}
                 </span>
               )}
 
-              {/* Priority Badge */}
               {node.priority && (
                 <span className={cn(
                   'text-xs px-1.5 py-0.5 rounded-full font-medium',
@@ -498,7 +446,6 @@ const MindMapNodeBase = ({
                 </span>
               )}
 
-              {/* Tags Display */}
               {node.tags && node.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 justify-center mt-1">
                   {node.tags.slice(0, 3).map((tag, index) => (
@@ -512,7 +459,6 @@ const MindMapNodeBase = ({
                 </div>
               )}
 
-              {/* Link Rendering */}
               {node.link && sanitizeUrl(node.link) && (() => {
                 const safeUrl = sanitizeUrl(node.link);
                 return (
@@ -538,7 +484,6 @@ const MindMapNodeBase = ({
         </div>
       </div>
 
-      {/* Notes Indicator Badge - shown whenever the node has notes attached */}
       {node.notes?.trim() && (
         <div
           className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-amber-400 text-white flex items-center justify-center shadow-sm ring-2 ring-background pointer-events-none z-20"
@@ -548,7 +493,6 @@ const MindMapNodeBase = ({
         </div>
       )}
 
-      {/* Node Toolbar */}
       {isSelected && !isEditing && !isDragging && (
         <NodeToolbar
           onAddImage={handleAddImage}
@@ -558,7 +502,6 @@ const MindMapNodeBase = ({
         />
       )}
 
-      {/* Simple Add button */}
       {isSelected && !isEditing && (
         <button
           className={cn(
@@ -574,7 +517,6 @@ const MindMapNodeBase = ({
         </button>
       )}
 
-      {/* Resize Handle */}
       {isSelected && !isEditing && onSizeChange && (
         <div
           className={cn(

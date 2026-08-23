@@ -8,14 +8,11 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Landing from "./pages/Landing";
 
-// Lazy-load heavy pages so Three.js (~906KB), jsPDF (~386KB), and html2canvas (~201KB)
-// are only downloaded when the user navigates to /workspace — not on the landing page.
 const Index = lazy(() => import("./pages/Index"));
 const TemplatesIndex = lazy(() => import("./pages/TemplatesIndex"));
 const TemplateDetail = lazy(() => import("./pages/TemplateDetail"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
-// Detect if the app is running in an Electron desktop environment or local file:// environment
 const isElectron = 
   typeof window !== "undefined" && 
   (window.navigator.userAgent.toLowerCase().includes("electron") || 
@@ -39,7 +36,6 @@ const App = () => (
             <Route path="/templates" element={<TemplatesIndex />} />
             <Route path="/templates/:templateId" element={<TemplateDetail />} />
             <Route path="/workspace" element={<Index />} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

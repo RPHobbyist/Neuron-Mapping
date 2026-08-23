@@ -1,7 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
-// Blank Mind Map - Balanced Radial Star
 export const blankMindMapNodes: MindMapNode[] = [
     { id: 'root', text: 'Central Idea', x: 0, y: 0, color: 'root', parentId: null },
     { id: 'branch1', text: 'Topic 1', x: -250, y: -120, color: 'blue', parentId: 'root' },
@@ -10,7 +9,6 @@ export const blankMindMapNodes: MindMapNode[] = [
     { id: 'branch4', text: 'Topic 4', x: -250, y: 120, color: 'purple', parentId: 'root' },
 ];
 
-// Simple Flowchart - Start, Decision, Branches, End
 const simpleFlowchartNodes: MindMapNode[] = [
     { id: 'start', text: 'Start', x: 0, y: -250, color: 'green', parentId: null },
     { id: 'decision', text: 'Decision?', x: 0, y: -120, color: 'orange', parentId: 'start' },
@@ -20,7 +18,6 @@ const simpleFlowchartNodes: MindMapNode[] = [
     { id: 'end2', text: 'End', x: 200, y: 120, color: 'grey', parentId: 'no' },
 ];
 
-// Timeline - Sequential Milestones
 const simpleTimelineNodes: MindMapNode[] = [
     { id: 'root', text: 'Timeline', x: 0, y: -150, color: 'root', parentId: null },
     { id: 'm1', text: 'Milestone 1', x: -300, y: 0, color: 'blue', parentId: 'root' },

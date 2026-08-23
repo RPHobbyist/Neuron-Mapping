@@ -29,18 +29,18 @@ export interface NodeSettings {
 interface PropertiesPanelProps {
     mode: 'line' | 'node';
     position?: { x: number; y: number };
-    // On-screen width (px) of the node the panel is anchored to. When set,
-    // the panel opens beside the node instead of centered on top of it.
     anchorWidth?: number;
 
-    // Line Props
     lineValues?: LineSettings;
     onLineUpdate?: (updates: Partial<LineSettings>) => void;
+    onLineUpdateLive?: (updates: Partial<LineSettings>) => void;
 
-    // Node Props
     nodeValues?: NodeSettings;
     onNodeUpdate?: (updates: Partial<NodeSettings>) => void;
+    onNodeUpdateLive?: (updates: Partial<NodeSettings>) => void;
     onDelete?: () => void;
+
+    onLiveEditStart?: () => void;
 
     onClose: () => void;
     is3DMode?: boolean;
@@ -103,12 +103,15 @@ export const PropertiesPanel = ({
     mode,
     lineValues,
     onLineUpdate,
+    onLineUpdateLive,
     nodeValues,
     onNodeUpdate,
+    onNodeUpdateLive,
     onDelete,
+    onLiveEditStart,
     onClose,
     is3DMode = false,
-    position, // Destructure position
+    position,
     anchorWidth
 }: PropertiesPanelProps) => {
     const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 });
@@ -118,24 +121,21 @@ export const PropertiesPanel = ({
     const [panelSize, setPanelSize] = useState({ width: 300, height: 0 });
     const [viewport, setViewport] = useState({ width: window.innerWidth, height: window.innerHeight });
 
-    // Re-clamp on resize: left/top below are recomputed every render, but
-    // nothing re-renders this component on its own when only the window
-    // resizes, so without this the panel can end up stranded past the new
-    // (smaller) viewport edge until some unrelated prop change happens to
-    // trigger a re-render.
+    const liveEditActiveRef = useRef(false);
+    const beginLiveEdit = () => {
+        if (!liveEditActiveRef.current) {
+            liveEditActiveRef.current = true;
+            onLiveEditStart?.();
+        }
+    };
+    const endLiveEdit = () => { liveEditActiveRef.current = false; };
+
     useLayoutEffect(() => {
         const onResize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
         window.addEventListener('resize', onResize);
         return () => window.removeEventListener('resize', onResize);
     }, []);
 
-    // Pointer capture (instead of document-level mousemove/mouseup listeners)
-    // means the header element itself keeps receiving move/up events for the
-    // duration of the drag, even if the cursor leaves the window — so there's
-    // nothing to leak. The previous document-listener version had no cleanup
-    // path at all: releasing outside the window, or deleting the node
-    // mid-drag (unmounting this panel), left a dangling `mousemove` listener
-    // on `document` forever.
     const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -166,9 +166,6 @@ export const PropertiesPanel = ({
         }
     };
 
-    // Measure the panel's real size so its anchored position can be clamped
-    // to the viewport — its content height varies (e.g. the animation
-    // sub-options), so a fixed guess isn't reliable.
     useLayoutEffect(() => {
         const el = panelRef.current;
         if (!el) return;
@@ -184,7 +181,6 @@ export const PropertiesPanel = ({
 
         return (
             <div className="space-y-3">
-                {/* Line Type */}
                 <div>
                     <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Type</label>
                     <div className="grid grid-cols-3 gap-1">
@@ -205,7 +201,6 @@ export const PropertiesPanel = ({
                     </div>
                 </div>
 
-                {/* Arrowheads */}
                 <div>
                     <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
                         <ArrowLeftRight className="w-3 h-3" /> Arrowheads
@@ -230,7 +225,6 @@ export const PropertiesPanel = ({
                     </div>
                 </div>
 
-                {/* Thickness */}
                 <div>
                     <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
                         <Bold className="w-3 h-3" /> Thickness
@@ -253,7 +247,6 @@ export const PropertiesPanel = ({
                     </div>
                 </div>
 
-                {/* Color */}
                 <div>
                     <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
                         <Palette className="w-3 h-3" /> Color
@@ -276,7 +269,9 @@ export const PropertiesPanel = ({
                                 name="line-color-custom"
                                 type="color"
                                 value={lineValues.color || '#f97316'}
-                                onChange={(e) => onLineUpdate({ color: e.target.value })}
+                                onPointerDown={beginLiveEdit}
+                                onBlur={endLiveEdit}
+                                onChange={(e) => (onLineUpdateLive || onLineUpdate)({ color: e.target.value })}
                                 className="w-6 h-6 rounded-full cursor-pointer opacity-0 absolute inset-0"
                                 title="Custom color"
                             />
@@ -285,7 +280,6 @@ export const PropertiesPanel = ({
                     </div>
                 </div>
 
-                {/* Label & Animation */}
                 <div className="grid grid-cols-2 gap-3">
                     <div className="col-span-2">
                         <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
@@ -296,7 +290,9 @@ export const PropertiesPanel = ({
                             name="line-label"
                             type="text"
                             value={lineValues.label || ''}
-                            onChange={(e) => onLineUpdate({ label: e.target.value })}
+                            onFocus={beginLiveEdit}
+                            onBlur={endLiveEdit}
+                            onChange={(e) => (onLineUpdateLive || onLineUpdate)({ label: e.target.value })}
                             placeholder="Label..."
                             className="w-full px-2 py-1.5 text-xs border rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary"
                         />
@@ -322,7 +318,6 @@ export const PropertiesPanel = ({
 
                         {lineValues.animated && (
                             <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
-                                {/* Animation Style */}
                                 <div className="flex gap-1 bg-muted/50 p-1 rounded-md border border-border/50">
                                     <button
                                         onClick={() => onLineUpdate({ animationType: 'dash' })}
@@ -362,7 +357,6 @@ export const PropertiesPanel = ({
                                     </button>
                                 </div>
 
-                                {/* Direction */}
                                 <div className="flex gap-1 bg-muted/50 p-1 rounded-md border border-border/50">
                                     <button
                                         onClick={() => onLineUpdate({ animationDirection: 'forward' })}
@@ -402,7 +396,6 @@ export const PropertiesPanel = ({
 
         return (
             <div className="space-y-3">
-                {/* Node Color */}
                 <div>
                     <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
                         <Palette className="w-3 h-3" /> Color
@@ -426,9 +419,10 @@ export const PropertiesPanel = ({
                                 name="node-color-custom"
                                 type="color"
                                 value={nodeValues.color?.startsWith('#') ? nodeValues.color : '#6366f1'}
+                                onPointerDown={beginLiveEdit}
+                                onBlur={endLiveEdit}
                                 onChange={(e) => {
-                                    // Save the actual hex color value
-                                    onNodeUpdate({ color: e.target.value as unknown as NodeColor });
+                                    (onNodeUpdateLive || onNodeUpdate)({ color: e.target.value as unknown as NodeColor });
                                 }}
                                 className="w-6 h-6 rounded-full cursor-pointer opacity-0 absolute inset-0"
                                 title="Custom color"
@@ -445,7 +439,6 @@ export const PropertiesPanel = ({
                     </div>
                 </div>
 
-                {/* Node Shape - Hidden for icon-only nodes */}
                 {!(nodeValues.icon && nodeValues.iconStyle === 'plain') && (
                     <div>
                         <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
@@ -471,7 +464,6 @@ export const PropertiesPanel = ({
                     </div>
                 )}
 
-                {/* Priority & Line Type */}
                 <div className="space-y-3">
                     <div>
                         <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
@@ -506,7 +498,6 @@ export const PropertiesPanel = ({
                         </div>
                     </div>
 
-                    {/* Node Animation (New) */}
                     <div>
                         <div className="flex items-center justify-between mb-1.5">
                             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground flex items-center gap-1">
@@ -514,7 +505,6 @@ export const PropertiesPanel = ({
                             </label>
                         </div>
                         <div className="grid grid-cols-4 gap-1">
-                            {/* None Button */}
                             <button
                                 onClick={() => onNodeUpdate({ nodeAnimation: undefined })}
                                 className={cn(
@@ -527,7 +517,6 @@ export const PropertiesPanel = ({
                                 None
                             </button>
 
-                            {/* Animation Options */}
                             {[
                                 { value: 'ring', label: 'Ring' },
                                 { value: 'snake', label: 'Snake' },
@@ -549,14 +538,13 @@ export const PropertiesPanel = ({
                         </div>
                     </div>
 
-                    {/* Line Connection - Hide in 3D Mode */}
                     {!is3DMode && (
                         <div>
                             <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
                                 <Spline className="w-3 h-3" /> Line Connection
                             </label>
                             <div className="grid grid-cols-3 gap-1">
-                                {lineTypes.slice(0, 6).map((type) => ( // Show first 6 types
+                                {lineTypes.slice(0, 6).map((type) => (
                                     <button
                                         key={type.value}
                                         onClick={() => onNodeUpdate({ lineType: type.value })}
@@ -575,7 +563,6 @@ export const PropertiesPanel = ({
                     )}
                 </div>
 
-                {/* Delete Button */}
                 {onDelete && (
                     <div className="pt-2">
                         <button
@@ -590,11 +577,6 @@ export const PropertiesPanel = ({
         );
     };
 
-    // Anchored (position provided): compute left/top directly and clamp to
-    // the viewport, using the panel's own measured size — no transform shift
-    // on top, since that was being applied on top of an already shifted
-    // `left`, pushing the panel (including its own close button) fully
-    // off-screen for anchors near the left/top edge.
     const MARGIN = 12;
     const SIDE_GAP = 28;
     let left: number | undefined;
@@ -606,10 +588,6 @@ export const PropertiesPanel = ({
         let rawLeft: number;
         let rawTop: number;
         if (anchorWidth !== undefined) {
-            // Open beside the anchored node instead of centered on top of
-            // it, so the node stays visible without the user having to drag
-            // the panel away. Prefer the right side; fall back to the left
-            // side when there isn't room to the right.
             const rightLeft = position.x + anchorWidth / 2 + SIDE_GAP;
             rawLeft = rightLeft + panelSize.width + MARGIN <= viewport.width
                 ? rightLeft
@@ -636,7 +614,6 @@ export const PropertiesPanel = ({
                 cursor: isDragging ? 'grabbing' : 'default',
             }}
         >
-            {/* Draggable header */}
             <div
                 className="flex items-center justify-between mb-3 cursor-grab active:cursor-grabbing select-none border-b pb-2"
                 onPointerDown={handlePointerDown}

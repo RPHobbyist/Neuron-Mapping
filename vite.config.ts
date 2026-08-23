@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
-// https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
     host: "localhost",
@@ -25,7 +24,7 @@ export default defineConfig(({ mode }) => ({
           icons: ["lucide-react"],
           animation: ["framer-motion"],
           three: ["three", "@react-three/fiber", "@react-three/drei"],
-          utils: ["date-fns", "clsx", "tailwind-merge", "@tanstack/react-query"],
+          utils: ["date-fns", "clsx", "tailwind-merge"],
         },
       },
     },

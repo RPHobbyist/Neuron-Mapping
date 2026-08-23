@@ -1,17 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { toast } from 'sonner';
 
 import { generateId, getDescendantIds } from '@/utils/common';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
-import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority } from '@/types/mindmap';
+import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority, Drawing } from '@/types/mindmap';
 
 import { useHistory } from './useHistory';
 
-export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnectionStyle: ConnectionStyle = 'curved') => {
-    // History & State
+export const useMindMapNodes = (
+    initialNodes: MindMapNode[] = [],
+    initialConnectionStyle: ConnectionStyle = 'curved',
+    initialDrawings: Drawing[] = []
+) => {
     interface MindMapHistoryState {
         nodes: MindMapNode[];
         connectionStyle: ConnectionStyle;
+        drawings: Drawing[];
     }
 
     const {
@@ -26,13 +30,14 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         canRedo
     } = useHistory<MindMapHistoryState>({
         nodes: initialNodes,
-        connectionStyle: initialConnectionStyle
+        connectionStyle: initialConnectionStyle,
+        drawings: initialDrawings
     }, 20);
 
     const nodes = historyState.nodes;
     const connectionStyle = historyState.connectionStyle;
+    const drawings = historyState.drawings;
 
-    // Wrappers to maintain compatibility with existing logic which expects setNodes(nodes => ...)
     const setNodes = useCallback((action: MindMapNode[] | ((prev: MindMapNode[]) => MindMapNode[])) => {
         set((prev) => ({
             ...prev,
@@ -47,8 +52,6 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         }));
     }, [replace]);
 
-    // For passive writes that must never appear in undo/redo (e.g. ResizeObserver
-    // layout measurements) — does not push history and does not clear the redo stack.
     const mutateNodes = useCallback((action: MindMapNode[] | ((prev: MindMapNode[]) => MindMapNode[])) => {
         mutate((prev) => ({
             ...prev,
@@ -60,10 +63,9 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         set((prev) => ({ ...prev, connectionStyle: style }));
     }, [set]);
 
-    // Applies a global connection style AND strips per-node/relation overrides
-    // in a single history entry, so one Ctrl+Z fully reverts the change.
     const applyGlobalConnectionStyle = useCallback((style: ConnectionStyle) => {
         set((prev) => ({
+            ...prev,
             connectionStyle: style,
             nodes: prev.nodes.map(node => {
                 const newNode = { ...node };
@@ -80,9 +82,17 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         }));
     }, [set]);
 
-    const resetNodes = useCallback((newNodes: MindMapNode[], newConnectionStyle?: ConnectionStyle) => {
-        reset({ nodes: newNodes, connectionStyle: newConnectionStyle ?? connectionStyle });
+    const resetNodes = useCallback((newNodes: MindMapNode[], newConnectionStyle?: ConnectionStyle, newDrawings?: Drawing[]) => {
+        reset({
+            nodes: newNodes,
+            connectionStyle: newConnectionStyle ?? connectionStyle,
+            drawings: newDrawings ?? []
+        });
     }, [reset, connectionStyle]);
+
+    const restoreFullState = useCallback((newNodes: MindMapNode[], newConnectionStyle: ConnectionStyle, newDrawings: Drawing[]) => {
+        set(() => ({ nodes: newNodes, connectionStyle: newConnectionStyle, drawings: newDrawings }));
+    }, [set]);
 
     const updateNodeMeasurement = useCallback((id: string, width: number, height: number) => {
         mutateNodes((prev) => prev.map((node) => (
@@ -90,34 +100,67 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         )));
     }, [mutateNodes]);
 
-    // Selection
+    const setDrawings = useCallback((action: Drawing[] | ((prev: Drawing[]) => Drawing[])) => {
+        set((prev) => ({
+            ...prev,
+            drawings: typeof action === 'function' ? action(prev.drawings) : action
+        }));
+    }, [set]);
+
+    const replaceDrawings = useCallback((action: Drawing[] | ((prev: Drawing[]) => Drawing[])) => {
+        replace((prev) => ({
+            ...prev,
+            drawings: typeof action === 'function' ? action(prev.drawings) : action
+        }));
+    }, [replace]);
+
     const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string>>(new Set());
     const [selectedLineId, setSelectedLineId] = useState<string | null>(null);
 
+    useEffect(() => {
+        setSelectedNodeIds((prev) => {
+            if (prev.size === 0) return prev;
+            const filtered = new Set(Array.from(prev).filter((id) => nodes.some((n) => n.id === id)));
+            return filtered.size === prev.size ? prev : filtered;
+        });
+
+        setSelectedLineId((prev) => {
+            if (!prev) return prev;
+            let stillValid: boolean;
+            if (prev.startsWith('rel::')) {
+                const [, sourceId, targetId] = prev.split('::');
+                const source = nodes.find((n) => n.id === sourceId);
+                stillValid = !!source?.relations?.some((r) => r.targetId === targetId);
+            } else {
+                const [parentId, childId] = prev.split('::');
+                const child = nodes.find((n) => n.id === childId);
+                stillValid = !!child && child.parentId === parentId;
+            }
+            return stillValid ? prev : null;
+        });
+    }, [nodes]);
+
     const saveSnapshot = useCallback(() => {
-        set((prev) => prev); // Save current state to history
+        set((prev) => prev);
     }, [set]);
 
-    // Actions
     const addChildNode = useCallback((parentId: string, initialText: string = 'New Item') => {
-        // Quick existence check against the last-rendered state; the actual
-        // position/color is computed from the functional updater's own `prev`
-        // below so rapid repeated calls (e.g. auto-repeating Tab) each see the
-        // most current sibling count instead of stacking new nodes on top of
-        // each other at an identical, stale position.
-        if (!nodes.some((n) => n.id === parentId)) return null;
-
         const newId = generateId();
 
+        let added = false;
         setNodes((prev) => {
             const parent = prev.find((n) => n.id === parentId);
             if (!parent) return prev;
 
+            added = true;
             const children = prev.filter((n) => n.parentId === parentId);
             const angle = (children.length * 50 - 100) * (Math.PI / 180);
-            const distance = 250;
 
-            // Inherit color
+            const parentW = parent.measuredWidth || parent.width || 150;
+            const parentH = parent.measuredHeight || parent.height || 60;
+            const sizeSlack = Math.max(0, (Math.max(parentW, parentH) - 150) / 2);
+            const distance = 250 + sizeSlack;
+
             let newColor: NodeColor = 'orange';
             if (parent.id !== 'root') {
                 newColor = parent.color;
@@ -137,15 +180,17 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
 
             if (parent.id === 'root') {
                 const isRight = children.length % 2 === 0;
-                newNode.x = parent.x + (isRight ? 200 : -200);
+                newNode.x = parent.x + (isRight ? 1 : -1) * (200 + sizeSlack);
                 newNode.y = parent.y + (children.length * 60 - 100);
             }
 
             return [...prev, newNode];
         });
-        setSelectedNodeIds(new Set([newId]));
-        return newId;
-    }, [nodes, setNodes]);
+        if (added) {
+            setSelectedNodeIds(new Set([newId]));
+        }
+        return added ? newId : null;
+    }, [setNodes]);
 
     const addRelation = useCallback(() => {
         if (selectedNodeIds.size !== 2) return;
@@ -191,16 +236,10 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
         setNodes((prev) => prev.map((node) => (node.id === id ? { ...node, text } : node)));
     }, [setNodes]);
 
-    // Use this during continuous text editing to avoid cluttering history
     const replaceNodeText = useCallback((id: string, text: string) => {
         replaceNodes((prev) => prev.map((node) => (node.id === id ? { ...node, text } : node)));
     }, [replaceNodes]);
 
-    // Same non-history pattern as replaceNodeText, generalized to any field —
-    // for continuous edits like typing in the Notes panel, where a caller
-    // saves one snapshot when editing starts and then wants every keystroke
-    // to update the live present state without each one pushing its own
-    // undo entry.
     const replaceNode = useCallback((id: string, updates: Partial<MindMapNode>) => {
         replaceNodes((prev) => prev.map((node) => (node.id === id ? { ...node, ...updates } : node)));
     }, [replaceNodes]);
@@ -284,12 +323,16 @@ export const useMindMapNodes = (initialNodes: MindMapNode[] = [], initialConnect
     return {
         nodes,
         connectionStyle,
+        drawings,
+        setDrawings,
+        replaceDrawings,
         setNodes,
         setConnectionStyle,
         applyGlobalConnectionStyle,
         replaceNodes,
         saveSnapshot,
         resetNodes,
+        restoreFullState,
         undo,
         redo,
         canUndo,

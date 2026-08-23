@@ -1,9 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { createRootNode, createChildNode, generateId } from './parserUtils';
 
-/**
- * Parse indented text file with robust indent detection.
- */
 export function parseTextFile(content: string): MindMapNode[] {
     const lines = content.split('\n').filter(line => line.trim());
     if (lines.length === 0) return [];
@@ -11,29 +8,24 @@ export function parseTextFile(content: string): MindMapNode[] {
     const nodes: MindMapNode[] = [];
     const rootId = generateId();
 
-    // Create root from first line
     nodes.push({
         ...createRootNode(lines[0].trim()),
         id: rootId
     });
 
-    // Detect indentation unit from first indented line
     const indentUnit = detectIndentUnit(lines);
     const stack: StackItem[] = [{ id: rootId, level: 0 }];
 
-    // Process remaining lines
     for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
         const text = line.trim();
         const indent = getIndentLength(line);
         const level = Math.round(indent / indentUnit);
 
-        // Find parent by walking back the stack
         while (stack.length > 1 && stack[stack.length - 1].level >= level) {
             stack.pop();
         }
 
-        // Safety: ensure stack has at least root
         if (stack.length === 0) {
             stack.push({ id: rootId, level: 0 });
         }
@@ -60,7 +52,7 @@ function detectIndentUnit(lines: string[]): number {
             return indentMatch[0].length;
         }
     }
-    return 2; // Default fallback
+    return 2;
 }
 
 function getIndentLength(line: string): number {

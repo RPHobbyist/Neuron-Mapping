@@ -8,13 +8,6 @@
  * (at your option) any later version.
  */
 
-/**
- * Single source of truth for page copy that is rendered BOTH as visible JSX
- * (Landing.tsx / TemplateDetail.tsx) and as JSON-LD structured data (via
- * useDocumentSEO, and mirrored at build time by scripts/generate-static-pages.ts).
- * Keeping one array prevents the visible FAQ text from ever drifting out of
- * sync with what search engines are told is on the page.
- */
 
 export interface FaqEntry {
   q: string;
@@ -63,16 +56,6 @@ export const templateDetailFaqs: FaqEntry[] = [
   }
 ];
 
-/**
- * Title/description strings for the three route types. Also imported by
- * scripts/generate-static-pages.ts so prerendered <head> tags and the ones
- * useDocumentSEO sets at runtime are always byte-identical.
- *
- * Titles are kept under ~60 characters and descriptions under ~155: past those
- * thresholds Google either truncates the SERP snippet mid-word or discards the
- * tag entirely and generates its own from page content, which hands away
- * control over exactly the copy that drives click-through.
- */
 
 export const homeSeo = {
   title: "Free Mind Mapping Tool Online (No Signup) | Neuron Mapping",

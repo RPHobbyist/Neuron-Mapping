@@ -26,7 +26,6 @@ export const ZoomControls = ({
       transition={{ delay: 0.2, type: 'spring', stiffness: 300 }}
     >
       <div className="flex items-center gap-1 p-1.5 glass-toolbar rounded-xl shadow-xl bg-white dark:bg-slate-900 border border-border">
-        {/* Zoom Out */}
         <button
           onClick={onZoomOut}
           disabled={zoom <= MIN_ZOOM}
@@ -40,14 +39,12 @@ export const ZoomControls = ({
           <Minus className="w-4 h-4" />
         </button>
 
-        {/* Zoom Percentage */}
         <div className="flex items-center justify-center px-2 min-w-[50px]">
           <span className="text-xs font-semibold text-foreground tabular-nums">
             {zoomPercentage}%
           </span>
         </div>
 
-        {/* Zoom In */}
         <button
           onClick={onZoomIn}
           disabled={zoom >= MAX_ZOOM}
@@ -61,10 +58,8 @@ export const ZoomControls = ({
           <Plus className="w-4 h-4" />
         </button>
 
-        {/* Divider */}
         <div className="w-px h-6 bg-border mx-0.5" />
 
-        {/* Fit to Screen */}
         <button
           onClick={onReset}
           className="p-2 rounded-lg text-foreground hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-105 transition-all"

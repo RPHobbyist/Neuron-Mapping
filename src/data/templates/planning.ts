@@ -1,7 +1,6 @@
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
-// Customer Journey - Horizontal
 const customerJourneyNodes: MindMapNode[] = [
     { id: 'root', text: 'JOURNEY MAP', x: 0, y: -150, color: 'root', parentId: null },
     { id: 'aware', text: 'AWARENESS', x: -400, y: -50, color: 'blue', parentId: 'root' },
@@ -10,7 +9,6 @@ const customerJourneyNodes: MindMapNode[] = [
     { id: 'ret', text: 'RETENTION', x: 200, y: -50, color: 'green', parentId: 'root' },
     { id: 'adv', text: 'ADVOCACY', x: 400, y: -50, color: 'pink', parentId: 'root' },
 
-    // Details
     { id: 'a1', text: 'Ads', x: -400, y: 50, color: 'blue', parentId: 'aware' },
     { id: 'a2', text: 'Social', x: -400, y: 130, color: 'blue', parentId: 'aware' },
 
@@ -25,7 +23,6 @@ const customerJourneyNodes: MindMapNode[] = [
     { id: 'ad1', text: 'Referral', x: 400, y: 50, color: 'pink', parentId: 'adv' },
 ];
 
-// Venn Diagram
 const vennDiagramNodes: MindMapNode[] = [
     { id: 'root', text: 'Venn Diagram', x: 0, y: -150, color: 'root', parentId: null },
     { id: 'a', text: 'SET A', x: -200, y: 0, color: 'blue', parentId: 'root' },
@@ -37,10 +34,8 @@ const vennDiagramNodes: MindMapNode[] = [
     { id: 'ab1', text: 'Shared', x: 0, y: 100, color: 'purple', parentId: 'ab' },
 ];
 
-// Cycle Diagram - Radial Layout
 const cycleDiagramNodes: MindMapNode[] = [
     { id: 'root', text: 'CYCLE', x: 0, y: 0, color: 'root', parentId: null },
-    // All steps connect to root for clean radial layout
     { id: 's1', text: '1. Plan', x: 0, y: -150, color: 'blue', parentId: 'root' },
     { id: 's2', text: '2. Do', x: 140, y: -50, color: 'green', parentId: 'root' },
     { id: 's3', text: '3. Check', x: 90, y: 120, color: 'orange', parentId: 'root' },
@@ -48,7 +43,6 @@ const cycleDiagramNodes: MindMapNode[] = [
     { id: 's5', text: '5. Review', x: -140, y: -50, color: 'purple', parentId: 'root' },
 ];
 
-// Eisenhower Box
 const eisenhowerBoxNodes: MindMapNode[] = [
     { id: 'root', text: 'Priorities', x: 0, y: 0, color: 'root', parentId: null },
     { id: 'do', text: 'DO FIRST', x: -200, y: -150, color: 'red', parentId: 'root' },
@@ -62,46 +56,34 @@ const eisenhowerBoxNodes: MindMapNode[] = [
     { id: 'e1', text: 'Neither', x: 200, y: 200, color: 'grey', parentId: 'elim' },
 ];
 
-// Cause Effect
 const causeEffectNodes: MindMapNode[] = [
     { id: 'root', text: 'PROBLEM', x: 300, y: 0, color: 'red', parentId: null },
 
-    // Spine Segments (Invisible Structural Nodes)
-    // Connecting left-to-right towards the problem
     { id: 'spine1', text: '', x: 100, y: 0, color: 'root', parentId: 'root' },
     { id: 'spine2', text: '', x: -100, y: 0, color: 'root', parentId: 'spine1' },
     { id: 'spine3', text: '', x: -300, y: 0, color: 'root', parentId: 'spine2' },
 
-    // Top Ribs (Angle upwards)
     { id: 'c3', text: 'People', x: 100, y: -120, color: 'blue', parentId: 'spine1' },
     { id: 'c2', text: 'Process', x: -100, y: -120, color: 'blue', parentId: 'spine2' },
     { id: 'c1', text: 'Equipment', x: -300, y: -120, color: 'blue', parentId: 'spine3' },
 
-    // Bottom Ribs (Angle downwards)
     { id: 'c6', text: 'Management', x: 100, y: 120, color: 'green', parentId: 'spine1' },
     { id: 'c5', text: 'Environment', x: -100, y: 120, color: 'green', parentId: 'spine2' },
     { id: 'c4', text: 'Materials', x: -300, y: 120, color: 'green', parentId: 'spine3' },
 ];
 
-// Layer Stacking - Tech Stack
 const layerStackingNodes: MindMapNode[] = [
-    // Root effectively acts as the title or top container concept
     { id: 'root', text: 'Technology Stack', x: 0, y: -300, color: 'root', parentId: null, shape: 'isometric' },
 
-    // Layer 1: Presentation (Top)
     { id: 'presentation', text: 'Presentation Layer', x: 0, y: -150, color: 'blue', parentId: 'root', shape: 'isometric', width: 220, height: 120 },
 
-    // Layer 2: API (Middle Top)
     { id: 'api', text: 'API Gateway', x: 0, y: 0, color: 'purple', parentId: 'root', shape: 'isometric', width: 220, height: 120 },
 
-    // Layer 3: Services (Middle)
     { id: 'services', text: 'Business Logic', x: 0, y: 150, color: 'orange', parentId: 'root', shape: 'isometric', width: 220, height: 120 },
 
-    // Layer 4: Data (Bottom)
     { id: 'data', text: 'Data Layer', x: 0, y: 300, color: 'green', parentId: 'root', shape: 'isometric', width: 220, height: 120 },
 ];
 
-// OKR Planning - Objective, Key Results, Initiatives
 const okrPlanningNodes: MindMapNode[] = [
     { id: 'root', text: 'Objective', x: 0, y: -200, color: 'root', parentId: null },
 
@@ -117,7 +99,6 @@ const okrPlanningNodes: MindMapNode[] = [
     { id: 'i6', text: 'Initiative F', x: 380, y: 100, color: 'orange', parentId: 'kr3' },
 ];
 
-// 5 Whys - Root Cause Chain
 const fiveWhysNodes: MindMapNode[] = [
     { id: 'root', text: 'Problem', x: 0, y: -300, color: 'red', parentId: null },
     { id: 'why1', text: 'Why? #1', x: 0, y: -180, color: 'orange', parentId: 'root' },
@@ -127,7 +108,6 @@ const fiveWhysNodes: MindMapNode[] = [
     { id: 'cause', text: 'Root Cause', x: 0, y: 300, color: 'green', parentId: 'why4' },
 ];
 
-// Decision Tree - Yes/No branches
 const decisionTreeNodes: MindMapNode[] = [
     { id: 'root', text: 'Decision?', x: 0, y: -250, color: 'root', parentId: null },
     { id: 'yes', text: 'Yes', x: -250, y: -100, color: 'green', parentId: 'root' },

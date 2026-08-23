@@ -28,11 +28,9 @@ interface MindMapToolbarProps {
     zoom: number;
     connectionStyle: ConnectionStyle;
 
-    // Drawing Mode
     drawingMode: 'none' | 'pen' | 'eraser';
     setDrawingMode: (mode: 'none' | 'pen' | 'eraser') => void;
 
-    // Actions
     onBack?: () => void;
     onSave: () => void;
     onUndo: () => void;
@@ -40,32 +38,26 @@ interface MindMapToolbarProps {
     canUndo: boolean;
     canRedo: boolean;
 
-    // Actions
     onAddRelation: () => void;
 
-    // Global Settings
     onConnectionStyleChange: (style: ConnectionStyle) => void;
     setNodes: (nodes: MindMapNode[]) => void;
     onNodeSelect: (nodeId: string) => void;
     onHighlight: (nodeIds: string[]) => void;
 
-    // UI States
     showSnapshotPanel: boolean;
     toggleSnapshotPanel: () => void;
     isFocusMode: boolean;
     toggleFocusMode: () => void;
-    // Play Mode
     isPlaying: boolean;
     onTogglePlay: () => void;
 
 
-    // Export
     onExportToFile: () => void;
     onExportPNG: () => void;
     onExportPDF: () => void;
     isExporting: boolean;
 
-    // 3D Mode
     is3DMode?: boolean;
     onToggle3DMode?: () => void;
 }
@@ -122,7 +114,6 @@ export function MindMapToolbar({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-                {/* 1. Navigation & History Group */}
                 <div className={cn("flex items-center gap-1", is3DMode && "opacity-50 pointer-events-none")}>
                     <button onClick={onUndo} disabled={!canUndo} className={cn("flex items-center gap-2 px-2 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap", canUndo ? "hover:bg-muted text-muted-foreground hover:text-foreground" : "opacity-40 text-muted-foreground")} title="Undo">
                         <Undo2 className="w-4 h-4" />
@@ -136,9 +127,7 @@ export function MindMapToolbar({
 
                 <div className="w-px h-6 bg-border mx-1" />
 
-                {/* 2. Creation Tools Group */}
                 <div className={cn("flex items-center gap-2", is3DMode && "opacity-50 pointer-events-none")}>
-                    {/* Smart Add Button */}
                     <button
                         onClick={onSmartAdd}
                         className="flex items-center gap-2 px-2 py-1.5 text-xs font-medium rounded transition-colors whitespace-nowrap hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -169,9 +158,7 @@ export function MindMapToolbar({
 
                 <div className="w-px h-6 bg-border mx-1" />
 
-                {/* 3. Organization Group */}
                 <div className={cn("flex items-center gap-2", is3DMode && "opacity-50 pointer-events-none")}>
-                    {/* Auto-layout */}
                     <div className="relative">
                         <button onClick={() => setIsLayoutMenuOpen(!isLayoutMenuOpen)} className={cn("flex items-center gap-2 px-2 py-1.5 text-xs font-medium hover:bg-muted rounded text-muted-foreground hover:text-foreground whitespace-nowrap", isLayoutMenuOpen && "bg-muted")} title="Auto-layout">
                             <LayoutGrid className="w-4 h-4" />
@@ -214,7 +201,6 @@ export function MindMapToolbar({
 
                 <div className="w-px h-6 bg-border mx-1" />
 
-                {/* 4. View & Retrieval Group */}
                 <div className="flex items-center gap-1">
                     <div className={cn("flex items-center gap-1", is3DMode && "opacity-50 pointer-events-none")}>
                         <SearchBar
@@ -275,7 +261,6 @@ export function MindMapToolbar({
 
                 <div className="w-px h-6 bg-border mx-1" />
 
-                {/* 5. Session actions Group */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={onSave}
@@ -306,12 +291,12 @@ export function MindMapToolbar({
                         onExportPNG={onExportPNG}
                         onExportPDF={onExportPDF}
                         isExporting={isExporting}
+                        disableImageExport={is3DMode}
                     />
                 </div>
 
                 <div className="w-px h-6 bg-border mx-1" />
 
-                {/* 6. Info Group */}
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setShowWhatsNew(true)}

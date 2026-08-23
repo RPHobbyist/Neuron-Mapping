@@ -73,13 +73,11 @@ export const NodeActionDialog = ({
                 return;
             }
 
-            // Storage quota check using modern StorageManager API
             if (navigator.storage && navigator.storage.estimate) {
                 try {
                     const { usage, quota } = await navigator.storage.estimate();
                     if (usage !== undefined && quota !== undefined) {
                         const remaining = quota - usage;
-                        // Warning if remaining storage is less than 10MB or less than the file size + small buffer
                         if (remaining < Math.max(10 * 1024 * 1024, file.size * 2)) {
                             toast.warning('Warning: You are approaching the browser storage limit. Large images may not be saved permanently.', {
                                 duration: 5000

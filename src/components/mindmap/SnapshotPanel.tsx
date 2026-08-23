@@ -1,50 +1,17 @@
 import { useState, useCallback } from 'react';
-import { MindMapNode } from '@/types/mindmap';
+import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
 import { History, Save, Trash2, RotateCcw, X, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { z } from 'zod';
-import { sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
-import { sanitizeText } from '@/utils/parsers/parserUtils';
-
-// Zod schema to validate and sanitize snapshot node data from localStorage
-const SnapshotNodeSchema = z.object({
-    id: z.string(),
-    text: z.string().transform(v => sanitizeText(v)),
-    x: z.number(),
-    y: z.number(),
-    color: z.string(),
-    parentId: z.string().nullable(),
-    shape: z.string().optional(),
-    nodeAnimation: z.string().optional(),
-    lineType: z.string().optional(),
-    lineThickness: z.string().optional(),
-    lineColor: z.string().optional(),
-    lineLabel: z.string().optional(),
-    lineAnimated: z.boolean().optional(),
-    lineDouble: z.boolean().optional(),
-    lineGradient: z.boolean().optional(),
-    lineTension: z.number().optional(),
-    lineAnimationDirection: z.string().optional(),
-    lineAnimationType: z.string().optional(),
-    relations: z.array(z.unknown()).optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    measuredWidth: z.number().optional(),
-    measuredHeight: z.number().optional(),
-    image: z.string().optional().transform(v => sanitizeImageUrl(v)),
-    icon: z.string().optional(),
-    iconStyle: z.string().optional(),
-    link: z.string().optional().transform(v => sanitizeUrl(v)),
-    notes: z.string().optional().transform(v => v ? sanitizeText(v) : v),
-    priority: z.string().nullable().optional(),
-    tags: z.array(z.string()).optional(),
-}).passthrough();
+import { MindMapNodeSchema as SnapshotNodeSchema, DrawingSchema as SnapshotDrawingSchema, ConnectionStyleSchema } from '@/lib/schemas';
 
 const SnapshotSchema = z.object({
     id: z.string(),
     name: z.string(),
     timestamp: z.number(),
     nodes: z.array(SnapshotNodeSchema),
+    connectionStyle: ConnectionStyleSchema.optional(),
+    drawings: z.array(SnapshotDrawingSchema).optional(),
 });
 
 const SnapshotsArraySchema = z.array(SnapshotSchema);
@@ -54,18 +21,22 @@ interface Snapshot {
     name: string;
     timestamp: number;
     nodes: MindMapNode[];
+    connectionStyle?: ConnectionStyle;
+    drawings?: Drawing[];
 }
 
 interface SnapshotPanelProps {
     nodes: MindMapNode[];
-    onRestore: (nodes: MindMapNode[]) => void;
+    connectionStyle: ConnectionStyle;
+    drawings: Drawing[];
+    onRestore: (nodes: MindMapNode[], connectionStyle: ConnectionStyle, drawings: Drawing[]) => void;
     isOpen: boolean;
     onClose: () => void;
 }
 
 const STORAGE_KEY = 'mindmap_snapshots';
 
-export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPanelProps) => {
+export const SnapshotPanel = ({ nodes, connectionStyle, drawings, onRestore, isOpen, onClose }: SnapshotPanelProps) => {
     const [snapshots, setSnapshots] = useState<Snapshot[]>(() => {
         try {
             const saved = localStorage.getItem(STORAGE_KEY);
@@ -78,12 +49,6 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
     });
     const [snapshotName, setSnapshotName] = useState('');
 
-    // Returns whether the write actually succeeded — snapshots hold full
-    // deep-cloned node arrays (including any embedded base64 images), so
-    // localStorage's quota is a realistic thing to hit here. Writing state
-    // before persistence used to make a failed save look identical to a
-    // successful one: the snapshot appeared in the list but vanished on
-    // reload with no error ever shown.
     const saveSnapshots = useCallback((newSnapshots: Snapshot[]): boolean => {
         try {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(newSnapshots));
@@ -102,13 +67,15 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
             id: Date.now().toString(),
             name,
             timestamp: Date.now(),
-            nodes: JSON.parse(JSON.stringify(nodes)), // Deep clone
+            nodes: JSON.parse(JSON.stringify(nodes)),
+            connectionStyle,
+            drawings: JSON.parse(JSON.stringify(drawings)),
         };
-        if (saveSnapshots([newSnapshot, ...snapshots].slice(0, 10))) { // Keep max 10
+        if (saveSnapshots([newSnapshot, ...snapshots].slice(0, 10))) {
             setSnapshotName('');
             toast.success(`Snapshot "${name}" saved`);
         }
-    }, [nodes, snapshotName, snapshots, saveSnapshots]);
+    }, [nodes, connectionStyle, drawings, snapshotName, snapshots, saveSnapshots]);
 
     const deleteSnapshot = useCallback((id: string) => {
         if (saveSnapshots(snapshots.filter(s => s.id !== id))) {
@@ -117,24 +84,22 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
     }, [snapshots, saveSnapshots]);
 
     const restoreSnapshot = useCallback((snapshot: Snapshot) => {
-        // Auto-backup current state before restoring
         const currentBackup: Snapshot = {
             id: Date.now().toString(),
             name: `Auto-Backup: ${new Date().toLocaleTimeString()}`,
             timestamp: Date.now(),
             nodes: JSON.parse(JSON.stringify(nodes)),
+            connectionStyle,
+            drawings: JSON.parse(JSON.stringify(drawings)),
         };
 
-        // Add backup and ensure we don't exceed limit (keep backup + existing)
         const updatedSnapshots = [currentBackup, ...snapshots].slice(0, 10);
-        // The restore itself doesn't depend on the backup write succeeding —
-        // only the toast's claim about it does.
         const backedUp = saveSnapshots(updatedSnapshots);
 
-        onRestore(snapshot.nodes);
+        onRestore(snapshot.nodes, snapshot.connectionStyle ?? connectionStyle, snapshot.drawings ?? drawings);
         toast.success(backedUp ? `Restored to "${snapshot.name}" (Current state backed up)` : `Restored to "${snapshot.name}"`);
         onClose();
-    }, [nodes, snapshots, saveSnapshots, onRestore, onClose]);
+    }, [nodes, connectionStyle, drawings, snapshots, saveSnapshots, onRestore, onClose]);
 
     const formatDate = (timestamp: number) => {
         const date = new Date(timestamp);
@@ -145,7 +110,6 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
 
     return (
         <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
-            {/* Header */}
             <div className="p-4 border-b flex items-center justify-between">
                 <h2 className="font-semibold flex items-center gap-2">
                     <History className="w-5 h-5" />
@@ -156,7 +120,6 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
                 </button>
             </div>
 
-            {/* Create New Snapshot */}
             <div className="p-4 border-b">
                 <div className="flex gap-2">
                     <input
@@ -182,7 +145,6 @@ export const SnapshotPanel = ({ nodes, onRestore, isOpen, onClose }: SnapshotPan
                 </p>
             </div>
 
-            {/* Snapshot List */}
             <div className="flex-1 overflow-y-auto p-2">
                 {snapshots.length === 0 ? (
                     <div className="text-center text-muted-foreground py-8">

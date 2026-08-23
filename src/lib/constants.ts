@@ -642,18 +642,10 @@ copy of the Program in return for a fee.
 
 export const GITHUB_URL = "https://github.com/RPHobbyist/neuron-mapping.git";
 
-export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes to prevent resource exhaustion
+export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
-// Shared default styling for cross-link relations. Used both when a relation
-// is first created and wherever it's rendered/edited, so a brand-new relation
-// never shows one style on the canvas and a different one in its own panel.
 export const DEFAULT_RELATION_TYPE = 'dashed';
 export const DEFAULT_RELATION_COLOR = '#ef4444';
 
-// Shared canvas zoom bounds. Used by both the actual zoom-setting logic
-// (MindMapCanvas's wheel handler and zoom buttons) and ZoomControls' button
-// disabled-state — keeping them in one place prevents the two from silently
-// drifting apart (e.g. a button greying out before the zoom it controls has
-// actually hit its real limit).
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 2;

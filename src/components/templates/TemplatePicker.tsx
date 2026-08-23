@@ -49,11 +49,9 @@ export const TemplatePicker = ({
   const [showSuggestionDialog, setShowSuggestionDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-show suggestion dialog on first visit
   useEffect(() => {
     const hasSeenSuggestion = localStorage.getItem('neuron-suggestion-shown');
     if (!hasSeenSuggestion) {
-      // Small delay to let page render first
       const timer = setTimeout(() => {
         setShowSuggestionDialog(true);
         localStorage.setItem('neuron-suggestion-shown', 'true');
@@ -96,7 +94,7 @@ export const TemplatePicker = ({
     if (!file) return;
 
     if (file.size > MAX_FILE_SIZE) {
-      toast.error(`File is too large. Maximum size is 100MB.`);
+      toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
       return;
     }
 
@@ -108,7 +106,6 @@ export const TemplatePicker = ({
       toast.error('Failed to load file. Please select a valid .nmm file.');
     }
 
-    // Reset input so same file can be selected again
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -116,12 +113,11 @@ export const TemplatePicker = ({
 
   return (
     <div className="h-screen w-screen bg-gray-50 flex flex-col">
-      {/* Simple Header */}
       <header className="bg-white border-b px-8 py-4 flex items-center justify-between flex-shrink-0">
         <div
           onClick={(e) => {
             e.preventDefault();
-            window.location.reload(); // Simplest way to "return home" and clear any state in the picker
+            window.location.reload();
           }}
           className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer"
         >
@@ -132,7 +128,6 @@ export const TemplatePicker = ({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {/* Hidden file input */}
           <input
             id="template-file-input"
             name="template-file"
@@ -173,21 +168,18 @@ export const TemplatePicker = ({
         </div>
       </header>
 
-      {/* Import Modal */}
       {showImportModal && (
         <FileUpload
           onDataParsed={(nodes, meta) => {
-            onLoadFromFile?.(nodes, 'Imported Map', meta?.connectionStyle || 'curved', meta?.drawings);
+            onLoadFromFile?.(nodes, meta?.name || 'Imported Map', meta?.connectionStyle || 'curved', meta?.drawings);
             setShowImportModal(false);
           }}
           onClose={() => setShowImportModal(false)}
         />
       )}
 
-      {/* Scrollable Main Content */}
       <main className="flex-1 overflow-y-auto">
         <div className="max-w-6xl mx-auto w-full p-8">
-          {/* Saved Maps Section */}
           {savedMaps.length > 0 && (
             <section className="mb-12">
               <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
@@ -206,7 +198,6 @@ export const TemplatePicker = ({
             </section>
           )}
 
-          {/* My Templates Section */}
           {filteredCustom.length > 0 && (
             <section className="mb-12">
               <h2 className="text-lg font-semibold mb-4 text-gray-900 flex items-center gap-2">
@@ -243,7 +234,6 @@ export const TemplatePicker = ({
             </section>
           )}
 
-          {/* Templates Section */}
           <section>
             <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
               <h2 className="text-lg font-semibold text-gray-900">Start from a template</h2>
@@ -261,7 +251,6 @@ export const TemplatePicker = ({
               </div>
             </div>
 
-            {/* Category Filter */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 mb-6">
               <button
                 onClick={() => setSelectedCategory('all')}
@@ -307,7 +296,6 @@ export const TemplatePicker = ({
         </div>
       </main>
 
-      {/* Footer */}
       <Footer />
     </div >
   );

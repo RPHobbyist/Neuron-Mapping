@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
-import { MindMapNode as NodeType, NodeColor, NodeShape, ConnectionStyle, Drawing } from '@/types/mindmap';
+import { MindMapNode as NodeType, NodeColor, NodeShape, ConnectionStyle, Drawing, Side } from '@/types/mindmap';
 import { MindMapNode } from './MindMapNode';
-import { ConnectionLines } from './ConnectionLines';
+import { ConnectionLines, ConnectionHandles } from './ConnectionLines';
 import { SaveDialog } from './SaveDialog';
 import { NotesPanel } from './NotesPanel';
 import { ZoomControls } from './ZoomControls';
@@ -22,7 +22,6 @@ import { SmartAddPanel } from './SmartAddPanel';
 import { findBestParent } from '@/utils/smartPlacement';
 import { MIN_ZOOM, MAX_ZOOM } from '@/lib/constants';
 
-// Lazy load GalaxyView to split Three.js chunk
 const GalaxyView = lazy(() => import('./GalaxyView').then(module => ({ default: module.GalaxyView })));
 
 interface MindMapCanvasProps {
@@ -47,7 +46,7 @@ export const MindMapCanvas = ({
   initialNodes = defaultNodes,
   initialDrawings = [],
   onBack,
-  connectionStyle = 'orthogonal', // Default to orthogonal (step) lines
+  connectionStyle = 'orthogonal',
   onSave,
   onNameChange,
   mapName,
@@ -56,21 +55,20 @@ export const MindMapCanvas = ({
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
-  // Business Logic from Hook
   const {
-    nodes, setNodes, resetNodes, undo, redo, canUndo, canRedo, saveSnapshot,
+    nodes, setNodes, resetNodes, restoreFullState, undo, redo, canUndo, canRedo, saveSnapshot,
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
     addChildNode, addRelation, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
     deleteNode, deleteSelectedNodes, deleteRelation,
-    connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle
-  } = useMindMapNodes(initialNodes, connectionStyle);
+    connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle,
+    drawings, setDrawings, replaceDrawings
+  } = useMindMapNodes(initialNodes, connectionStyle, initialDrawings);
 
-  // UI State
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [selectionBox, setSelectionBox] = useState<{ x: number, y: number, w: number, h: number } | null>(null);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 }); // For Pan AND Selection Box
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [highlightedNodeIds, setHighlightedNodeIds] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
@@ -85,10 +83,8 @@ export const MindMapCanvas = ({
   const [showSnapshotPanel, setShowSnapshotPanel] = useState(false);
   const [editTrigger, setEditTrigger] = useState<{ nodeId: string; token: number } | null>(null);
 
-  // Properties Panel Visibility
   const [isPropertiesOpen, setIsPropertiesOpen] = useState(false);
 
-  // Play Mode Hook
   const { isPlaying, visibleNodeIds, visibleLineIds, startPlay, stopPlay } = usePlayMode(nodes);
   const [is3DMode, setIs3DMode] = useState(false);
   const [actionDialog, setActionDialog] = useState<{
@@ -100,12 +96,9 @@ export const MindMapCanvas = ({
   const [showIconLibrary, setShowIconLibrary] = useState<{ isOpen: boolean, nodeId: string | null }>({ isOpen: false, nodeId: null });
   const [isSmartAddOpen, setIsSmartAddOpen] = useState(false);
 
-  // Drawing State
   const [drawingMode, setDrawingMode] = useState<'none' | 'pen' | 'eraser'>('none');
-  const [drawings, setDrawings] = useState<Drawing[]>(initialDrawings);
   const [currentPath, setCurrentPath] = useState<{ x: number, y: number }[]>([]);
 
-  // ESC key to exit drawing mode
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && drawingMode !== 'none') {
@@ -118,7 +111,6 @@ export const MindMapCanvas = ({
   }, [drawingMode]);
 
 
-  // Drawing Helpers
   const getMousePos = (e: React.MouseEvent) => {
     if (!contentRef.current) return { x: 0, y: 0 };
     const rect = contentRef.current.getBoundingClientRect();
@@ -128,7 +120,6 @@ export const MindMapCanvas = ({
     };
   };
 
-  /** Improved distance check from point to a line segment */
   const distToSegment = (p: { x: number, y: number }, a: { x: number, y: number }, b: { x: number, y: number }) => {
     const l2 = Math.pow(a.x - b.x, 2) + Math.pow(a.y - b.y, 2);
     if (l2 === 0) return Math.hypot(p.x - a.x, p.y - a.y);
@@ -138,11 +129,9 @@ export const MindMapCanvas = ({
     return Math.hypot(p.x - q.x, p.y - q.y);
   };
 
-  /** Removes any drawing within eraserRadius of pos — shared by the eraser's
-   *  click-to-erase (mousedown) and drag-to-erase (mousemove) paths. */
   const eraseDrawingsAt = (pos: { x: number, y: number }) => {
     const eraserRadius = 15 / zoom;
-    setDrawings(prev => prev.filter(d => {
+    replaceDrawings(prev => prev.filter(d => {
       for (let i = 0; i < d.points.length - 1; i++) {
         if (distToSegment(pos, d.points[i], d.points[i + 1]) < eraserRadius) return false;
       }
@@ -153,7 +142,6 @@ export const MindMapCanvas = ({
     }));
   };
 
-  // Focus Mode Logic
   const getDescendants = useCallback((nodeId: string, currentNodes: NodeType[]): Set<string> => {
     const descendants = new Set<string>([nodeId]);
     const queue = [nodeId];
@@ -194,18 +182,10 @@ export const MindMapCanvas = ({
     return focused;
   }, [isFocusMode, focusRootIds, nodes, getDescendants]);
 
-  // Auto-save integration (must be after state declarations)
-  // Uses resetNodes (clears history) rather than setNodes, so restoring a
-  // session doesn't leave the blank template sitting on the undo stack —
-  // one accidental Ctrl+Z would otherwise throw the whole restore away.
   const handleAutoLoad = useCallback((data: AutoSaveData) => {
-    resetNodes(data.nodes, data.connectionStyle);
-    if (data.drawings) {
-      setDrawings(data.drawings);
-    }
-  }, [resetNodes, setDrawings]);
+    resetNodes(data.nodes, data.connectionStyle, data.drawings);
+  }, [resetNodes]);
 
-  // Auto-save integration (must be after state declarations)
   useAutoSave(nodes, hookConnectionStyle, drawings, handleAutoLoad);
 
 
@@ -213,30 +193,24 @@ export const MindMapCanvas = ({
     if (drawingMode !== 'none') {
       const pos = getMousePos(e);
       if (drawingMode === 'pen') {
-        setIsDragging(true); // Re-use isDragging to track 'drawing active'
+        setIsDragging(true);
         setCurrentPath([pos]);
       } else if (drawingMode === 'eraser') {
-        // Click to erase
+        saveSnapshot();
         setIsDragging(true);
         eraseDrawingsAt(pos);
       }
       return;
     }
 
-    // Only a direct click on the canvas background closes the properties
-    // panel — clicks inside the panel itself are stopped there and never
-    // reach this handler.
     if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-area')) {
-      // Close properties panel on background click
       setIsPropertiesOpen(false);
 
       if (e.shiftKey) {
-        // Start Box Selection
         setDragStart({ x: e.clientX, y: e.clientY });
         setSelectionBox({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
       } else {
-        // Standard Pan
-        setSelectedNodeIds(new Set()); // Deselect all on click empty
+        setSelectedNodeIds(new Set());
         setSelectedLineId(null);
         setIsDragging(true);
         setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
@@ -255,7 +229,7 @@ export const MindMapCanvas = ({
       return;
     }
 
-    if (selectionBox) { // Box Selection
+    if (selectionBox) {
       const currentX = e.clientX;
       const currentY = e.clientY;
       const startX = dragStart.x;
@@ -265,7 +239,7 @@ export const MindMapCanvas = ({
       const w = Math.abs(currentX - startX);
       const h = Math.abs(currentY - startY);
       setSelectionBox({ x, y, w, h });
-    } else if (isDragging) { // Pan
+    } else if (isDragging) {
       setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
     }
   };
@@ -276,7 +250,7 @@ export const MindMapCanvas = ({
         setDrawings(prev => [...prev, {
           id: Math.random().toString(36).substr(2, 9),
           points: currentPath,
-          color: '#EF4444' // Fixed Red
+          color: '#EF4444'
         }]);
       }
       setCurrentPath([]);
@@ -285,7 +259,6 @@ export const MindMapCanvas = ({
     }
 
     if (selectionBox) {
-      // Finalize Box Selection (Screen -> Node coordinates)
       const rect = canvasRef.current?.getBoundingClientRect();
       if (rect) {
         const offsetX = rect.left;
@@ -308,7 +281,7 @@ export const MindMapCanvas = ({
           });
           if (newSelected.size > 0) {
             setSelectedNodeIds(newSelected);
-            setIsPropertiesOpen(true); // Open properties for box selection? Optional, but likely desired.
+            setIsPropertiesOpen(true);
           }
         }
       }
@@ -317,11 +290,6 @@ export const MindMapCanvas = ({
     setIsDragging(false);
   };
 
-  // React 18 registers the root `wheel` listener as passive, so
-  // e.preventDefault() inside a React onWheel handler is a silent no-op —
-  // Ctrl+scroll would still trigger the browser's native page zoom alongside
-  // this one. A manually-attached, non-passive listener is required to
-  // actually cancel the native gesture.
   useEffect(() => {
     const el = canvasRef.current;
     if (!el) return;
@@ -344,11 +312,8 @@ export const MindMapCanvas = ({
         try {
           thumbnail = await generateThumbnail(canvasRef.current);
         } catch (e) {
-          // Silent catch for thumbnail generation
         }
       }
-      // Await the save so a storage failure (e.g. quota exceeded) is caught
-      // below instead of showing "Saved!" for a write that never happened.
       await onSave?.(name, nodes, thumbnail, hookConnectionStyle, drawings);
       toast.success('Saved!');
       setShowSaveDialog(false);
@@ -361,9 +326,6 @@ export const MindMapCanvas = ({
   };
 
   const handleGlobalStyleChange = useCallback((style: ConnectionStyle) => {
-    // Updates the global style AND clears per-node/relation overrides in one
-    // history entry, so a single Ctrl+Z fully reverts the change instead of
-    // needing two undos and passing through a hybrid state in between.
     applyGlobalConnectionStyle(style);
     toast.success(`Applied ${style} style to all lines`);
   }, [applyGlobalConnectionStyle]);
@@ -378,7 +340,10 @@ export const MindMapCanvas = ({
   };
 
   const handleExportPNG = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      toast.error('Switch to 2D view to export images');
+      return;
+    }
     setIsExporting(true);
     try {
       await exportToPNG(canvasRef.current, mapName || 'mindmap');
@@ -391,7 +356,10 @@ export const MindMapCanvas = ({
   };
 
   const handleExportPDF = async () => {
-    if (!canvasRef.current) return;
+    if (!canvasRef.current) {
+      toast.error('Switch to 2D view to export images');
+      return;
+    }
     setIsExporting(true);
     try {
       await exportToPDF(canvasRef.current, mapName || 'mindmap');
@@ -403,18 +371,14 @@ export const MindMapCanvas = ({
     }
   };
 
-  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore if typing in an input
       if (document.querySelector('input:focus, textarea:focus')) return;
 
-      // Deletion
       if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedNodeIds.size > 0) deleteSelectedNodes();
         else if (selectedLineId && selectedLineId.startsWith('rel::')) deleteRelation(selectedLineId);
       }
-      // Undo/Redo
       else if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
         undo();
@@ -422,43 +386,36 @@ export const MindMapCanvas = ({
         e.preventDefault();
         redo();
       }
-      // Help Dialog
       else if (e.key === '?' && e.shiftKey) {
         e.preventDefault();
         setShowShortcuts(true);
       }
-      // Navigation & Editing
       else if (selectedNodeIds.size === 1) {
         const selectedId = Array.from(selectedNodeIds)[0];
         const selected = nodes.find(n => n.id === selectedId);
         if (!selected) return;
 
-        // Add Child (Tab)
         if (e.key === 'Tab') {
           e.preventDefault();
           addChildNode(selectedId);
         }
-        // Edit Text (F2 or Space)
         else if (e.key === 'F2' || e.key === ' ') {
           e.preventDefault();
+          saveSnapshot();
           setEditTrigger({ nodeId: selectedId, token: Date.now() });
         }
-        // Navigation (Arrows)
         else if (e.key.startsWith('Arrow')) {
           e.preventDefault();
           let targetId: string | null = null;
 
           if (e.key === 'ArrowLeft') {
-            // Go to parent
             if (selected.parentId) targetId = selected.parentId;
           } else if (e.key === 'ArrowRight') {
-            // Go to first child
             const children = nodes.filter(n => n.parentId === selectedId);
             if (children.length > 0) {
               targetId = children[Math.floor(children.length / 2)].id;
             }
           } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-            // Go to sibling
             if (selected.parentId) {
               const siblings = nodes.filter(n => n.parentId === selected.parentId).sort((a, b) => a.y - b.y);
               const idx = siblings.findIndex(n => n.id === selectedId);
@@ -475,7 +432,7 @@ export const MindMapCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, nodes, setSelectedNodeIds, setEditTrigger]);
+  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, nodes, setSelectedNodeIds, setEditTrigger, saveSnapshot]);
 
   const handleNodeSelect = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (e.shiftKey) {
@@ -488,10 +445,26 @@ export const MindMapCanvas = ({
     } else {
       setSelectedNodeIds(new Set([nodeId]));
     }
-    // Explicit click on node enables the properties panel
     setIsPropertiesOpen(true);
     setSelectedLineId(null);
   }, [setSelectedLineId, setSelectedNodeIds]);
+
+  const handleSetConnectionSide = useCallback((connectionId: string, endpoint: 'from' | 'to', side: Side | null) => {
+    if (connectionId.startsWith('rel::')) {
+      const [, sourceId, targetId] = connectionId.split('::');
+      const sourceNode = nodes.find(n => n.id === sourceId);
+      if (!sourceNode) return;
+      const newRelations = (sourceNode.relations || []).map(r =>
+        r.targetId !== targetId ? r : endpoint === 'from'
+          ? { ...r, sourceSide: side ?? undefined }
+          : { ...r, targetSide: side ?? undefined }
+      );
+      updateNode(sourceId, { relations: newRelations });
+    } else {
+      const [, childId] = connectionId.split('::');
+      updateNode(childId, endpoint === 'from' ? { lineParentSide: side ?? undefined } : { lineChildSide: side ?? undefined });
+    }
+  }, [nodes, updateNode]);
 
   const handleRequestImage = useCallback((id: string) => {
     setActionDialog({ isOpen: true, nodeId: id, type: 'image' });
@@ -502,19 +475,12 @@ export const MindMapCanvas = ({
   }, []);
 
   const handleRequestNotes = useCallback((id: string) => {
-    // Defer the history boundary until the first actual edit (see onUpdate
-    // in the NotesPanel below) instead of snapshotting on every open —
-    // otherwise merely opening the panel to look, then closing without
-    // typing, still burns a slot in the capped 20-entry undo history.
     notesSnapshotTakenRef.current = false;
-    // Ensure node has notes field initialized, via the non-history path.
     const target = nodes.find(n => n.id === id);
     if (target && !target.notes) {
       replaceNode(id, { notes: ' ' });
     }
-    // Select the node to ensure panel shows correct data
     setSelectedNodeIds(new Set([id]));
-    // Open panel
     setIsNotesOpen(true);
   }, [nodes, replaceNode, setSelectedNodeIds]);
 
@@ -524,7 +490,6 @@ export const MindMapCanvas = ({
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
-      {/* ... Top Toolbar code ... */}
       <MindMapToolbar
         mapName={mapName}
         onNameChange={onNameChange}
@@ -543,7 +508,6 @@ export const MindMapCanvas = ({
         setNodes={setNodes}
         onNodeSelect={(nodeId) => {
           setSelectedNodeIds(new Set([nodeId]));
-          // Search selection should NOT open properties panel
           setIsPropertiesOpen(false);
           const node = nodes.find(n => n.id === nodeId);
           if (node) setPan({ x: -node.x * zoom, y: -node.y * zoom });
@@ -568,18 +532,15 @@ export const MindMapCanvas = ({
         setDrawingMode={setDrawingMode}
       />
 
-      {/* Smart Add Panel */}
       <SmartAddPanel
         isOpen={isSmartAddOpen}
         onClose={() => setIsSmartAddOpen(false)}
         nodes={nodes}
         selectedNodeIds={selectedNodeIds}
         onAdd={(text) => {
-          // 1. Find best parent
           const parentId = findBestParent(nodes, text, selectedNodeIds);
           const parentNode = nodes.find(n => n.id === parentId);
 
-          // 2. Add child — only toast success if a node was actually created
           const newNodeId = addChildNode(parentId, text);
           if (!newNodeId) {
             toast.error("Couldn't find a node to attach to");
@@ -591,7 +552,6 @@ export const MindMapCanvas = ({
         }}
       />
 
-      {/* Canvas Area */}
       {is3DMode ? (
         <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-black text-white">Loading 3D Galaxy...</div>}>
           <div className="flex-1 relative overflow-hidden bg-black">
@@ -607,10 +567,6 @@ export const MindMapCanvas = ({
                 setIsPropertiesOpen(true);
               }}
               onLineSelect={(sourceId, targetId, relationId) => {
-                // Relation ids are already in ConnectionLines' `rel::src::tgt`
-                // format; hierarchy lines are keyed as `${parentId}::${childId}`
-                // there too, so it has to match exactly for the line to
-                // highlight and for the properties panel to resolve it.
                 setSelectedLineId(relationId || `${sourceId}::${targetId}`);
                 setIsPropertiesOpen(true);
               }}
@@ -649,12 +605,10 @@ export const MindMapCanvas = ({
                 selectedLineId={selectedLineId}
                 onLineSelect={(id) => {
                   setSelectedLineId(id);
-                  // Selecting a line should open properties
                   if (id) setIsPropertiesOpen(true);
                 }}
                 visibleLineIds={visibleLineIds}
               />
-              {/* Nodes Rendered via AnimatePresence for Exit animations */}
               <AnimatePresence>
                 {nodes.map((node) => {
                   if (isPlaying && !visibleNodeIds.has(node.id)) return null;
@@ -684,13 +638,11 @@ export const MindMapCanvas = ({
                 })}
               </AnimatePresence>
 
-              {/* Drawing Layer - Use Fixed Large Size to match Coordinate System */}
               <svg
                 className="absolute pointer-events-none overflow-visible"
                 style={{ left: -5000, top: -5000, width: 10000, height: 10000, zIndex: 5 }}
               >
                 <g transform={`translate(5000, 5000)`}>
-                  {/* Saved paths */}
                   {drawings.map(d => (
                     <polyline
                       key={d.id}
@@ -702,7 +654,6 @@ export const MindMapCanvas = ({
                       strokeLinejoin="round"
                     />
                   ))}
-                  {/* Current path being drawn */}
                   {currentPath.length > 0 && (
                     <polyline
                       points={currentPath.map(p => `${p.x},${p.y}`).join(' ')}
@@ -715,6 +666,15 @@ export const MindMapCanvas = ({
                   )}
                 </g>
               </svg>
+
+              <ConnectionHandles
+                nodes={nodes}
+                zoom={zoom}
+                connectionStyle={hookConnectionStyle}
+                selectedLineId={selectedLineId}
+                visibleLineIds={visibleLineIds}
+                onSetConnectionSide={handleSetConnectionSide}
+              />
             </div>
 
             {selectionBox && (
@@ -730,7 +690,6 @@ export const MindMapCanvas = ({
             )}
           </div>
 
-          {/* Floating Map Name (Bottom Left) */}
           <div className="absolute bottom-0 left-0 z-40 bg-white/90 backdrop-blur-sm border-t border-r border-border/50 shadow-sm rounded-tr-lg p-0.5 flex items-center group hover:bg-white transition-colors">
             <div className="grid items-center min-w-[50px] max-w-[300px]">
               <span
@@ -752,8 +711,6 @@ export const MindMapCanvas = ({
             </div>
           </div>
 
-          {/* Bottom Right Controls - Stacked */}
-          {/* Bottom Right Controls - Unified */}
           <div className="absolute bottom-6 right-6 z-50">
             <ZoomControls
               zoom={zoom}
@@ -799,15 +756,7 @@ export const MindMapCanvas = ({
         defaultName={mapName || nodes.find(n => n.parentId === null)?.text || 'New Map'}
       />
 
-      {/* Properties Panel (Line or Node) */}
       {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen) && (() => {
-        // Calculate screen coordinates for positioning. Derived from the
-        // canvas element's actual bounding box (same math as the box-selection
-        // screen->node conversion in handleCanvasMouseUp) rather than
-        // window.innerHeight/2, which ignores the toolbar's height and put
-        // the panel a constant ~28px away from the node/line it belongs to.
-        // In 3D mode there's no equivalent 2D screen projection for a node's
-        // position, so the panel opens at a fixed anchor instead.
         const getScreenPos = (x: number, y: number) => {
           if (is3DMode) {
             return { x: window.innerWidth - 340, y: 96 };
@@ -828,7 +777,6 @@ export const MindMapCanvas = ({
 
             if (!sourceNode || !targetNode) return null;
 
-            // Position at midpoint of line
             const midX = (sourceNode.x + targetNode.x) / 2;
             const midY = (sourceNode.y + targetNode.y) / 2;
             const pos = getScreenPos(midX, midY);
@@ -858,6 +806,13 @@ export const MindMapCanvas = ({
                   ) || [];
                   updateNode(sourceId, { relations: newRelations });
                 }}
+                onLineUpdateLive={(updates) => {
+                  const newRelations = sourceNode.relations?.map(r =>
+                    r.targetId === targetId ? { ...r, ...updates } : r
+                  ) || [];
+                  replaceNode(sourceId, { relations: newRelations });
+                }}
+                onLiveEditStart={saveSnapshot}
                 onClose={() => { setSelectedLineId(null); setIsPropertiesOpen(false); }}
               />
             );
@@ -866,7 +821,7 @@ export const MindMapCanvas = ({
             const childNode = nodes.find(n => n.id === childId);
             if (!childNode) return null;
 
-            const pos = getScreenPos(childNode.x, childNode.y - 50); // Slightly above child
+            const pos = getScreenPos(childNode.x, childNode.y - 50);
 
             const resolvedLineType = childNode.lineType || hookConnectionStyle;
             const values: LineSettings = {
@@ -902,6 +857,21 @@ export const MindMapCanvas = ({
                   if (updates.arrowDirection !== undefined) nodeUpdates.lineArrowDirection = updates.arrowDirection;
                   updateNode(childId, nodeUpdates);
                 }}
+                onLineUpdateLive={(updates) => {
+                  const nodeUpdates: Partial<NodeType> = {};
+                  if (updates.type !== undefined) nodeUpdates.lineType = updates.type;
+                  if (updates.thickness !== undefined) nodeUpdates.lineThickness = updates.thickness;
+                  if (updates.color !== undefined) nodeUpdates.lineColor = updates.color;
+                  if (updates.label !== undefined) nodeUpdates.lineLabel = updates.label;
+                  if (updates.animated !== undefined) nodeUpdates.lineAnimated = updates.animated;
+                  if (updates.gradient !== undefined) nodeUpdates.lineGradient = updates.gradient;
+                  if (updates.tension !== undefined) nodeUpdates.lineTension = updates.tension;
+                  if (updates.animationDirection !== undefined) nodeUpdates.lineAnimationDirection = updates.animationDirection;
+                  if (updates.animationType !== undefined) nodeUpdates.lineAnimationType = updates.animationType;
+                  if (updates.arrowDirection !== undefined) nodeUpdates.lineArrowDirection = updates.arrowDirection;
+                  replaceNode(childId, nodeUpdates);
+                }}
+                onLiveEditStart={saveSnapshot}
                 onClose={() => { setSelectedLineId(null); setIsPropertiesOpen(false); }}
               />
             );
@@ -930,6 +900,8 @@ export const MindMapCanvas = ({
                 iconStyle: node.iconStyle
               }}
               onNodeUpdate={(updates) => updateNode(nodeId, updates)}
+              onNodeUpdateLive={(updates) => replaceNode(nodeId, updates)}
+              onLiveEditStart={saveSnapshot}
               onDelete={nodeId === 'root' ? undefined : () => deleteNode(nodeId)}
               onClose={() => { setIsPropertiesOpen(false); }}
               is3DMode={is3DMode}
@@ -938,7 +910,6 @@ export const MindMapCanvas = ({
         }
       })()}
 
-      {/* Notes Panel */}
       {(() => {
         const lastSelectedId = Array.from(selectedNodeIds).pop();
         const selectedNode = lastSelectedId ? nodes.find(n => n.id === lastSelectedId) : null;
@@ -959,7 +930,6 @@ export const MindMapCanvas = ({
           />
         );
       })()}
-      {/* Node Action Dialog */}
       <NodeActionDialog
         isOpen={actionDialog.isOpen}
         type={actionDialog.type}
@@ -972,7 +942,6 @@ export const MindMapCanvas = ({
         }}
       />
 
-      {/* Icon Library Dialog */}
       <IconLibraryDialog
         isOpen={showIconLibrary.isOpen}
         onClose={() => setShowIconLibrary(prev => ({ ...prev, isOpen: false }))}
@@ -983,17 +952,18 @@ export const MindMapCanvas = ({
         }}
       />
 
-      {/* Presentation Mode Removed */}
 
-      {/* Snapshot Panel */}
       <SnapshotPanel
         nodes={nodes}
-        onRestore={(restoredNodes) => setNodes(() => restoredNodes)}
+        connectionStyle={hookConnectionStyle}
+        drawings={drawings}
+        onRestore={(restoredNodes, restoredStyle, restoredDrawings) =>
+          restoreFullState(restoredNodes, restoredStyle, restoredDrawings)
+        }
         isOpen={showSnapshotPanel}
         onClose={() => setShowSnapshotPanel(false)}
       />
 
-      {/* Bulk Action Toolbar Removed */}
     </div>
   );
 };

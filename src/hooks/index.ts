@@ -1,8 +1,3 @@
-/**
- * Hooks Module Barrel Export
- * 
- * Central export point for all custom hooks.
- */
 
 export { useMindMapNodes } from './useMindMapNodes';
 export { useHistory } from './useHistory';

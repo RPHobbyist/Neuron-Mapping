@@ -1,14 +1,11 @@
 import { CSSProperties } from 'react';
 
-// Flat color styles based on reference
 export const colorStyles: Record<string, { bg: string; text: string; border: string }> = {
-    // Root node style (Black)
     root: {
         bg: 'bg-[hsl(var(--node-black-bg))]',
         text: 'text-[hsl(var(--node-black-text))]',
         border: 'border-transparent'
     },
-    // Default/Orange
     orange: {
         bg: 'bg-[hsl(var(--node-orange-bg))]',
         text: 'text-[hsl(var(--node-orange-text))]',
@@ -19,7 +16,6 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
         text: 'text-[hsl(var(--node-orange-text))]',
         border: 'border-[hsl(var(--node-orange-border))]'
     },
-    // Blue/Marketing
     blue: {
         bg: 'bg-[hsl(var(--node-blue-bg))]',
         text: 'text-[hsl(var(--node-blue-text))]',
@@ -30,7 +26,6 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
         text: 'text-[hsl(var(--node-blue-text))]',
         border: 'border-[hsl(var(--node-blue-border))]'
     },
-    // Cyan/Design
     cyan: {
         bg: 'bg-[hsl(var(--node-cyan-bg))]',
         text: 'text-[hsl(var(--node-cyan-text))]',
@@ -41,7 +36,6 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
         text: 'text-[hsl(var(--node-cyan-text))]',
         border: 'border-[hsl(var(--node-cyan-border))]'
     },
-    // Purple
     violet: {
         bg: 'bg-[hsl(var(--node-purple-bg))]',
         text: 'text-[hsl(var(--node-purple-text))]',
@@ -52,7 +46,6 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
         text: 'text-[hsl(var(--node-purple-text))]',
         border: 'border-[hsl(var(--node-purple-border))]'
     },
-    // Yellow/Support
     yellow: {
         bg: 'bg-[hsl(var(--node-yellow-bg))]',
         text: 'text-[hsl(var(--node-yellow-text))]',
@@ -63,7 +56,6 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
         text: 'text-[hsl(var(--node-yellow-text))]',
         border: 'border-[hsl(var(--node-yellow-border))]'
     },
-    // Grey/IT
     grey: {
         bg: 'bg-[hsl(var(--node-grey-bg))]',
         text: 'text-[hsl(var(--node-grey-text))]',
@@ -91,11 +83,9 @@ export const colorStyles: Record<string, { bg: string; text: string; border: str
     },
 };
 
-// Shape styles with CSS classes and clip-path
 export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: string; style?: CSSProperties } => {
     const effectiveShape = shape || (isRoot ? 'circle' : 'rounded');
 
-    // Add prominence to root node regardless of shape
     const rootClass = isRoot ? 'shadow-lg' : '';
 
     switch (effectiveShape) {
@@ -121,7 +111,6 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
             };
         case 'circle':
             return {
-                // Maintain original larger size for root circle
                 className: isRoot
                     ? 'rounded-full aspect-square flex items-center justify-center px-4 py-4 w-32 shadow-lg'
                     : `rounded-full aspect-square flex items-center justify-center min-w-[60px] min-h-[60px] ${rootClass}`.trim()
@@ -132,7 +121,7 @@ export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: s
                 style: { transform: 'skewX(-10deg)' }
             };
         case 'iso-cube':
-        case 'isometric': // Keep backward compatibility
+        case 'isometric':
             return {
                 className: 'px-8 py-4 shadow-xl',
                 style: {

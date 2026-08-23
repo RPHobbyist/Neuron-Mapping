@@ -6,10 +6,11 @@ export type ConnectionStyle = 'curved' | 'straight' | 'orthogonal' | 'dashed' | 
 
 export type LineThickness = 'thin' | 'medium' | 'thick';
 
+export type Side = 'left' | 'right' | 'top' | 'bottom';
+
 export interface Relation {
   targetId: string;
-  sourceId?: string; // Optional back-reference if needed
-  // Styling overrides for this specific relation
+  sourceId?: string;
   label?: string;
   type?: ConnectionStyle;
   thickness?: LineThickness;
@@ -18,10 +19,9 @@ export interface Relation {
   animationSpeed?: 'slow' | 'medium' | 'fast';
   animationDirection?: 'forward' | 'reverse';
   animationType?: 'dash' | 'arrow' | 'cross';
-  // Which end(s) of the line get an arrowhead. 'forward' = pointing at
-  // target (the historical default), 'reverse' = pointing at source,
-  // 'both' = mutual/bidirectional, 'none' = no arrowhead at all.
   arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
+  sourceSide?: Side;
+  targetSide?: Side;
 }
 
 export type NodePriority = 'high' | 'medium' | 'low' | null;
@@ -37,36 +37,33 @@ export interface MindMapNode {
   parentId: string | null;
   shape?: NodeShape;
   nodeAnimation?: NodeAnimation;
-  // Line properties for the connection TO this node
   lineType?: ConnectionStyle;
   lineThickness?: LineThickness;
-  lineColor?: string; // Custom hex color
-  lineLabel?: string; // Text on connection
-  lineAnimated?: boolean; // Flowing animation
-  lineDouble?: boolean; // Parallel double lines
-  lineGradient?: boolean; // Gradient from parent to child
-  lineTension?: number; // Bezier curve tension (0-1)
+  lineColor?: string;
+  lineLabel?: string;
+  lineAnimated?: boolean;
+  lineDouble?: boolean;
+  lineGradient?: boolean;
+  lineTension?: number;
   lineAnimationDirection?: 'forward' | 'reverse';
   lineAnimationType?: 'dash' | 'arrow' | 'cross';
-  // Which end(s) of the connection TO this node get an arrowhead. See
-  // Relation.arrowDirection for the meaning of each value.
   lineArrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
-  relations?: Relation[]; // Cross-links to other nodes
-  width?: number; // Custom width (pixels)
-  height?: number; // Custom height (pixels)
-  measuredWidth?: number; // Actual rendered width (for auto-sized nodes)
-  measuredHeight?: number; // Actual rendered height (for auto-sized nodes)
+  lineParentSide?: Side;
+  lineChildSide?: Side;
+  relations?: Relation[];
+  width?: number;
+  height?: number;
+  measuredWidth?: number;
+  measuredHeight?: number;
 
-  // Rich Content
-  image?: string; // URL or Base64 data
-  icon?: string; // Icon name
-  iconStyle?: 'plain' | 'boxed'; // Style of the icon
-  link?: string; // External URL
-  notes?: string; // Markdown notes
+  image?: string;
+  icon?: string;
+  iconStyle?: 'plain' | 'boxed';
+  link?: string;
+  notes?: string;
 
-  // Organization
-  priority?: NodePriority; // Priority level
-  tags?: string[]; // Tags/labels
+  priority?: NodePriority;
+  tags?: string[];
 }
 
 export interface SavedMindMap {
@@ -77,21 +74,12 @@ export interface SavedMindMap {
   templateId?: string;
   createdAt: string;
   updatedAt: string;
-  thumbnail?: string; // Base64 image data
-  drawings?: Drawing[];
-}
-
-export interface MindMapState {
-  nodes: MindMapNode[];
-  selectedNodeId: string | null;
-  zoom: number;
-  panX: number;
-  panY: number;
-  connectionStyle?: ConnectionStyle;
+  thumbnail?: string;
   drawings?: Drawing[];
 }
 
 export interface Drawing {
+
   id: string;
   points: { x: number, y: number }[];
   color: string;

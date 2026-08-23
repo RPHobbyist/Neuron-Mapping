@@ -64,10 +64,6 @@ const blogs = [
 const faqs = landingFaqs;
 
 export default function Landing() {
-  // Memoized so useDocumentSEO's effect (DOM queries, JSON.stringify, a
-  // Trusted Types policy lookup) only re-runs when the structured-data
-  // content actually changes, not on every render of this page — an inline
-  // array/object literal here would otherwise be a new reference every time.
   const jsonLd = useMemo(() => [
     {
       "@context": "https://schema.org",
@@ -138,11 +134,9 @@ export default function Landing() {
       className="h-screen overflow-y-auto scroll-smooth bg-slate-50 text-slate-800 font-sans overflow-x-hidden selection:bg-indigo-500/20 selection:text-indigo-900"
     >
       
-      {/* HEADER NAVBAR */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           
-          {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
             <img 
               src={SYSTEM_CONFIG.brandLogo} 
@@ -156,7 +150,6 @@ export default function Landing() {
             </span>
           </Link>
 
-          {/* Navigation Links */}
           <nav aria-label="Main navigation" className="hidden md:flex items-center gap-8 text-xs sm:text-sm font-bold text-slate-600">
             <Link to="/templates" className="text-indigo-600 hover:text-indigo-700 transition-all flex items-center gap-1 font-bold">Templates ({templates.length}+)</Link>
             <button onClick={() => handleScroll("features")} className="hover:text-slate-900 transition-all">Features</button>
@@ -167,7 +160,6 @@ export default function Landing() {
             <button onClick={() => handleScroll("faq")} className="hover:text-slate-900 transition-all">FAQ</button>
           </nav>
 
-          {/* Actions */}
           <div className="flex items-center gap-4">
             <a 
               href={SYSTEM_CONFIG.githubUrl} 
@@ -189,9 +181,7 @@ export default function Landing() {
       
       <main>
         
-        {/* HERO SECTION */}
         <section className="relative pt-12 pb-12 md:pt-16 md:pb-16 max-w-7xl mx-auto px-6 lg:px-8 overflow-hidden">
-          {/* Decorative mesh background */}
           <div className="absolute inset-0 -z-10 opacity-30 bg-[radial-gradient(circle_at_top_right,#c7d2fe,transparent_45%)]" />
           
           <motion.div 
@@ -202,7 +192,6 @@ export default function Landing() {
             viewport={{ once: true }}
           >
             
-            {/* Left Column Text */}
             <div className="lg:col-span-7 space-y-6 text-left">
 
 
@@ -221,7 +210,6 @@ export default function Landing() {
                 The ultimate local-first mind mapping canvas. Organize ideas, plan complex projects, brainstorm visually, and see your links in 3D - all running privately on your machine. No accounts. Free forever.
               </motion.p>
 
-              {/* CTAs */}
               <motion.div className="flex flex-wrap items-center gap-4" variants={itemVariants}>
                 <Button 
                   size="lg" 
@@ -241,7 +229,6 @@ export default function Landing() {
                 </Button>
               </motion.div>
               
-              {/* Badges */}
               <motion.div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-xl text-[10px] font-bold text-indigo-700 uppercase tracking-wider" variants={itemVariants}>
                 <span className="flex items-center justify-center gap-1 py-1.5 rounded-lg border border-indigo-150 bg-indigo-50/50">
                   <CheckCircle aria-hidden="true" className="w-3 h-3 text-indigo-500 shrink-0" /> 100% Local
@@ -258,7 +245,6 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            {/* Right Column Interactive Mockup */}
             <motion.div 
               className="lg:col-span-5 relative"
               variants={itemVariants}
@@ -269,11 +255,9 @@ export default function Landing() {
           </motion.div>
         </section>
 
-        {/* CORE FEATURES SECTION */}
         <section id="features" className="py-20 border-t border-slate-200 bg-white relative">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             
-            {/* Header */}
             <div className="text-center max-w-2xl mx-auto mb-16">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-4 leading-tight">
                 One Canvas. Infinite Brainstorms.
@@ -283,7 +267,6 @@ export default function Landing() {
               </p>
             </div>
 
-            {/* Features Pillar Grid */}
             <motion.div 
               className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6"
               variants={containerVariants}
@@ -292,7 +275,6 @@ export default function Landing() {
               viewport={{ once: true, margin: "-100px" }}
             >
               
-              {/* Feature 1 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">Infinite Digital Canvas</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -303,7 +285,6 @@ export default function Landing() {
                 </Link>
               </motion.div>
 
-              {/* Feature 2 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">Interactive 3D Galaxy View</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -314,7 +295,6 @@ export default function Landing() {
                 </Link>
               </motion.div>
 
-              {/* Feature 3 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">Rich Node Customization</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -325,7 +305,6 @@ export default function Landing() {
                 </Link>
               </motion.div>
 
-              {/* Feature 4 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">{templates.length}+ Templates Ready-to-Use</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -336,7 +315,6 @@ export default function Landing() {
                 </Link>
               </motion.div>
 
-              {/* Feature 5 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">Local-First Sandbox Privacy</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -347,7 +325,6 @@ export default function Landing() {
                 </button>
               </motion.div>
 
-              {/* Feature 6 */}
               <motion.div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:shadow-md hover:border-indigo-300 transition-all shadow-sm flex flex-col group" variants={itemVariants}>
                 <h3 className="text-base sm:text-lg font-bold text-slate-900 mb-2">High-Fidelity PDF & PNG Export</h3>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed mb-4 flex-1">
@@ -360,7 +337,6 @@ export default function Landing() {
 
             </motion.div>
 
-            {/* APP SCREENSHOTS PREVIEW CAROUSEL */}
             <div className="mt-16 bg-slate-50 border border-slate-200/60 rounded-3xl p-6 sm:p-10 shadow-inner">
               <h3 className="text-xl font-bold text-slate-900 mb-6 text-center">Built for Speed and Structure</h3>
               <div className="grid md:grid-cols-2 gap-8">
@@ -400,7 +376,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* HOW IT WORKS SECTION */}
         <section id="how-it-works" className="py-20 border-t border-slate-200 bg-slate-50">
           <div className="max-w-5xl mx-auto px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-14">
@@ -419,7 +394,6 @@ export default function Landing() {
               whileInView="visible"
               viewport={{ once: true, margin: "-80px" }}
             >
-              {/* Step 1 */}
               <motion.div className="text-center space-y-4 bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm" variants={itemVariants}>
                 <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 mx-auto shadow-sm">
                   <Settings className="w-6 h-6" />
@@ -431,7 +405,6 @@ export default function Landing() {
                 </p>
               </motion.div>
 
-              {/* Step 2 */}
               <motion.div className="text-center space-y-4 bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm" variants={itemVariants}>
                 <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 mx-auto shadow-sm">
                   <Brain className="w-6 h-6" />
@@ -443,7 +416,6 @@ export default function Landing() {
                 </p>
               </motion.div>
 
-              {/* Step 3 */}
               <motion.div className="text-center space-y-4 bg-white p-6 rounded-2xl border border-slate-200/50 shadow-sm" variants={itemVariants}>
                 <div className="w-12 h-12 rounded-2xl bg-indigo-100 flex items-center justify-center text-indigo-700 mx-auto shadow-sm">
                   <FileUp className="w-6 h-6" />
@@ -458,7 +430,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* YOUTUBE VIDEO TUTORIAL SECTION */}
         <section id="tutorials" className="py-20 border-t border-slate-200 bg-white">
           <div className="max-w-4xl mx-auto px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-10">
@@ -493,7 +464,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* WHY CHOOSE NEURON MAPPING - Feature Comparison Table */}
         <section className="py-20 border-t border-slate-200 bg-slate-50">
           <div className="max-w-4xl mx-auto px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-12">
@@ -551,11 +521,9 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* BLOGS SECTION */}
         <section id="blogs" className="py-20 border-t border-slate-200 bg-white relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-6 lg:px-8">
             
-            {/* Header */}
             <div className="text-center max-w-2xl mx-auto mb-16">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-4 leading-tight">
                 Maker Articles & Guides
@@ -565,7 +533,6 @@ export default function Landing() {
               </p>
             </div>
 
-            {/* Blogs Grid */}
             <motion.div 
               className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"
               variants={containerVariants}
@@ -594,7 +561,6 @@ export default function Landing() {
                         decoding="async"
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
-                          // Fallback placeholder if image link is block-injected
                           (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=500&q=80";
                         }}
                       />
@@ -630,7 +596,6 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* PRIVACY TRUST SECTION */}
         <section id="privacy" className="py-20 border-t border-slate-200 bg-slate-50 relative overflow-hidden">
           <div className="max-w-5xl mx-auto px-6 lg:px-8 relative z-10">
             <div className="rounded-[2.5rem] border border-slate-250 bg-white p-10 sm:p-16 text-center shadow-sm">
@@ -665,11 +630,9 @@ export default function Landing() {
           </div>
         </section>
 
-        {/* FAQ SECTION */}
         <section id="faq" className="py-20 border-t border-slate-200 bg-white">
           <div className="max-w-3xl mx-auto px-6 lg:px-8">
             
-            {/* Header */}
             <div className="text-center max-w-2xl mx-auto mb-12">
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900 mb-4 leading-tight">
                 Frequently Asked Questions
@@ -679,7 +642,6 @@ export default function Landing() {
               </p>
             </div>
 
-            {/* Accordion list */}
             <div className="space-y-3">
               {faqs.map((faq, index) => {
                 const isOpen = activeFaq === index;
@@ -725,13 +687,11 @@ export default function Landing() {
 
       </main>
 
-      {/* OPTIMIZED FOOTER */}
       <footer className="bg-slate-100 border-t border-slate-200 pt-12 pb-8 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           
           <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-12">
             
-            {/* Column 1: Brand details (5/12) */}
             <div className="md:col-span-5 space-y-4">
               <div className="flex items-center gap-2">
                 <img 
@@ -754,7 +714,6 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Column 2: Resources (3/12) */}
             <div className="md:col-span-3 space-y-4">
               <h3 className="text-slate-950 font-bold text-xs uppercase tracking-wider">Resources</h3>
               <ul className="space-y-2 text-slate-450 font-medium">
@@ -789,7 +748,6 @@ export default function Landing() {
               </ul>
             </div>
 
-            {/* Column 3: Community & Support (4/12) */}
             <div className="md:col-span-4 space-y-4">
               <h3 className="text-slate-950 font-bold text-xs uppercase tracking-wider">Community & Support</h3>
               <ul className="space-y-2 text-slate-450 font-medium">
@@ -813,7 +771,6 @@ export default function Landing() {
 
           </div>
 
-          {/* Bottom Bar */}
           <div className="pt-8 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 text-[10px] sm:text-xs text-slate-400 font-medium">
             <div className="flex flex-wrap items-center gap-1.5">
               <span>&copy; {new Date().getFullYear()} {SYSTEM_CONFIG.appName} by <a href={SYSTEM_CONFIG.vendorLink} target="_blank" rel="noopener noreferrer" className="text-slate-500 hover:text-indigo-600 transition-colors font-bold">{SYSTEM_CONFIG.vendor}</a></span>

@@ -20,11 +20,6 @@ interface NodeData {
   desc: string;
 }
 
-// Cosmetic — this demo doesn't render a real scene to measure, so a static
-// number is exactly as honest as a jittering fake one, without the cost: the
-// previous 1s setInterval defeated this component's own memo() and
-// re-rendered the whole demo (four infinite framer-motion loops included)
-// once a second, indefinitely, even scrolled off-screen.
 const DISPLAY_FPS = 60;
 
 export const InteractiveMindMap = memo(() => {
@@ -79,7 +74,6 @@ export const InteractiveMindMap = memo(() => {
     }
   ];
 
-  // Helper to calculate SVG path coordinates based on connection style
   const getConnectionPath = (startX: number, startY: number, endX: number, endY: number) => {
     if (selectedStyle === "straight") {
       return `M ${startX} ${startY} L ${endX} ${endY}`;
@@ -88,7 +82,6 @@ export const InteractiveMindMap = memo(() => {
       const midX = startX + (endX - startX) / 2;
       return `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
     }
-    // Curved (default)
     const controlX1 = startX + (endX - startX) * 0.5;
     const controlY1 = startY;
     const controlX2 = startX + (endX - startX) * 0.5;
@@ -101,17 +94,14 @@ export const InteractiveMindMap = memo(() => {
   return (
     <div className="relative w-full max-w-[540px] mx-auto select-none group font-sans">
       
-      {/* Container Box */}
       <div className="relative bg-white border-[5px] border-slate-200/80 rounded-[3.8rem] p-3 shadow-2xl overflow-hidden">
         <div className="absolute top-10 right-14 flex items-center gap-2 opacity-25 group-hover:opacity-60 transition-opacity">
           <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-ping" />
           <span className="font-mono text-[8px] font-black tracking-[0.2em] text-slate-500 uppercase">GPU_HARDWARE_ACCELERATED</span>
         </div>
 
-        {/* Dynamic Sandbox Workspace */}
         <div className="relative bg-gradient-to-br from-[#fbfcfd] to-[#f6f8fa] rounded-[3.4rem] p-4 h-[340px] flex items-center justify-center overflow-hidden">
           
-          {/* Grid Background Effect */}
           <div 
             className="absolute inset-0 opacity-[0.07] dark:opacity-[0.03]" 
             style={{ 
@@ -120,14 +110,12 @@ export const InteractiveMindMap = memo(() => {
             }} 
           />
 
-          {/* Connection Vector Lines */}
           <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none overflow-visible">
             {branchNodes.map((node) => {
               const isHovered = hoveredNode === node.id;
               const path = getConnectionPath(50, 50, node.x, node.y);
               return (
                 <g key={node.id}>
-                  {/* Glowing Glow Backing on Hover */}
                   <motion.path
                     d={path}
                     stroke={isHovered ? "#6366f1" : "#cbd5e1"}
@@ -138,7 +126,6 @@ export const InteractiveMindMap = memo(() => {
                     animate={isHovered ? { strokeWidth: [1.5, 2.2, 1.5] } : undefined}
                     transition={isHovered ? { repeat: Infinity, duration: 1.5 } : undefined}
                   />
-                  {/* Flow Animation dashes */}
                   <path
                     d={path}
                     stroke={isHovered ? "#4f46e5" : "#6366f1"}
@@ -153,7 +140,6 @@ export const InteractiveMindMap = memo(() => {
             })}
           </svg>
 
-          {/* Central Root Node */}
           <motion.div
             className="absolute z-20 flex flex-col items-center justify-center cursor-pointer"
             style={{ left: "50%", top: "50%", x: "-50%", y: "-50%" }}
@@ -167,7 +153,6 @@ export const InteractiveMindMap = memo(() => {
           >
             <div className="w-20 h-20 rounded-full border-4 border-indigo-600 bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 relative">
               <Brain className="w-9 h-9" />
-              {/* Outer pulsing ring */}
               <div className="absolute -inset-2 border-2 border-indigo-500/30 rounded-full animate-ping [animation-duration:2.5s]" />
               <div className="absolute -inset-4 border border-indigo-500/10 rounded-full animate-pulse" />
             </div>
@@ -176,7 +161,6 @@ export const InteractiveMindMap = memo(() => {
             </span>
           </motion.div>
 
-          {/* Branch Nodes */}
           {branchNodes.map((node) => {
             const isHovered = hoveredNode === node.id;
             const Icon = node.icon;
@@ -204,11 +188,9 @@ export const InteractiveMindMap = memo(() => {
 
         </div>
 
-        {/* Telemetry Control Center (Mockup Dashboard) */}
         <div className="mx-4 mb-4 mt-3 p-5 bg-slate-50/80 border border-slate-100 rounded-[2.5rem] relative overflow-hidden shadow-sm">
           <div className="relative z-10 flex flex-col gap-4">
             
-            {/* Header telemetry details */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/50">
               <div className="flex flex-col">
                 <div className="flex items-center gap-1.5">
@@ -222,7 +204,6 @@ export const InteractiveMindMap = memo(() => {
                 </div>
               </div>
               
-              {/* Configuration controls */}
               <div className="flex gap-1.5 bg-white p-1 rounded-xl border border-slate-200/60 shadow-inner">
                 {(["curved", "straight", "step"] as const).map((style) => (
                   <button
@@ -240,10 +221,8 @@ export const InteractiveMindMap = memo(() => {
               </div>
             </div>
 
-            {/* Performance metrics & dynamic feedback */}
             <div className="grid grid-cols-12 gap-4 items-center">
               
-              {/* Left stats */}
               <div className="col-span-6 grid grid-cols-2 gap-3">
                 <div className="bg-white border border-slate-200/60 p-2.5 rounded-2xl flex flex-col shadow-sm">
                   <span className="text-[8px] font-black text-slate-400 uppercase tracking-wide">FPS</span>
@@ -255,7 +234,6 @@ export const InteractiveMindMap = memo(() => {
                 </div>
               </div>
 
-              {/* Dynamic descriptor */}
               <div className="col-span-6 flex flex-col justify-center">
                 <AnimatePresence mode="wait">
                   {hoveredNode && activeNodeInfo ? (

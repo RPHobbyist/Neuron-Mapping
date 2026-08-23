@@ -33,13 +33,11 @@ export const IconLibraryDialog = ({
 
     const categoryKeys = Object.keys(iconCategories);
 
-    // Filter icons based on search
     const filteredIcons = useMemo(() => {
         if (!searchQuery.trim()) {
             return iconCategories[activeCategory]?.icons || [];
         }
 
-        // Search across all categories
         const query = searchQuery.toLowerCase();
         const results: typeof iconCategories[string]['icons'] = [];
 
@@ -50,7 +48,7 @@ export const IconLibraryDialog = ({
                 }
             }
         }
-        return results.slice(0, 100); // Limit to 100 results for performance
+        return results.slice(0, 100);
     }, [activeCategory, searchQuery]);
 
     const handleIconSelect = (iconName: string) => {
@@ -76,7 +74,6 @@ export const IconLibraryDialog = ({
                 </DialogHeader>
 
                 <div className="py-2 space-y-3">
-                    {/* Icon Style Selection */}
                     <div className="flex items-center justify-between">
                         <Label className="text-sm font-medium">Icon Style</Label>
                         <RadioGroup
@@ -95,7 +92,6 @@ export const IconLibraryDialog = ({
                         </RadioGroup>
                     </div>
 
-                    {/* Search */}
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                         <Input
@@ -110,7 +106,6 @@ export const IconLibraryDialog = ({
                 </div>
 
                 <div className="flex gap-4 h-[400px]">
-                    {/* Category List */}
                     {!searchQuery && (
                         <ScrollArea className="w-40 shrink-0 border rounded-lg">
                             <div className="p-2 space-y-1">
@@ -135,7 +130,6 @@ export const IconLibraryDialog = ({
                         </ScrollArea>
                     )}
 
-                    {/* Icon Grid */}
                     <ScrollArea className="flex-1 border rounded-lg">
                         <div className="p-4">
                             {searchQuery && (

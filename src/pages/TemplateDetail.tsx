@@ -37,9 +37,6 @@ export default function TemplateDetail() {
     ? templateSeoDescription(template.name, template.nodes.length)
     : "Explore free mind map templates in Neuron Mapping.";
 
-  // Memoized (keyed on `template`, not recreated every render) so
-  // useDocumentSEO's effect only re-runs when the template actually changes,
-  // instead of on every render of this page.
   const jsonLd = useMemo(() => (
     template
       ? [
@@ -128,7 +125,6 @@ export default function TemplateDetail() {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans selection:bg-indigo-500/20 selection:text-indigo-900">
-      {/* HEADER NAVBAR */}
       <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 group">
@@ -151,7 +147,6 @@ export default function TemplateDetail() {
         </div>
       </header>
 
-      {/* BREADCRUMB */}
       <div className="bg-white border-b border-slate-200 py-3">
         <div className="max-w-7xl mx-auto px-6 lg:px-8 text-xs text-slate-500 flex items-center gap-2">
           <Link to="/" className="hover:text-indigo-600">Home</Link>
@@ -162,10 +157,8 @@ export default function TemplateDetail() {
         </div>
       </div>
 
-      {/* MAIN CONTENT */}
       <main className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-          {/* Left Column: Template Information */}
           <div className="lg:col-span-7 space-y-8">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-700 font-semibold text-xs mb-3">
@@ -181,7 +174,6 @@ export default function TemplateDetail() {
               </p>
             </div>
 
-            {/* CTA Box */}
             <div className="p-6 bg-indigo-900 text-white rounded-2xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-6">
               <div>
                 <h3 className="font-bold text-base">Ready to edit this template?</h3>
@@ -194,7 +186,6 @@ export default function TemplateDetail() {
               </Link>
             </div>
 
-            {/* Template Features Checklist */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
               <h3 className="font-bold text-slate-900 text-sm">Key Features & Capabilities</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-600 font-medium">
@@ -225,7 +216,6 @@ export default function TemplateDetail() {
               </div>
             </div>
 
-            {/* Step-by-Step Usage Guide */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-4">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <Clock className="w-4 h-4 text-indigo-600" /> How to Use the {template.name} Template
@@ -239,7 +229,6 @@ export default function TemplateDetail() {
             </div>
           </div>
 
-          {/* Right Column: Pre-built Structure Breakdown */}
           <div className="lg:col-span-5 space-y-6">
             <div className="bg-white border border-slate-200 rounded-2xl p-6">
               <h3 className="font-bold text-slate-900 text-sm mb-4 flex items-center gap-2">
@@ -267,7 +256,6 @@ export default function TemplateDetail() {
               </div>
             </div>
 
-            {/* Template FAQ Card */}
             <div className="bg-white border border-slate-200 rounded-2xl p-6 space-y-3">
               <h4 className="font-bold text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-indigo-600" /> Frequently Asked Questions
