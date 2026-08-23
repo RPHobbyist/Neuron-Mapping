@@ -59,3 +59,4 @@ function getIndentLength(line: string): number {
     const match = line.match(/^\s*/);
     return match ? match[0].length : 0;
 }
+ 

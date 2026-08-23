@@ -131,3 +131,4 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
         </AnimatePresence>
     );
 };
+ 

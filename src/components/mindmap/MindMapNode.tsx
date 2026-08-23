@@ -539,3 +539,4 @@ const MindMapNodeBase = ({
 };
 
 export const MindMapNode = memo(MindMapNodeBase);
+ 

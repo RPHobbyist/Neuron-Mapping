@@ -46,3 +46,4 @@ export const TemplateHeader = ({ onBack }: TemplateHeaderProps) => {
     </header>
   );
 };
+ 

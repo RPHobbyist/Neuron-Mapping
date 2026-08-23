@@ -177,3 +177,4 @@ export const projectTemplates: Template[] = [
         connectionStyle: 'orthogonal',
     },
 ];
+ 

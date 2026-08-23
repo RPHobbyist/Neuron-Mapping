@@ -27,3 +27,4 @@ jobs:
 
     - name: Type Check & Build
       run: npm run build
+ 

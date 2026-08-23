@@ -84,3 +84,4 @@ export interface Drawing {
   points: { x: number, y: number }[];
   color: string;
 }
+ 

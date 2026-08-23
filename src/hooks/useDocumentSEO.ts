@@ -156,3 +156,4 @@ export function useDocumentSEO({
     }
   }, [title, description, canonical, ogTitle, ogDescription, ogImage, robots, jsonLd]);
 }
+ 

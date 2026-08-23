@@ -56,3 +56,4 @@ export const SYSTEM_CONFIG = {
         return `GNU AGPLv3 License - Copyright (c) 2026 ${this.vendor}`;
     }
 };
+ 

@@ -27,3 +27,4 @@ export const templates: Template[] = [
     ...planningTemplates,
     ...communicationTemplates,
 ];
+ 

@@ -56,3 +56,4 @@ export function parseContent(content: string, format: SupportedExtension): MindM
 function getFileExtension(filename: string): string | undefined {
     return filename.split('.').pop()?.toLowerCase();
 }
+ 

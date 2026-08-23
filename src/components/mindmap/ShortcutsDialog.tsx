@@ -70,3 +70,4 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
         </Dialog>
     );
 };
+ 

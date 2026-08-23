@@ -452,3 +452,4 @@ for (const category of Object.values(iconCategories)) {
 }
 
 export const totalIconCount = Object.keys(iconMap).length;
+ 

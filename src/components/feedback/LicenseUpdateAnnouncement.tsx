@@ -58,3 +58,4 @@ export const LicenseUpdateAnnouncement = ({ onAcknowledge }: { onAcknowledge?: (
         </Dialog>
     );
 };
+ 

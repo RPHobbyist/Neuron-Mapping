@@ -205,3 +205,4 @@ export const DynamicTemplatePreview = ({ nodes, animated = false }: DynamicTempl
         </svg>
     );
 };
+ 

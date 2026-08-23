@@ -50,3 +50,4 @@ export const legalTemplates: Template[] = [
         connectionStyle: 'orthogonal',
     },
 ];
+ 

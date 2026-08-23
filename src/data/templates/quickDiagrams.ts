@@ -55,3 +55,4 @@ export const quickDiagramTemplates: Template[] = [
         connectionStyle: 'straight',
     },
 ];
+ 

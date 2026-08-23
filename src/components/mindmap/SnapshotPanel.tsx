@@ -194,3 +194,4 @@ export const SnapshotPanel = ({ nodes, connectionStyle, drawings, onRestore, isO
         </div>
     );
 };
+ 

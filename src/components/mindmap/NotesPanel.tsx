@@ -50,3 +50,4 @@ export const NotesPanel = ({ content, onUpdate, onClose, isOpen }: NotesPanelPro
         </div>
     );
 };
+ 

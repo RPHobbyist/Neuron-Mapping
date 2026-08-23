@@ -14,3 +14,4 @@ export { parseFile, parseContent, SUPPORTED_EXTENSIONS, isSupportedExtension } f
 export type { SupportedExtension } from './parsers';
 
 export { iconCategories, iconMap } from './iconLibrary';
+ 

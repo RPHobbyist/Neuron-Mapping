@@ -78,3 +78,4 @@ export const ZoomControls = ({
     </motion.div>
   );
 };
+ 

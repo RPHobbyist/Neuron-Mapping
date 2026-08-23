@@ -310,3 +310,4 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         </div>
     );
 };
+ 

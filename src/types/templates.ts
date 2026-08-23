@@ -16,3 +16,4 @@ export type TemplateCategory = {
   name: string;
   isSection?: boolean;
 };
+ 

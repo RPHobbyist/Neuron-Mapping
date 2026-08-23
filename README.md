@@ -140,3 +140,4 @@ Distributed under the GNU AGPL v3 License. See [`LICENSE`](LICENSE) for more inf
   <br>
   <em>Empowering minds with professional-grade creative tools.</em>
 </div>
+ 

@@ -165,3 +165,4 @@ export function WhatsNewDialog({ open, onOpenChange }: WhatsNewDialogProps) {
     );
 }
 
+ 

@@ -47,3 +47,4 @@ export const NeuronLogo: React.FC<NeuronLogoProps> = ({ className = "w-7 h-7" })
         </svg>
     );
 };
+ 

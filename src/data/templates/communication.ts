@@ -66,3 +66,4 @@ export const communicationTemplates: Template[] = [
         connectionStyle: 'curved',
     },
 ];
+ 

@@ -65,3 +65,4 @@ export const DrawingSchema = z.object({
     })),
     color: z.string(),
 });
+ 

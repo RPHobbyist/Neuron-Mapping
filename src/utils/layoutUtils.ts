@@ -289,3 +289,4 @@ function offsetTree(node: TreeNode, dx: number, dy: number): void {
     node.y += dy;
     node.children.forEach(child => offsetTree(child, dx, dy));
 }
+ 

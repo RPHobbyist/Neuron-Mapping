@@ -53,3 +53,4 @@ export const hrTemplates: Template[] = [
         connectionStyle: 'orthogonal',
     },
 ];
+ 

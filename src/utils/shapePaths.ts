@@ -19,3 +19,4 @@ export const scalePathToBox = (path: string, width: number, height: number, inse
     return scaled.toFixed(2);
   });
 };
+ 

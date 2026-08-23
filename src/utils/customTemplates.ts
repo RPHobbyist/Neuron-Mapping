@@ -65,3 +65,4 @@ export function saveCustomTemplate(
 export function deleteCustomTemplate(id: string): void {
   persist(getCustomTemplates().filter(t => t.id !== id));
 }
+ 

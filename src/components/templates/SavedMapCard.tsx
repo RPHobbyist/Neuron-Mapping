@@ -53,3 +53,4 @@ export const SavedMapCard = ({ map, onClick, onDelete }: SavedMapCardProps) => {
     </div>
   );
 };
+ 

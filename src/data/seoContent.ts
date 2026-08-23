@@ -81,3 +81,4 @@ export function templateSeoTitle(name: string): string {
 export function templateSeoDescription(name: string, nodeCount: number): string {
   return `Create a ${name} mind map online, free. Pre-built with ${nodeCount} nodes for visual brainstorming — 100% private, no account needed.`;
 }
+ 
