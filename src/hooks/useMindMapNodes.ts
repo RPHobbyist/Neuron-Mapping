@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 
 import { generateId, getAutoConnectionSides } from '@/utils/common';
-import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
+import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR, DETACHED_PARENT_ID } from '@/lib/constants';
 import { MindMapNode, NodeColor, NodeShape, ConnectionStyle, NodePriority, Drawing } from '@/types/mindmap';
 
 import { useHistory } from './useHistory';
@@ -249,6 +249,41 @@ export const useMindMapNodes = (
             setSelectedNodeIds(new Set([newId]));
         }
         return added ? newId : null;
+    }, [setNodes]);
+
+    const pasteNodes = useCallback((sourceNodes: MindMapNode[]) => {
+        if (sourceNodes.length === 0) return;
+
+        const newIds: string[] = [];
+
+        setNodes((prev) => {
+            const placed: MindMapNode[] = [];
+
+            sourceNodes.forEach((source) => {
+                const newId = generateId();
+                newIds.push(newId);
+
+                const size = getNodeSize(source);
+                const startX = source.x + 40;
+                const startY = source.y + 40;
+                const clearPos = findClearPosition(startX, startY, startX, startY, size.width, size.height, [...prev, ...placed]);
+
+                placed.push({
+                    ...source,
+                    id: newId,
+                    x: clearPos.x,
+                    y: clearPos.y,
+                    parentId: DETACHED_PARENT_ID,
+                    relations: undefined,
+                    measuredWidth: undefined,
+                    measuredHeight: undefined,
+                });
+            });
+
+            return [...prev, ...placed];
+        });
+
+        setSelectedNodeIds(new Set(newIds));
     }, [setNodes]);
 
     const addRelation = useCallback(() => {
@@ -538,6 +573,7 @@ export const useMindMapNodes = (
         selectedLineId,
         setSelectedLineId,
         addChildNode,
+        pasteNodes,
         addRelation,
         pinConnectionSides,
         unpinConnectionSides,

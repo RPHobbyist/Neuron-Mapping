@@ -10,7 +10,7 @@ import { NodeActionDialog } from './NodeActionDialog';
 import { useMindMapNodes } from '@/hooks/useMindMapNodes';
 import { useAutoSave, AutoSaveData } from '@/hooks/useAutoSave';
 import { toast } from 'sonner';
-import { Pencil, Eraser } from 'lucide-react';
+import { Pencil, Eraser, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { PropertiesPanel, LineSettings } from './LinePropertiesPanel';
 import { MindMapToolbar } from './MindMapToolbar';
@@ -54,12 +54,13 @@ export const MindMapCanvas = ({
 }: MindMapCanvasProps) => {
   const canvasRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const copiedNodesRef = useRef<NodeType[] | null>(null);
 
   const {
     nodes, setNodes, resetNodes, restoreFullState, undo, redo, canUndo, canRedo, saveSnapshot,
     selectedNodeIds, setSelectedNodeIds,
     selectedLineId, setSelectedLineId,
-    addChildNode, addRelation, pinConnectionSides, unpinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
+    addChildNode, pasteNodes, addRelation, pinConnectionSides, unpinConnectionSides, updateNodePosition, replaceNodeText, replaceNode, updateNode, updateNodeMeasurement, updateNodeSize,
     deleteNode, deleteSelectedNodes, deleteRelation, reconnectRelation,
     connectionStyle: hookConnectionStyle, applyGlobalConnectionStyle,
     drawings, setDrawings, replaceDrawings
@@ -128,6 +129,18 @@ export const MindMapCanvas = ({
   }, [zoom]);
 
   const getMousePos = (e: React.MouseEvent) => screenToCanvas(e.clientX, e.clientY);
+
+  const getScreenPos = useCallback((x: number, y: number) => {
+    if (is3DMode) {
+      return { x: window.innerWidth - 340, y: 96 };
+    }
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+    return {
+      x: rect.left + rect.width / 2 + pan.x + (x * zoom),
+      y: rect.top + rect.height / 2 + pan.y + (y * zoom)
+    };
+  }, [is3DMode, pan, zoom]);
 
   const getNodeBounds = (node: NodeType) => ({
     w: node.measuredWidth || node.width || (node.id === 'root' ? 128 : Math.max(100, node.text.length * 8 + 48)),
@@ -467,6 +480,20 @@ export const MindMapCanvas = ({
         e.preventDefault();
         redo();
       }
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        const toCopy = nodes.filter(n => selectedNodeIds.has(n.id) && n.id !== 'root');
+        if (toCopy.length > 0) {
+          copiedNodesRef.current = toCopy;
+          toast.success(toCopy.length > 1 ? `${toCopy.length} blocks copied` : 'Block copied');
+        }
+      }
+      else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        if (copiedNodesRef.current && copiedNodesRef.current.length > 0) {
+          e.preventDefault();
+          pasteNodes(copiedNodesRef.current);
+          toast.success(copiedNodesRef.current.length > 1 ? 'Blocks pasted' : 'Block pasted');
+        }
+      }
       else if (e.key === '?' && e.shiftKey) {
         e.preventDefault();
         setShowShortcuts(true);
@@ -513,7 +540,7 @@ export const MindMapCanvas = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, nodes, setSelectedNodeIds, setEditTrigger, saveSnapshot]);
+  }, [undo, redo, selectedNodeIds, selectedLineId, deleteSelectedNodes, deleteRelation, addChildNode, pasteNodes, nodes, setSelectedNodeIds, setEditTrigger, saveSnapshot]);
 
   const handleNodeSelect = useCallback((e: React.MouseEvent, nodeId: string) => {
     if (e.shiftKey) {
@@ -568,6 +595,23 @@ export const MindMapCanvas = ({
   const handleRequestIcon = useCallback((id: string) => {
     setShowIconLibrary({ isOpen: true, nodeId: id });
   }, []);
+
+  const loopConnectCenter = useMemo(() => {
+    if (selectedNodeIds.size < 2) return null;
+    const selected = nodes.filter(n => selectedNodeIds.has(n.id));
+    if (selected.length < 2) return null;
+    const sumX = selected.reduce((sum, n) => sum + n.x, 0);
+    const sumY = selected.reduce((sum, n) => sum + n.y, 0);
+    return { x: sumX / selected.length, y: sumY / selected.length };
+  }, [nodes, selectedNodeIds]);
+
+  const handleLoopConnect = useCallback(() => {
+    if (selectedNodeIds.size === 2) {
+      addRelation();
+    } else {
+      toast.info("Select exactly two nodes to connect");
+    }
+  }, [selectedNodeIds, addRelation]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-background flex flex-col">
@@ -690,6 +734,65 @@ export const MindMapCanvas = ({
                 }}
                 visibleLineIds={visibleLineIds}
               />
+
+              {selectedNodeIds.size === 2 && !isFocusMode && (() => {
+                const [idA, idB] = Array.from(selectedNodeIds);
+                const nodeA = nodes.find(n => n.id === idA);
+                const nodeB = nodes.find(n => n.id === idB);
+                if (!nodeA || !nodeB) return null;
+
+                const alreadyConnected =
+                  nodeA.parentId === nodeB.id ||
+                  nodeB.parentId === nodeA.id ||
+                  (nodeA.relations || []).some(r => r.targetId === nodeB.id) ||
+                  (nodeB.relations || []).some(r => r.targetId === nodeA.id);
+                if (alreadyConnected) return null;
+
+                const midX = (nodeA.x + nodeB.x) / 2;
+                const midY = (nodeA.y + nodeB.y) / 2;
+                const dx = nodeB.x - nodeA.x;
+                const dy = nodeB.y - nodeA.y;
+                const dist = Math.hypot(dx, dy) || 1;
+                const bow = Math.min(dist * 0.15, 60);
+                const curveX = midX - (dy / dist) * bow;
+                const curveY = midY + (dx / dist) * bow;
+
+                const clipToNode = (node: NodeType, towardX: number, towardY: number) => {
+                  const { w, h } = getNodeBounds(node);
+                  const hw = w / 2 + 4;
+                  const hh = h / 2 + 4;
+                  const dirX = towardX - node.x;
+                  const dirY = towardY - node.y;
+                  if (dirX === 0 && dirY === 0) return { x: node.x, y: node.y };
+                  const tX = dirX !== 0 ? hw / Math.abs(dirX) : Infinity;
+                  const tY = dirY !== 0 ? hh / Math.abs(dirY) : Infinity;
+                  const t = Math.min(tX, tY);
+                  return { x: node.x + dirX * t, y: node.y + dirY * t };
+                };
+
+                const start = clipToNode(nodeA, curveX, curveY);
+                const end = clipToNode(nodeB, curveX, curveY);
+
+                return (
+                  <svg
+                    className="absolute pointer-events-none overflow-visible"
+                    style={{ left: -5000, top: -5000, width: 10000, height: 10000, zIndex: 4 }}
+                  >
+                    <g transform="translate(5000, 5000)">
+                      <path
+                        d={`M ${start.x} ${start.y} Q ${curveX} ${curveY} ${end.x} ${end.y}`}
+                        fill="none"
+                        stroke="#6366f1"
+                        strokeOpacity={0.45}
+                        strokeWidth={3 / zoom}
+                        strokeDasharray="8 6"
+                        strokeLinecap="round"
+                      />
+                    </g>
+                  </svg>
+                );
+              })()}
+
               <AnimatePresence>
                 {nodes.map((node) => {
                   if (isPlaying && !visibleNodeIds.has(node.id)) return null;
@@ -699,6 +802,7 @@ export const MindMapCanvas = ({
                       key={node.id}
                       node={node}
                       isSelected={selectedNodeIds.has(node.id)}
+                      selectionCount={selectedNodeIds.has(node.id) ? selectedNodeIds.size : undefined}
                       onSelect={handleNodeSelect}
                       onPositionChange={updateNodePosition}
                       onTextChange={replaceNodeText}
@@ -884,19 +988,22 @@ export const MindMapCanvas = ({
         defaultName={mapName || nodes.find(n => n.parentId === null)?.text || 'New Map'}
       />
 
-      {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen) && (() => {
-        const getScreenPos = (x: number, y: number) => {
-          if (is3DMode) {
-            return { x: window.innerWidth - 340, y: 96 };
-          }
-          const rect = canvasRef.current?.getBoundingClientRect();
-          if (!rect) return { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-          return {
-            x: rect.left + rect.width / 2 + pan.x + (x * zoom),
-            y: rect.top + rect.height / 2 + pan.y + (y * zoom)
-          };
-        };
+      {loopConnectCenter && !isFocusMode && !is3DMode && (() => {
+        const pos = getScreenPos(loopConnectCenter.x, loopConnectCenter.y);
+        return (
+          <button
+            className="fixed z-50 -translate-x-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white border shadow-md flex items-center justify-center text-gray-600 hover:text-blue-600 hover:bg-gray-100 transition-colors"
+            style={{ left: pos.x, top: pos.y }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); handleLoopConnect(); }}
+            title="Connect Nodes (Loop)"
+          >
+            <Link className="w-6 h-6" />
+          </button>
+        );
+      })()}
 
+      {((selectedLineId || selectedNodeIds.size === 1) && !isFocusMode && isPropertiesOpen) && (() => {
         if (selectedLineId) {
           if (selectedLineId.startsWith('rel::')) {
             const [, sourceId, targetId] = selectedLineId.split('::');

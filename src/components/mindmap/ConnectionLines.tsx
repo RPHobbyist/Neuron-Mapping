@@ -277,20 +277,6 @@ function avoidVerticalX(x: number, yLo: number, yHi: number, obstacles: Rect[], 
   return (Math.abs(x - leftX) <= Math.abs(x - rightX) ? leftX : rightX) + laneNudge;
 }
 
-function hRunCmds(fromX: number, toX: number, y: number, obstacles: Rect[], laneNudge = 0): string {
-  const lo = Math.min(fromX, toX), hi = Math.max(fromX, toX);
-  const detourY = avoidHorizontalY(y, lo, hi, obstacles, laneNudge);
-  if (detourY === y) return `L ${toX} ${y}`;
-  return `L ${fromX} ${detourY} L ${toX} ${detourY} L ${toX} ${y}`;
-}
-
-function vRunCmds(fromY: number, toY: number, x: number, obstacles: Rect[], laneNudge = 0): string {
-  const lo = Math.min(fromY, toY), hi = Math.max(fromY, toY);
-  const detourX = avoidVerticalX(x, lo, hi, obstacles, laneNudge);
-  if (detourX === x) return `L ${x} ${toY}`;
-  return `L ${detourX} ${fromY} L ${detourX} ${toY} L ${x} ${toY}`;
-}
-
 interface OrthogonalResult { path: string; bendAxis: 'x' | 'y'; bendValue: number }
 
 function laneNudgeFor(lane: LaneAdjustment | undefined): number {
@@ -302,23 +288,15 @@ function orthogonal(a: Anchor, b: Anchor, t: number, obstacles: Rect[], lane?: L
   const nudge = laneNudgeFor(lane);
 
   if (a.side === 'left' || a.side === 'right') {
-    const mx = lane ? lane.split : a.x + (b.x - a.x) * t;
-    const path = [
-      `M ${a.x} ${a.y}`,
-      hRunCmds(a.x, mx, a.y, obstacles),
-      vRunCmds(a.y, b.y, mx, obstacles, nudge),
-      hRunCmds(mx, b.x, b.y, obstacles),
-    ].join(' ');
+    const rawMx = lane ? lane.split : a.x + (b.x - a.x) * t;
+    const mx = avoidVerticalX(rawMx, Math.min(a.y, b.y), Math.max(a.y, b.y), obstacles, nudge);
+    const path = `M ${a.x} ${a.y} L ${mx} ${a.y} L ${mx} ${b.y} L ${b.x} ${b.y}`;
     return { path, bendAxis: 'x', bendValue: mx };
   }
 
-  const my = lane ? lane.split : a.y + (b.y - a.y) * t;
-  const path = [
-    `M ${a.x} ${a.y}`,
-    vRunCmds(a.y, my, a.x, obstacles),
-    hRunCmds(a.x, b.x, my, obstacles, nudge),
-    vRunCmds(my, b.y, b.x, obstacles),
-  ].join(' ');
+  const rawMy = lane ? lane.split : a.y + (b.y - a.y) * t;
+  const my = avoidHorizontalY(rawMy, Math.min(a.x, b.x), Math.max(a.x, b.x), obstacles, nudge);
+  const path = `M ${a.x} ${a.y} L ${a.x} ${my} L ${b.x} ${my} L ${b.x} ${b.y}`;
   return { path, bendAxis: 'y', bendValue: my };
 }
 

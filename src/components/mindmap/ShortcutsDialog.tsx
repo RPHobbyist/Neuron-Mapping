@@ -15,6 +15,8 @@ export const ShortcutsDialog = ({ open, onOpenChange }: ShortcutsDialogProps) =>
         { key: "Tab", action: "Add Child Node" },
         { key: "Space / F2", action: "Edit Node Text" },
         { key: "Backsp / Del", action: "Delete Node" },
+        { key: "Ctrl + C", action: "Copy Node" },
+        { key: "Ctrl + V", action: "Paste Node" },
         { key: "Arrow Keys", action: "Navigate" },
         { key: "Ctrl + Z", action: "Undo" },
         { key: "Ctrl + Y", action: "Redo" },

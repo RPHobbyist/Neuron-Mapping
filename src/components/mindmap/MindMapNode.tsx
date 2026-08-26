@@ -20,6 +20,7 @@ const SNAKE_TRAIL = [
 interface MindMapNodeProps {
   node: NodeType;
   isSelected: boolean;
+  selectionCount?: number;
   onSelect: (e: React.MouseEvent, nodeId: string) => void;
   onPositionChange: (id: string, x: number, y: number) => void;
   onTextChange: (id: string, text: string) => void;
@@ -41,6 +42,7 @@ interface MindMapNodeProps {
 const MindMapNodeBase = ({
   node,
   isSelected,
+  selectionCount,
   onSelect,
   onPositionChange,
   onTextChange,
@@ -498,7 +500,7 @@ const MindMapNodeBase = ({
         </div>
       )}
 
-      {isSelected && !isEditing && !isDragging && (
+      {isSelected && !isEditing && !isDragging && (selectionCount ?? 1) < 2 && (
         <NodeToolbar
           onAddImage={handleAddImage}
           onAddLink={handleAddLink}

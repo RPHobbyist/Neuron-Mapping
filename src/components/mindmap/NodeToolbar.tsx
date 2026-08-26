@@ -1,4 +1,4 @@
-import { Image, Link, FileText, Smile, Trash, X } from 'lucide-react';
+import { Image, Link2, FileText, Smile, Trash, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useRef, useState } from 'react';
 
@@ -45,7 +45,7 @@ export const NodeToolbar = ({
                 className="p-1.5 hover:bg-gray-100 rounded text-gray-600 hover:text-blue-600 transition-colors"
                 title="Add Link"
             >
-                <Link className="w-4 h-4" />
+                <Link2 className="w-4 h-4" />
             </button>
 
             {onAddNotes && (

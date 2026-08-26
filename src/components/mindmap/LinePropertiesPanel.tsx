@@ -589,7 +589,7 @@ export const PropertiesPanel = ({
     };
 
     const MARGIN = 12;
-    const SIDE_GAP = 28;
+    const SIDE_GAP = 96;
     let left: number | undefined;
     let top: number | undefined;
     if (position) {
