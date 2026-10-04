@@ -18,7 +18,8 @@ import { historyReducer, createHistoryState } from '@/hooks/useHistory';
 import { undoLimit } from '@/hooks/useMindMapNodes';
 import { buildOutline, walkOutline } from '@/utils/exporters/outline';
 import { LAYOUTS, autoLayoutNodes } from '@/utils/layoutUtils';
-import { normalizeMapNodes } from '@/utils/mapIntegrity';
+import { MindMapNodeSchema, tolerantArray } from '@/lib/schemas';
+import { repairNodeLinks } from '@/utils/mapIntegrity';
 import { generateStressMap } from '@/utils/stressMap';
 import { SpatialIndex } from '@/utils/spatialIndex';
 import { MindMapNode } from '@/types/mindmap';
@@ -57,7 +58,7 @@ describe('a map of 10,000 topics', () => {
     const chain = generateStressMap(LARGE, { chain: true });
 
     it('is read and checked quickly', () => {
-        const { result, ms } = timed(() => normalizeMapNodes(map));
+        const { result, ms } = timed(() => repairNodeLinks(tolerantArray(MindMapNodeSchema).parse(map) as MindMapNode[]));
         expect(result.nodes).toHaveLength(LARGE);
         expect(result.repaired).toBe(0);
         expect(ms).toBeLessThan(3000);

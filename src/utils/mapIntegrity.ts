@@ -8,16 +8,9 @@
  * (at your option) any later version.
  */
 
-import { MindMapNodeSchema } from '@/lib/schemas';
 import { DETACHED_PARENT_ID } from '@/lib/constants';
 import { detachParentCycles, generateId } from '@/utils/common';
 import { MindMapNode, Relation } from '@/types/mindmap';
-
-export interface NormalizedNodes {
-    nodes: MindMapNode[];
-    dropped: number;
-    repaired: number;
-}
 
 const isUsableId = (id: string) => id.trim() !== '' && !id.includes('::') && id !== DETACHED_PARENT_ID;
 
@@ -86,13 +79,3 @@ export const repairNodeLinks = (parsed: MindMapNode[]): { nodes: MindMapNode[]; 
     return { nodes: unchanged ? parsed : nodes, repaired: repaired.size };
 };
 
-export const normalizeMapNodes = (raw: unknown): NormalizedNodes => {
-    const entries = Array.isArray(raw) ? raw : [];
-    const parsed: MindMapNode[] = [];
-    entries.forEach((entry) => {
-        const result = MindMapNodeSchema.safeParse(entry);
-        if (result.success) parsed.push(result.data as MindMapNode);
-    });
-    const { nodes, repaired } = repairNodeLinks(parsed);
-    return { nodes, dropped: entries.length - parsed.length, repaired };
-};

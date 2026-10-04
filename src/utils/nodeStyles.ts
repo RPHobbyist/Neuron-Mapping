@@ -131,14 +131,7 @@ const paletteByColor: Record<string, string> = {
 export const getPaletteName = (color: string | undefined, isRoot: boolean): string =>
     (color && paletteByColor[color]) || (isRoot ? 'black' : 'orange');
 
-export const getBranchLineColor = (node: MindMapNode): string => {
-    if (node.color?.startsWith('#')) return node.color;
-    const palette = getPaletteName(node.color, node.parentId === null);
-    return `hsl(var(--node-${palette === 'black' ? 'grey' : palette}-border))`;
-};
-
 export const NODE_SHADOW = 'shadow-[0_1px_2px_rgba(68,52,40,0.06),0_2px_6px_-1px_rgba(68,52,40,0.08)]';
-export const NODE_SHADOW_HOVER = 'hover:shadow-[0_2px_4px_rgba(68,52,40,0.07),0_8px_18px_-6px_rgba(68,52,40,0.18)]';
 const ROOT_SHADOW = 'shadow-[0_2px_4px_rgba(20,24,40,0.10),0_12px_28px_-10px_rgba(20,24,40,0.45)]';
 
 export const getShapeStyles = (shape?: string, isRoot?: boolean): { className: string; style?: CSSProperties } => {

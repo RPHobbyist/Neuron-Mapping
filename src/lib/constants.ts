@@ -629,8 +629,6 @@ copy of the Program in return for a fee.
 
                      END OF TERMS AND CONDITIONS`;
 
-export const GITHUB_URL = "https://github.com/RPHobbyist/neuron-mapping.git";
-
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
 export const MAX_MAP_FILE_SIZE = 50 * 1024 * 1024;
 export const MAX_ARCHIVE_FILE_SIZE = 25 * 1024 * 1024;
@@ -643,8 +641,6 @@ export const MAX_ZOOM = 2;
 export const ZOOM_STEP = 1.2;
 
 export const DETACHED_PARENT_ID = '__detached__';
-
-export const snapshotStorageKey = (mapId: string) => `mindmap_snapshots:${mapId}`;
 
 export const BOX_AREA_COLORS = [
   '#eab308', '#3b82f6', '#22c55e', '#a855f7',

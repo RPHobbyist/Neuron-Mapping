@@ -11,9 +11,20 @@
 import { describe, expect, it } from 'vitest';
 
 import { DETACHED_PARENT_ID } from '@/lib/constants';
+import { MindMapNodeSchema } from '@/lib/schemas';
+import { MindMapNode } from '@/types/mindmap';
 import { autoLayoutNodes } from '@/utils/layoutUtils';
 
-import { normalizeMapNodes, repairNodeLinks } from './mapIntegrity';
+import { repairNodeLinks } from './mapIntegrity';
+
+const normalizeMapNodes = (raw: unknown[]) => {
+    const parsed = raw.flatMap((entry) => {
+        const result = MindMapNodeSchema.safeParse(entry);
+        return result.success ? [result.data as MindMapNode] : [];
+    });
+    const { nodes, repaired } = repairNodeLinks(parsed);
+    return { nodes, dropped: raw.length - parsed.length, repaired };
+};
 
 const node = (id: string, parentId: string | null, extra: Record<string, unknown> = {}) =>
     ({ id, text: id, x: 0, y: 0, color: 'blue', parentId, ...extra });

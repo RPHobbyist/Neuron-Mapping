@@ -20,9 +20,3 @@ export const ruleToneOf = (node: Pick<MindMapNode, 'task' | 'dueDate' | 'priorit
     if (node.priority === 'high') return 'urgent';
     return undefined;
 };
-
-export const RULE_TONE_LABELS: Record<RuleTone, string> = {
-    done: 'Done',
-    overdue: 'Overdue',
-    urgent: 'High priority',
-};
