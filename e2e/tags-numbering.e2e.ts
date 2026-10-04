@@ -10,7 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { node, preparePage, renameSelectedNode } from './helpers';
+import { node, preparePage, renameSelectedNode, runCommand } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -22,13 +22,6 @@ test.beforeEach(async ({ page }) => {
 const canvas = (page: Page) => page.getByTestId('mindmap-canvas');
 const nodeBox = (page: Page, text: string) =>
     canvas(page).locator('[data-node-id]').filter({ has: page.getByText(text, { exact: true }) });
-
-const runCommand = async (page: Page, command: string) => {
-    await page.keyboard.press('Control+k');
-    await page.keyboard.type(command);
-    await page.keyboard.press('Enter');
-    await expect(page.getByRole('dialog', { name: 'Command palette' })).toHaveCount(0);
-};
 
 test('pressing a tag highlights every topic with it, until Escape', async ({ page }) => {
     await node(page, 'Topic 1').click();

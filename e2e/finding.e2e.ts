@@ -10,7 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { node, panOf, preparePage, saveAs } from './helpers';
+import { commandPalette, node, panOf, preparePage, runCommand, saveAs, searchPalette } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -21,24 +21,17 @@ test.beforeEach(async ({ page }) => {
 
 const nodes = (page: Page) => page.getByTestId('mindmap-canvas').locator('[data-node-id]');
 const selected = (page: Page) => page.getByTestId('mindmap-canvas').locator('[data-selected]');
-const palette = (page: Page) => page.getByRole('dialog', { name: 'Command palette' });
-
 test('Ctrl + K finds and runs a command for the selected topic', async ({ page }) => {
     await node(page, 'Topic 1').click();
-    await page.keyboard.press('Control+k');
-    await expect(palette(page)).toBeVisible();
-    await page.keyboard.type('insert parent');
-    await page.keyboard.press('Enter');
+    await runCommand(page, 'insert parent');
 
-    await expect(palette(page)).toHaveCount(0);
     await expect(nodes(page)).toHaveCount(6);
     await expect(selected(page)).toContainText('New Item');
 });
 
 test('Ctrl + K jumps to a topic by its text', async ({ page }) => {
-    await page.keyboard.press('Control+k');
-    await page.keyboard.type('Topic 3');
-    await palette(page).getByRole('option', { name: 'Topic 3' }).click();
+    await searchPalette(page, 'Topic 3');
+    await commandPalette(page).getByRole('option', { name: 'Topic 3' }).click();
     await expect(selected(page)).toContainText('Topic 3');
 });
 
@@ -51,9 +44,8 @@ test('Ctrl + K opens another saved map', async ({ page }) => {
     await page.keyboard.press('Delete');
     await expect(nodes(page)).toHaveCount(4);
 
-    await page.keyboard.press('Control+k');
-    await page.keyboard.type('First Map');
-    await palette(page).getByRole('option', { name: 'First Map' }).click();
+    await searchPalette(page, 'First Map');
+    await commandPalette(page).getByRole('option', { name: 'First Map' }).click();
     await expect(page.locator('#map-name-input')).toHaveValue('First Map');
     await expect(nodes(page)).toHaveCount(5);
 });
@@ -88,12 +80,9 @@ test('a branch shown alone hides the rest, and Escape shows the whole map', asyn
 });
 
 test('zen mode leaves only the map, until Escape', async ({ page }) => {
-    await page.keyboard.press('Control+k');
-    await page.keyboard.type('zen mode');
-    await page.keyboard.press('Enter');
+    await runCommand(page, 'zen mode');
     await expect(page.getByTitle('Back to templates')).toHaveCount(0);
     await expect(page.getByTestId('minimap')).toHaveCount(0);
-    await expect(palette(page)).toHaveCount(0);
 
     await page.keyboard.press('Escape');
     await expect(page.getByTitle('Back to templates')).toBeVisible();

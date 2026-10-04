@@ -19,6 +19,23 @@ export const preparePage = async (page: Page) => {
 
 export const node = (page: Page, text: string) => page.getByTestId('mindmap-canvas').getByText(text, { exact: true });
 
+export const commandPalette = (page: Page) => page.getByRole('dialog', { name: 'Command palette' });
+
+export const searchPalette = async (page: Page, search: string) => {
+    await page.keyboard.press('Control+k');
+    const input = commandPalette(page).getByRole('combobox');
+    await expect(input).toBeFocused();
+    await page.keyboard.type(search);
+    await expect(input).toHaveValue(search);
+};
+
+export const runCommand = async (page: Page, search: string) => {
+    await searchPalette(page, search);
+    await expect(commandPalette(page).getByRole('option', { selected: true })).toContainText(new RegExp(search, 'i'));
+    await page.keyboard.press('Enter');
+    await expect(commandPalette(page)).toHaveCount(0);
+};
+
 export const savedMapCard = (page: Page, name: string) => page.getByRole('button', { name: `Open ${name}`, exact: true });
 
 export const chooseMapAction = async (page: Page, name: string, action: string | RegExp) => {
