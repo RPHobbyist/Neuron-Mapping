@@ -1,4 +1,16 @@
-import { MindMapNode } from '@/types/mindmap';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { MindMapNode, BoxArea } from '@/types/mindmap';
+import { carryHiddenBranches, hiddenNodeIds } from '@/utils/collapse';
+import { boxContainsPoint } from '@/utils/common';
 
 
 const CONFIG = {
@@ -12,8 +24,26 @@ const CONFIG = {
     },
     RADIAL: {
         RING_GAP: 300,
-        MIN_ANGLE_GAP: 0.1,
-        TREE_SPACING: 1800,
+        NODE_GAP: 40,
+    },
+    FISHBONE: {
+        OFFSET: 120,
+        STEP: 70,
+        GAP: 60,
+        MIN_STEP: 160,
+        HEAD_GAP: 120,
+    },
+    TREE_GAP: {
+        horizontal: 120,
+        logic: 120,
+        vertical: 150,
+        timeline: 150,
+        radial: 300,
+        fishbone: 150,
+    },
+    TIMELINE: {
+        COLUMN_GAP: 80,
+        LEVEL_GAP: 110,
     },
 } as const;
 
@@ -34,43 +64,74 @@ interface TreeNode {
     ry?: number;
 }
 
-type LayoutDirection = 'horizontal' | 'vertical' | 'radial';
+export type LayoutDirection = 'horizontal' | 'logic' | 'vertical' | 'timeline' | 'radial' | 'fishbone';
+
+export const LAYOUTS: { type: LayoutDirection; label: string }[] = [
+    { type: 'horizontal', label: 'Horizontal Map' },
+    { type: 'logic', label: 'Logic Chart' },
+    { type: 'vertical', label: 'Tree Chart' },
+    { type: 'timeline', label: 'Timeline' },
+    { type: 'radial', label: 'Radial Map' },
+    { type: 'fishbone', label: 'Fishbone' },
+];
 
 
 export const autoLayoutNodes = (
     nodes: MindMapNode[],
     direction: LayoutDirection = 'horizontal'
 ): MindMapNode[] => {
+    const hidden = hiddenNodeIds(nodes);
+    if (hidden.size === 0) return layoutTrees(nodes, direction);
+
+    const opened = layoutTrees(nodes, direction);
+    const shown = new Map(layoutTrees(opened.filter(node => !hidden.has(node.id)), direction).map(node => [node.id, node]));
+    return carryHiddenBranches(opened, opened.map(node => shown.get(node.id) ?? node));
+};
+
+const layoutTrees = (nodes: MindMapNode[], direction: LayoutDirection): MindMapNode[] => {
     if (nodes.length === 0) return [];
 
     const { nodeMap, rootNodes } = buildTree(nodes);
     if (rootNodes.length === 0) return nodes;
 
-    let offsetY = 0;
-    let radialOffsetX = 0;
+    let previousEdge: number | null = null;
     rootNodes.forEach(root => {
         switch (direction) {
             case 'horizontal':
                 layoutHorizontal(root);
-                root.x = 0;
-                root.y = offsetY;
-                applyRelativePositions(root, 0, offsetY);
-                offsetY += (root.subtreeHeight || root.height) + CONFIG.HORIZONTAL.SIBLING_GAP * 2;
+                applyRelativePositions(root, 0, 0);
+                break;
+            case 'logic':
+                layoutHorizontalBranch(root, 'right');
+                applyRelativePositions(root, 0, 0);
+                break;
+            case 'timeline':
+                layoutTimeline(root);
+                applyRelativePositions(root, 0, 0);
                 break;
             case 'vertical':
                 layoutVertical(root);
-                root.x = 0;
-                root.y = offsetY;
-                applyRelativePositions(root, 0, offsetY);
-                offsetY += (root.subtreeHeight || root.height) + CONFIG.VERTICAL.LEVEL_GAP;
+                applyRelativePositions(root, 0, 0);
                 break;
             case 'radial':
                 layoutRadial(root);
-                if (radialOffsetX !== 0) {
-                    offsetTree(root, radialOffsetX, 0);
-                }
-                radialOffsetX += CONFIG.RADIAL.TREE_SPACING;
                 break;
+            case 'fishbone':
+                layoutFishbone(root);
+                applyRelativePositions(root, 0, 0);
+                break;
+        }
+
+        const bounds = getTreeBounds(root);
+        const gap = CONFIG.TREE_GAP[direction];
+        if (direction === 'radial') {
+            const dx = previousEdge === null ? 0 : previousEdge + gap - bounds.minX;
+            offsetTree(root, dx, 0);
+            previousEdge = bounds.maxX + dx;
+        } else {
+            const dy = previousEdge === null ? 0 : previousEdge + gap - bounds.minY;
+            offsetTree(root, 0, dy);
+            previousEdge = bounds.maxY + dy;
         }
     });
 
@@ -81,6 +142,63 @@ export const autoLayoutNodes = (
     }));
 };
 
+
+export const layoutSubtree = (nodes: MindMapNode[], topId: string, direction: LayoutDirection): MindMapNode[] => {
+    const top = nodes.find(n => n.id === topId);
+    if (!top) return nodes;
+    const ids = new Set([topId]);
+    for (let grew = true; grew;) {
+        grew = false;
+        nodes.forEach((n) => {
+            if (n.parentId && ids.has(n.parentId) && !ids.has(n.id)) {
+                ids.add(n.id);
+                grew = true;
+            }
+        });
+    }
+    if (ids.size < 2) return nodes;
+    const branch = nodes.filter(n => ids.has(n.id)).map(n => (n.id === topId ? { ...n, parentId: null } : n));
+    const laidOut = new Map(autoLayoutNodes(branch, direction).map(n => [n.id, n]));
+    const placedTop = laidOut.get(topId)!;
+    const dx = top.x - placedTop.x;
+    const dy = top.y - placedTop.y;
+    return nodes.map((n) => {
+        const placed = laidOut.get(n.id);
+        return placed ? { ...n, x: placed.x + dx, y: placed.y + dy } : n;
+    });
+};
+
+export const layoutBranch = (nodes: MindMapNode[], topId: string, side: 'left' | 'right'): MindMapNode[] => {
+    const { nodeMap } = buildTree(nodes);
+    const top = nodeMap.get(topId);
+    if (!top) return nodes;
+
+    layoutHorizontalBranch(top, side);
+    top.rx = 0;
+    top.ry = 0;
+    applyRelativePositions(top, 0, 0);
+
+    const moved = new Map(subtree(top).map(node => [node.id, node]));
+    return nodes.map((node) => {
+        const laidOut = moved.get(node.id);
+        return laidOut ? { ...node, x: laidOut.x, y: laidOut.y } : node;
+    });
+};
+
+
+function subtree(top: TreeNode): TreeNode[] {
+    const order: TreeNode[] = [];
+    const seen = new Set<TreeNode>();
+    const stack = [top];
+    while (stack.length > 0) {
+        const node = stack.pop()!;
+        if (seen.has(node)) continue;
+        seen.add(node);
+        order.push(node);
+        for (let i = node.children.length - 1; i >= 0; i--) stack.push(node.children[i]);
+    }
+    return order;
+}
 
 function buildTree(nodes: MindMapNode[]): { nodeMap: Map<string, TreeNode>; rootNodes: TreeNode[] } {
     const nodeMap = new Map<string, TreeNode>();
@@ -137,13 +255,15 @@ function layoutHorizontal(root: TreeNode): void {
     root.subtreeHeight = Math.max(root.height, leftHeight, rightHeight);
 }
 
-function layoutHorizontalBranch(node: TreeNode, direction: 'left' | 'right'): void {
+function layoutHorizontalBranch(top: TreeNode, direction: 'left' | 'right'): void {
+    subtree(top).reverse().forEach(node => placeHorizontalChildren(node, direction));
+}
+
+function placeHorizontalChildren(node: TreeNode, direction: 'left' | 'right'): void {
     if (node.children.length === 0) {
         node.subtreeHeight = node.height;
         return;
     }
-
-    node.children.forEach(child => layoutHorizontalBranch(child, direction));
 
     const childrenHeight = node.children.reduce((sum, c) => sum + (c.subtreeHeight || c.height), 0)
         + (node.children.length - 1) * CONFIG.HORIZONTAL.SIBLING_GAP;
@@ -177,25 +297,25 @@ function balanceChildrenByWeight(children: TreeNode[]): { left: TreeNode[]; righ
         return { left: [], right: children };
     }
 
-    const sorted = [...children].sort((a, b) => (b.weight || 1) - (a.weight || 1));
+    const weights = children.map(child => child.weight || 1);
+    const total = weights.reduce((sum, w) => sum + w, 0);
 
-    const left: TreeNode[] = [];
-    const right: TreeNode[] = [];
-    let leftWeight = 0;
-    let rightWeight = 0;
-
-    sorted.forEach(child => {
-        const w = child.weight || 1;
-        if (leftWeight <= rightWeight) {
-            left.push(child);
-            leftWeight += w;
-        } else {
-            right.push(child);
-            rightWeight += w;
+    let bestSplit = 1;
+    let bestDiff = Infinity;
+    let prefix = 0;
+    for (let split = 1; split < children.length; split++) {
+        prefix += weights[split - 1];
+        const diff = Math.abs(2 * prefix - total);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            bestSplit = split;
         }
-    });
+    }
 
-    return { left, right };
+    return {
+        right: children.slice(0, bestSplit),
+        left: children.slice(bestSplit).reverse(),
+    };
 }
 
 function calculateGroupHeight(nodes: TreeNode[]): number {
@@ -204,13 +324,11 @@ function calculateGroupHeight(nodes: TreeNode[]): number {
         + (nodes.length - 1) * CONFIG.HORIZONTAL.SIBLING_GAP;
 }
 
-function calculateSubtreeWeight(node: TreeNode): number {
-    if (node.children.length === 0) {
-        node.weight = 1;
-        return 1;
-    }
-    node.weight = node.children.reduce((sum, child) => sum + calculateSubtreeWeight(child), 0);
-    return node.weight;
+function calculateSubtreeWeight(top: TreeNode): number {
+    subtree(top).reverse().forEach((node) => {
+        node.weight = node.children.length === 0 ? 1 : node.children.reduce((sum, child) => sum + (child.weight || 1), 0);
+    });
+    return top.weight!;
 }
 
 
@@ -218,20 +336,22 @@ function layoutVertical(root: TreeNode): void {
     layoutVerticalBranch(root);
 }
 
-function layoutVerticalBranch(node: TreeNode): void {
+function layoutVerticalBranch(top: TreeNode): void {
+    subtree(top).reverse().forEach(placeVerticalChildren);
+}
+
+function placeVerticalChildren(node: TreeNode): void {
     if (node.children.length === 0) {
         node.subtreeWidth = node.width;
         node.subtreeHeight = node.height;
         return;
     }
 
-    node.children.forEach(child => layoutVerticalBranch(child));
-
     const childrenWidth = node.children.reduce((sum, c) => sum + (c.subtreeWidth || c.width), 0)
         + (node.children.length - 1) * CONFIG.VERTICAL.SIBLING_GAP;
     node.subtreeWidth = Math.max(node.width, childrenWidth);
 
-    const maxChildHeight = Math.max(...node.children.map(c => c.subtreeHeight || c.height));
+    const maxChildHeight = node.children.reduce((max, c) => Math.max(max, c.subtreeHeight || c.height), 0);
     node.subtreeHeight = node.height + CONFIG.VERTICAL.LEVEL_GAP + maxChildHeight;
 
     let currentX = -childrenWidth / 2;
@@ -243,50 +363,150 @@ function layoutVerticalBranch(node: TreeNode): void {
 }
 
 
-function layoutRadial(root: TreeNode): void {
-    calculateSubtreeWeight(root);
-
-    root.x = 0;
-    root.y = 0;
-    layoutRadialBranch(root, 0, 2 * Math.PI, 1);
+function layoutTimeline(root: TreeNode): void {
+    root.children.forEach(layoutVerticalBranch);
+    const widths = root.children.map(child => child.subtreeWidth || child.width);
+    let x = root.width / 2 + CONFIG.TIMELINE.COLUMN_GAP;
+    root.children.forEach((child, i) => {
+        child.rx = x + widths[i] / 2;
+        child.ry = 0;
+        x += widths[i] + CONFIG.TIMELINE.COLUMN_GAP;
+    });
+    root.children.forEach(milestone => subtree(milestone).forEach(node => node.children.forEach((child) => {
+        child.ry = (child.ry || 0) + CONFIG.TIMELINE.LEVEL_GAP - CONFIG.VERTICAL.LEVEL_GAP;
+    })));
 }
 
-function layoutRadialBranch(node: TreeNode, startAngle: number, sweep: number, level: number): void {
-    if (node.children.length === 0) return;
+const diagonal = (node: TreeNode) => Math.hypot(node.width, node.height);
 
-    const totalWeight = node.weight || 1;
-    let currentAngle = startAngle;
+function layoutRadial(root: TreeNode): void {
+    root.x = 0;
+    root.y = 0;
+    if (root.children.length === 0) return;
 
-    node.children.forEach(child => {
-        const childWeight = child.weight || 1;
-        const childSweep = Math.max(
-            (childWeight / totalWeight) * sweep,
-            CONFIG.RADIAL.MIN_ANGLE_GAP
-        );
+    const order = subtree(root);
+    const largest = order.reduce((max, node) => Math.max(max, diagonal(node)), 0);
+    const baseGap = Math.max(CONFIG.RADIAL.RING_GAP, largest + CONFIG.RADIAL.NODE_GAP);
 
-        const angle = currentAngle + childSweep / 2;
-        const radius = level * CONFIG.RADIAL.RING_GAP;
+    const levels = new Map<TreeNode, number>([[root, 0]]);
+    order.forEach(node => node.children.forEach(child => levels.set(child, levels.get(node)! + 1)));
 
-        child.x = radius * Math.cos(angle);
-        child.y = radius * Math.sin(angle);
-        child.angle = angle;
+    const needs = new Map<TreeNode, number>();
+    for (let i = order.length - 1; i > 0; i--) {
+        const node = order[i];
+        const own = (diagonal(node) + CONFIG.RADIAL.NODE_GAP) / (levels.get(node)! * baseGap);
+        const below = node.children.reduce((sum, child) => sum + needs.get(child)!, 0);
+        needs.set(node, Math.max(own, below));
+    }
+    const total = root.children.reduce((sum, child) => sum + needs.get(child)!, 0);
 
-        layoutRadialBranch(child, currentAngle, childSweep, level + 1);
+    const ringGap = baseGap * Math.max(1, total / (2 * Math.PI));
 
-        currentAngle += childSweep;
+    const wedges = new Map<TreeNode, { start: number; sweep: number }>([[root, { start: 0, sweep: 2 * Math.PI }]]);
+    order.forEach((node) => {
+        const needed = node.children.reduce((sum, child) => sum + needs.get(child)!, 0);
+        if (needed === 0) return;
+        const { start, sweep } = wedges.get(node)!;
+        let currentAngle = start;
+        node.children.forEach((child) => {
+            const childSweep = sweep * (needs.get(child)! / needed);
+            const angle = currentAngle + childSweep / 2;
+            const radius = levels.get(child)! * ringGap;
+
+            child.x = radius * Math.cos(angle);
+            child.y = radius * Math.sin(angle);
+            child.angle = angle;
+
+            wedges.set(child, { start: currentAngle, sweep: childSweep });
+            currentAngle += childSweep;
+        });
     });
 }
 
 
-function applyRelativePositions(node: TreeNode, parentX: number, parentY: number): void {
-    node.x = parentX + (node.rx || 0);
-    node.y = parentY + (node.ry || 0);
-    node.children.forEach(child => applyRelativePositions(child, node.x, node.y));
+function branchExtent(top: TreeNode) {
+    applyRelativePositions(top, 0, 0);
+    return getTreeBounds(top);
 }
 
-function offsetTree(node: TreeNode, dx: number, dy: number): void {
-    node.x += dx;
-    node.y += dy;
-    node.children.forEach(child => offsetTree(child, dx, dy));
+function placeAlongLine(
+    root: TreeNode,
+    branches: { node: TreeNode; extent: ReturnType<typeof getTreeBounds> }[],
+    along: 1 | -1,
+    start: number,
+    { OFFSET, STEP, GAP, MIN_STEP }: { OFFSET: number; STEP: number; GAP: number; MIN_STEP: number }
+): void {
+    const sideOf = (i: number): 1 | -1 => (i % 2 === 0 ? -1 : 1);
+    const counts = { 1: 0, [-1]: 0 } as Record<1 | -1, number>;
+    branches.forEach((_, i) => { counts[sideOf(i)] += 1; });
+    const placed = { 1: 0, [-1]: 0 } as Record<1 | -1, number>;
+    const used = { 1: start, [-1]: start } as Record<1 | -1, number>;
+    let previous = start - MIN_STEP;
+    branches.forEach(({ node, extent }, i) => {
+        const side = sideOf(i);
+        const near = along === 1 ? -extent.minX : extent.maxX;
+        const far = along === 1 ? extent.maxX : -extent.minX;
+        const distance = Math.max(previous + MIN_STEP, used[side] + near);
+        node.rx = along * distance;
+        node.ry = side * (OFFSET + (counts[side] - 1 - placed[side]) * STEP);
+        placed[side] += 1;
+        used[side] = distance + far + GAP;
+        previous = distance;
+    });
+    root.subtreeHeight = root.height;
+}
+
+function layoutFishbone(root: TreeNode): void {
+    const branches = root.children.map((child, i) => {
+        layoutHorizontalBranch(child, 'left');
+        if (child.children.length > 0) {
+            child.children.forEach(grandchild => applyRelativePositions(grandchild, 0, 0));
+            const ribs = child.children.reduce((bounds, grandchild) => getTreeBounds(grandchild, bounds), {
+                minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity,
+            });
+            const shift = i % 2 === 0 ? child.height / 2 - ribs.maxY : -child.height / 2 - ribs.minY;
+            child.children.forEach((grandchild) => { grandchild.ry = (grandchild.ry || 0) + shift; });
+        }
+        return { node: child, extent: branchExtent(child) };
+    });
+    placeAlongLine(root, branches, -1, root.width / 2 + CONFIG.FISHBONE.HEAD_GAP, CONFIG.FISHBONE);
+}
+
+function applyRelativePositions(top: TreeNode, parentX: number, parentY: number): void {
+    top.x = parentX + (top.rx || 0);
+    top.y = parentY + (top.ry || 0);
+    subtree(top).forEach(node => node.children.forEach((child) => {
+        child.x = node.x + (child.rx || 0);
+        child.y = node.y + (child.ry || 0);
+    }));
+}
+
+function getTreeBounds(top: TreeNode, bounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }) {
+    subtree(top).forEach((node) => {
+        bounds.minX = Math.min(bounds.minX, node.x - node.width / 2);
+        bounds.maxX = Math.max(bounds.maxX, node.x + node.width / 2);
+        bounds.minY = Math.min(bounds.minY, node.y - node.height / 2);
+        bounds.maxY = Math.max(bounds.maxY, node.y + node.height / 2);
+    });
+    return bounds;
+}
+
+function offsetTree(top: TreeNode, dx: number, dy: number): void {
+    subtree(top).forEach((node) => {
+        node.x += dx;
+        node.y += dy;
+    });
 }
  
+
+
+export const moveBoxAreasWithNodes = (boxAreas: BoxArea[], before: MindMapNode[], after: MindMapNode[]): BoxArea[] => {
+    const afterById = new Map(after.map(n => [n.id, n]));
+    return boxAreas.map(box => {
+        const inside = before.filter(n => boxContainsPoint(box, n.x, n.y) && afterById.has(n.id));
+        if (inside.length === 0) return box;
+        const dx = inside.reduce((sum, n) => sum + afterById.get(n.id)!.x - n.x, 0) / inside.length;
+        const dy = inside.reduce((sum, n) => sum + afterById.get(n.id)!.y - n.y, 0) / inside.length;
+        return dx === 0 && dy === 0 ? box : { ...box, x: box.x + dx, y: box.y + dy };
+    });
+};

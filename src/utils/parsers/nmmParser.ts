@@ -1,43 +1,34 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
-import { z } from 'zod';
-import { MindMapNodeSchema as NodeSchema } from '@/lib/schemas';
-import { generateId } from '@/utils/common';
+import { MindMapNodeSchema, tolerantArray } from '@/lib/schemas';
+import { repairNodeLinks } from '@/utils/mapIntegrity';
+import { remapNodeIds } from './parserUtils';
 
-const MindMapFileSchema = z.object({
-    nodes: z.array(NodeSchema),
-});
+const looksLikeNode = (value: unknown): boolean =>
+    typeof value === 'object' && value !== null
+    && typeof (value as { id?: unknown }).id === 'string'
+    && typeof (value as { text?: unknown }).text === 'string';
 
-function remapNodeIds(nodes: MindMapNode[]): MindMapNode[] {
-    const idMap = new Map<string, string>();
-    nodes.forEach(n => idMap.set(n.id, generateId()));
-
-    return nodes.map(n => ({
-        ...n,
-        id: idMap.get(n.id)!,
-        parentId: n.parentId ? (idMap.get(n.parentId) ?? n.parentId) : n.parentId,
-        relations: n.relations?.map(r => ({
-            ...r,
-            targetId: idMap.get(r.targetId) ?? r.targetId,
-            sourceId: r.sourceId ? (idMap.get(r.sourceId) ?? r.sourceId) : r.sourceId,
-        })),
-    }));
-}
+const NodesSchema = tolerantArray(MindMapNodeSchema);
 
 export function parseNMM(content: string): MindMapNode[] {
+    let parsed: unknown;
     try {
-        const parsed = JSON.parse(content);
-        const data = MindMapFileSchema.parse(parsed);
-        return remapNodeIds(data.nodes as MindMapNode[]);
+        parsed = JSON.parse(content);
     } catch (error) {
         console.error('NMM Parse Error:', error);
-        try {
-            const parsed = JSON.parse(content);
-            if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].id) {
-                return remapNodeIds(z.array(NodeSchema).parse(parsed) as MindMapNode[]);
-            }
-        } catch (e) {
-        }
         return [];
     }
+    const entries = Array.isArray(parsed) ? parsed : (parsed as { nodes?: unknown } | null)?.nodes;
+    if (!Array.isArray(entries) || entries.length === 0 || !entries.every(looksLikeNode)) return [];
+    return remapNodeIds(repairNodeLinks(NodesSchema.parse(entries) as MindMapNode[]).nodes);
 }
- 

@@ -1,6 +1,6 @@
 /*
  * Neuron Mapping
- * Copyright (C) 2026 Rp Hobbyist
+ * Copyright (C) 2026 RP Hobbyist
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -38,10 +38,6 @@ export const SYSTEM_CONFIG = {
 
     get vendorLink() {
         return import.meta.env.VITE_VENDOR_URL || "https://www.rphobbyist.com";
-    },
-
-    get vendorEmail() {
-        return import.meta.env.VITE_VENDOR_EMAIL || "rphobbyist@gmail.com";
     },
 
     get baseUrl() {

@@ -1,3 +1,13 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
 import { createRootNode, createChildNode, generateId } from './parserUtils';
 
@@ -26,10 +36,6 @@ export function parseTextFile(content: string): MindMapNode[] {
             stack.pop();
         }
 
-        if (stack.length === 0) {
-            stack.push({ id: rootId, level: 0 });
-        }
-
         const parent = stack[stack.length - 1];
         const node = createChildNode(text, parent.id, stack.length - 1);
         nodes.push(node);
@@ -45,18 +51,20 @@ interface StackItem {
     level: number;
 }
 
+const TAB_WIDTH = 4;
+
 function detectIndentUnit(lines: string[]): number {
-    for (let i = 1; i < lines.length; i++) {
-        const indentMatch = lines[i].match(/^\s+/);
-        if (indentMatch) {
-            return indentMatch[0].length;
-        }
-    }
-    return 2;
+    const indents = lines.slice(1).map(getIndentLength).filter(indent => indent > 0);
+    return indents.length > 0 ? indents.reduce((min, indent) => Math.min(min, indent)) : 2;
 }
 
 function getIndentLength(line: string): number {
-    const match = line.match(/^\s*/);
-    return match ? match[0].length : 0;
+    let width = 0;
+    for (const char of line) {
+        if (char === ' ') width += 1;
+        else if (char === '\t') width += TAB_WIDTH - (width % TAB_WIDTH);
+        else break;
+    }
+    return width;
 }
  

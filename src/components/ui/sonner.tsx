@@ -1,14 +1,21 @@
-import { useTheme } from "next-themes";
-import { Toaster as Sonner, toast } from "sonner";
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { Toaster as Sonner } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
-const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
-
+const Toaster = ({ theme = "light", ...props }: ToasterProps) => {
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={theme}
       className="toaster group"
       toastOptions={{
         classNames: {
@@ -25,4 +32,3 @@ const Toaster = ({ ...props }: ToasterProps) => {
 };
 
 export { Toaster };
- 

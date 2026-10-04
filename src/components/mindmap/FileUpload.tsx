@@ -1,26 +1,36 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { useState, useRef } from 'react';
-import { Upload, FileText, FileCode, FileType, X, Loader2, HelpCircle } from 'lucide-react';
-import { parseFile } from '@/utils/parsers';
+import { Upload, Loader2, HelpCircle } from 'lucide-react';
 import { autoLayoutNodes } from '@/utils/layoutUtils';
-import { loadFromFile } from '@/utils/exportUtils';
-import { MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
+import { ImportFileError, readImportFile } from '@/utils/importFile';
+import { MindMapNode, ConnectionStyle, Drawing, BoxArea } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import { MAX_FILE_SIZE } from '@/lib/constants';
 import {
     Dialog,
     DialogContent,
+    DialogDescription,
     DialogHeader,
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
 
 interface FileUploadProps {
-    onDataParsed: (nodes: MindMapNode[], meta?: { name?: string; connectionStyle?: ConnectionStyle; drawings?: Drawing[] }) => void;
+    onDataParsed: (nodes: MindMapNode[], meta?: { name?: string; connectionStyle?: ConnectionStyle; drawings?: Drawing[]; boxAreas?: BoxArea[]; isMapFile?: boolean }) => Promise<boolean> | boolean | void;
     onClose: () => void;
+    mode?: 'map' | 'branch';
 }
 
-export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
+export const FileUpload = ({ onDataParsed, onClose, mode = 'map' }: FileUploadProps) => {
     const [isDragOver, setIsDragOver] = useState(false);
     const [isParsing, setIsParsing] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -45,51 +55,38 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
     };
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files.length > 0) {
-            await processFile(e.target.files[0]);
-        }
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (file) await processFile(file);
     };
 
     const processFile = async (file: File) => {
-        if (file.size > MAX_FILE_SIZE) {
-            toast.error(`File is too large. Maximum size is ${MAX_FILE_SIZE / (1024 * 1024)}MB.`);
-            return;
-        }
         setIsParsing(true);
         try {
-            const extension = file.name.split('.').pop()?.toLowerCase();
-
-            if (extension === 'nmm') {
-                const data = await loadFromFile(file);
-                toast.success(`Loaded "${data.name}"`);
-                onDataParsed(data.nodes, { name: data.name, connectionStyle: data.connectionStyle, drawings: data.drawings });
-                onClose();
-                return;
+            const imported = await readImportFile(file);
+            const nodes = mode === 'map' && !imported.isMapFile ? autoLayoutNodes(imported.nodes, 'horizontal') : imported.nodes;
+            const { name, connectionStyle, drawings, boxAreas, isMapFile } = imported;
+            const used = await onDataParsed(nodes, { name, connectionStyle, drawings, boxAreas, isMapFile });
+            if (used === false) return;
+            if (mode === 'map') {
+                toast.success(isMapFile ? `Loaded "${name}"` : `Imported ${nodes.length} ${nodes.length === 1 ? 'topic' : 'topics'} from ${file.name}`);
             }
-
-            const nodes = await parseFile(file);
-            if (nodes.length === 0) {
-                toast.error('No valid content found in file');
-            } else {
-                const layoutNodes = autoLayoutNodes(nodes, 'horizontal');
-                toast.success(`Successfully parsed ${nodes.length} nodes from ${file.name}`);
-                onDataParsed(layoutNodes);
-                onClose();
-            }
+            onClose();
         } catch (error) {
             console.error(error);
-            toast.error('Failed to parse file: ' + (error instanceof Error ? error.message : String(error)));
+            const message = error instanceof Error ? error.message : String(error);
+            toast.error(error instanceof ImportFileError ? message : `Failed to parse file: ${message}`);
         } finally {
             setIsParsing(false);
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-4 border-b flex items-center justify-between">
+        <Dialog open onOpenChange={(open) => { if (!open && !isParsing) onClose(); }}>
+            <DialogContent className="max-w-lg p-0 gap-0 overflow-hidden bg-card sm:rounded-xl">
+                <DialogHeader className="p-4 border-b space-y-0">
                     <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-lg">Import from File</h3>
+                        <DialogTitle>{mode === 'branch' ? 'Add a File as a Branch' : 'Import from File'}</DialogTitle>
                         <Dialog>
                             <DialogTrigger asChild>
                                 <button
@@ -103,11 +100,12 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
                             <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                                 <DialogHeader>
                                     <DialogTitle>File Format Guide</DialogTitle>
+                                    <DialogDescription>How each kind of file is read into a map.</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-6 text-sm">
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileText className="w-4 h-4" /> Text File (.txt)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            Text File (.txt)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             Use <strong>indentation</strong> (tabs or spaces) to define parent/child relationships:
@@ -123,8 +121,8 @@ export const FileUpload = ({ onDataParsed, onClose }: FileUploadProps) => {
                                     </div>
 
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileText className="w-4 h-4" /> Markdown (.md)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            Markdown (.md)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             Use <strong>headers (#)</strong> or <strong>lists (-)</strong> with indentation:
@@ -146,30 +144,29 @@ Task lists work too:
 - [x] Done`}
                                         </pre>
                                         <p className="text-muted-foreground mt-2 text-xs">
-                                            Bold, italic, code, links and checkboxes are stripped from node text automatically.
+                                            Bold, italic, code and checkboxes are stripped from node text automatically. A link becomes the node's link, and paragraphs, quotes and code under a heading or item become its notes.
                                         </p>
                                     </div>
 
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileType className="w-4 h-4" /> CSV File (.csv)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            CSV File (.csv)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             <strong>First column</strong> = parent node, <strong>other columns</strong> = child nodes:
                                         </p>
                                         <pre className="bg-muted p-3 rounded-lg text-xs overflow-x-auto">
-                                            {`Category,Item 1,Item 2,Item 3
-Fruits,Apple,Banana,Orange
+                                            {`Fruits,Apple,Banana,Orange
 Vegetables,Carrot,Broccoli,Spinach`}
                                         </pre>
                                         <p className="text-muted-foreground mt-2 text-xs">
-                                            Rows that repeat the same first column value (e.g. exported one row per item) merge into a single branch instead of duplicating it.
+                                            Every row becomes a branch, so leave out a header row. A row whose first column names a node from an earlier row adds to that node, so rows can build deeper levels. When all rows form one tree, its top node becomes the root.
                                         </p>
                                     </div>
 
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileCode className="w-4 h-4" /> XML File (.xml)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            XML File (.xml)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             <strong>Nested elements</strong> define the hierarchy:
@@ -188,8 +185,8 @@ Vegetables,Carrot,Broccoli,Spinach`}
                                     </div>
 
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileCode className="w-4 h-4" /> OPML File (.opml)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            OPML File (.opml)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             Standard format for outlines (used by many mind map apps):
@@ -206,11 +203,14 @@ Vegetables,Carrot,Broccoli,Spinach`}
   </body>
 </opml>`}
                                         </pre>
+                                        <p className="text-muted-foreground mt-2 text-xs">
+                                            Notes in <code>_note</code> and links in <code>url</code> are kept.
+                                        </p>
                                     </div>
 
                                     <div>
-                                        <h4 className="font-semibold text-base mb-2 flex items-center gap-2">
-                                            <FileCode className="w-4 h-4" /> JSON File (.json)
+                                        <h4 className="font-semibold text-base mb-2">
+                                            JSON File (.json)
                                         </h4>
                                         <p className="text-muted-foreground mb-2">
                                             <strong>Nested objects/arrays</strong> define the hierarchy:
@@ -240,22 +240,27 @@ Vegetables,Carrot,Broccoli,Spinach`}
                                         </pre>
                                     </div>
 
-                                    <div className="bg-black border border-gray-800 rounded-lg p-3">
-                                        <p className="text-white text-xs">
-                                            💡 <strong>Tip:</strong> After import, use the auto-layout feature to organize your mind map automatically.
+                                    <div>
+                                        <h4 className="font-semibold text-base mb-2">
+                                            Other mind map apps
+                                        </h4>
+                                        <p className="text-muted-foreground text-xs">
+                                            <strong>XMind (.xmind)</strong>, from XMind 8 and later: every sheet, with notes, links, labels (as tags), priority and task markers, pictures, floating topics and relationships.
+                                        </p>
+                                        <p className="text-muted-foreground text-xs mt-2">
+                                            <strong>FreeMind and Freeplane (.mm)</strong>: topics with their formatted text, notes, links, attributes (added to the notes) and arrow links.
                                         </p>
                                     </div>
                                 </div>
                             </DialogContent>
                         </Dialog>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-1 hover:bg-muted rounded-full transition-all hover:rotate-90 duration-300"
-                    >
-                        <X className="w-5 h-5 text-muted-foreground" />
-                    </button>
-                </div>
+                    <DialogDescription className="sr-only">
+                        {mode === 'branch'
+                            ? "Choose a file; its topics are added under the selected topic."
+                            : 'Choose a file to open as a map.'}
+                    </DialogDescription>
+                </DialogHeader>
 
                 <div className="p-8">
                     <div
@@ -275,52 +280,29 @@ Vegetables,Carrot,Broccoli,Spinach`}
                             type="file"
                             ref={fileInputRef}
                             className="hidden"
-                            accept=".txt,.md,.markdown,.json,.csv,.xml,.opml,.nmm"
+                            accept=".txt,.md,.markdown,.json,.csv,.xml,.opml,.nmm,.mm,.xmind"
                             onChange={handleFileSelect}
                         />
 
                         {isParsing ? (
                             <div className="flex flex-col items-center gap-4">
                                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
-                                <p className="text-sm text-muted-foreground">Parsing file content...</p>
+                                <p className="text-sm text-muted-foreground">Reading the file…</p>
                             </div>
                         ) : (
                             <>
-                                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                                    <Upload className="w-8 h-8 text-primary" />
-                                </div>
-                                <h4 className="font-medium text-lg mb-2">Click or drag file to upload</h4>
-                                <p className="text-sm text-muted-foreground max-w-xs mb-6">
-                                    Support for .txt, .md, .json, .csv, .xml, and .opml files.
-                                    Structure will be automatically generated.
+                                <Upload className="w-6 h-6 text-muted-foreground mb-3" aria-hidden="true" />
+                                <p className="font-medium mb-2">Drop a file here, or click to choose one</p>
+                                <p className="text-sm text-muted-foreground max-w-xs">
+                                    Text, Markdown, JSON, CSV, XML and OPML files work, and so do maps from XMind (.xmind),
+                                    FreeMind and Freeplane (.mm).
                                 </p>
-
-                                <div className="flex gap-4 justify-center">
-                                    <div className="flex flex-col items-center gap-1">
-                                        <div className="p-2 bg-muted rounded">
-                                            <FileText className="w-4 h-4 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground">Text/MD</span>
-                                    </div>
-                                    <div className="flex flex-col items-center gap-1">
-                                        <div className="p-2 bg-muted rounded">
-                                            <FileCode className="w-4 h-4 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground">JSON/OPML</span>
-                                    </div>
-                                    <div className="flex flex-col items-center gap-1">
-                                        <div className="p-2 bg-muted rounded">
-                                            <FileType className="w-4 h-4 text-muted-foreground" />
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground">CSV</span>
-                                    </div>
-                                </div>
                             </>
                         )}
                     </div>
                 </div>
-            </div>
-        </div>
+            </DialogContent>
+        </Dialog>
     );
 };
  

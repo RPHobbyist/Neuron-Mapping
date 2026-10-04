@@ -1,6 +1,21 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { Search, X, Filter } from 'lucide-react';
-import { MindMapNode, NodeColor, NodePriority } from '@/types/mindmap';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { Search, X, Filter, Flag, FileText } from 'lucide-react';
+import { MindMapNode, NodeColor, NodePriority, NodeStatus } from '@/types/mindmap';
+import { statusOptions, priorityStyles } from '@/utils/nodeStyles';
+import { isComposing } from '@/lib/utils';
+import { MOD_KEY, withShortcut } from '@/utils/shortcuts';
+import { SearchCriteria, searchNodes } from '@/utils/search';
+import { allTags } from '@/utils/tags';
 
 interface SearchBarProps {
     nodes: MindMapNode[];
@@ -14,6 +29,8 @@ const colorOptions: { value: NodeColor | 'all'; label: string; color: string }[]
     { value: 'blue', label: 'Blue', color: '#3b82f6' },
     { value: 'cyan', label: 'Cyan', color: '#06b6d4' },
     { value: 'yellow', label: 'Yellow', color: '#eab308' },
+    { value: 'lime', label: 'Lime', color: '#84cc16' },
+    { value: 'indigo', label: 'Indigo', color: '#6366f1' },
     { value: 'purple', label: 'Purple', color: '#a855f7' },
     { value: 'green', label: 'Green', color: '#22c55e' },
     { value: 'red', label: 'Red', color: '#ef4444' },
@@ -32,14 +49,20 @@ const priorityOptions: { value: NodePriority | 'all'; label: string }[] = [
 export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) => {
     const [query, setQuery] = useState('');
     const [isOpen, setIsOpen] = useState(false);
-    const [results, setResults] = useState<MindMapNode[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [colorFilter, setColorFilter] = useState<NodeColor | 'all'>('all');
     const [priorityFilter, setPriorityFilter] = useState<NodePriority | 'all'>('all');
+    const [statusFilter, setStatusFilter] = useState<NodeStatus | 'all'>('all');
+    const [tagFilter, setTagFilter] = useState('all');
     const [showFilters, setShowFilters] = useState(false);
     const searchRef = useRef<HTMLDivElement>(null);
 
-
+    const criteria = useMemo<SearchCriteria>(
+        () => ({ query, color: colorFilter, priority: priorityFilter, status: statusFilter, tag: tagFilter }),
+        [query, colorFilter, priorityFilter, statusFilter, tagFilter]
+    );
+    const results = useMemo(() => (isOpen ? searchNodes(nodes, criteria) : []), [isOpen, nodes, criteria]);
+    const tags = useMemo(() => (isOpen ? allTags(nodes) : []), [isOpen, nodes]);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,39 +90,13 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         return path.join(' > ');
     }, [nodes]);
 
-    const applyFilters = useCallback((searchQuery: string, color: NodeColor | 'all', priority: NodePriority | 'all') => {
-        let matches = nodes;
-
-        if (searchQuery.trim()) {
-            const lowerQuery = searchQuery.toLowerCase();
-            matches = matches.filter(node =>
-                node.text.toLowerCase().includes(lowerQuery)
-            );
-        }
-
-        if (color !== 'all') {
-            matches = matches.filter(node => node.color === color);
-        }
-
-        if (priority !== 'all') {
-            matches = matches.filter(node => node.priority === priority);
-        }
-
-        setResults(matches);
+    useEffect(() => {
         setSelectedIndex(0);
-
-        if (searchQuery.trim() || color !== 'all' || priority !== 'all') {
-            onHighlight(matches.map(n => n.id));
-        } else {
-            onHighlight([]);
-        }
-    }, [nodes, onHighlight]);
+    }, [criteria]);
 
     useEffect(() => {
-        if (isOpen && (query || colorFilter !== 'all' || priorityFilter !== 'all')) {
-            applyFilters(query, colorFilter, priorityFilter);
-        }
-    }, [nodes, isOpen, query, colorFilter, priorityFilter, applyFilters]);
+        if (isOpen) onHighlight(results.map(result => result.node.id));
+    }, [isOpen, results, onHighlight]);
 
 
     const handleSearch = useCallback((searchQuery: string) => {
@@ -123,10 +120,10 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setSelectedIndex(i => Math.max(i - 1, 0));
-        } else if (e.key === 'Enter' && results.length > 0) {
+        } else if (e.key === 'Enter' && !isComposing(e) && results.length > 0) {
             e.preventDefault();
             e.stopPropagation();
-            onNodeSelect(results[selectedIndex].id);
+            onNodeSelect(results[Math.min(selectedIndex, results.length - 1)].node.id);
             onHighlight([]);
             setIsOpen(false);
         } else if (e.key === 'Escape') {
@@ -141,7 +138,8 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         setQuery('');
         setColorFilter('all');
         setPriorityFilter('all');
-        setResults([]);
+        setStatusFilter('all');
+        setTagFilter('all');
         onHighlight([]);
     }, [onHighlight]);
 
@@ -161,7 +159,7 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
         };
     }, [isOpen, clearSearch]);
 
-    const hasActiveFilters = colorFilter !== 'all' || priorityFilter !== 'all';
+    const hasActiveFilters = colorFilter !== 'all' || priorityFilter !== 'all' || statusFilter !== 'all' || tagFilter !== 'all';
 
     return (
         <div ref={searchRef} className="relative">
@@ -176,15 +174,15 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                         }
                     }}
                     className={`flex items-center gap-2 px-2 py-1.5 text-xs font-medium hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors ${isOpen ? 'bg-muted text-foreground' : ''}`}
-                    title="Search nodes (Ctrl+F)"
+                    title={withShortcut("Search nodes", MOD_KEY, "F")}
                 >
                     <Search className="w-4 h-4" />
-                    <span>Search</span>
+                    <span className="hidden min-[1600px]:inline">Search</span>
                 </button>
             </div>
 
             {isOpen && (
-                <div className="absolute top-full left-0 mt-2 w-96 bg-white rounded-lg shadow-xl border z-[60]">
+                <div className="absolute top-full left-0 mt-2 w-96 bg-card rounded-lg shadow-xl border z-[60]">
                     <div className="p-2 border-b">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -195,7 +193,7 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                 value={query}
                                 onChange={(e) => handleSearch(e.target.value)}
                                 onKeyDown={handleKeyDown}
-                                placeholder="Search nodes..."
+                                placeholder="Search text, notes and #tags..."
                                 className="w-full pl-9 pr-16 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
                                 autoFocus
                             />
@@ -248,13 +246,45 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                         ))}
                                     </select>
                                 </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground w-14">Status:</span>
+                                    <select
+                                        id="status-filter-select"
+                                        name="status-filter"
+                                        value={statusFilter || 'all'}
+                                        onChange={(e) => setStatusFilter(e.target.value as NodeStatus | 'all')}
+                                        className="flex-1 text-xs px-2 py-1 border rounded"
+                                    >
+                                        <option value="all">All Statuses</option>
+                                        {statusOptions.map(opt => (
+                                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {tags.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground w-14">Tag:</span>
+                                        <select
+                                            id="tag-filter-select"
+                                            name="tag-filter"
+                                            value={tagFilter}
+                                            onChange={(e) => setTagFilter(e.target.value)}
+                                            className="flex-1 text-xs px-2 py-1 border rounded"
+                                        >
+                                            <option value="all">All Tags</option>
+                                            {tags.map(tag => (
+                                                <option key={tag} value={tag}>#{tag}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
 
                     {results.length > 0 && (
                         <div className="max-h-64 overflow-y-auto p-1 custom-scrollbar">
-                            {results.map((node, index) => {
+                            {results.map(({ node, found }, index) => {
                                 const path = getPath(node);
                                 return (
                                     <button
@@ -265,7 +295,7 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                             setIsOpen(false);
                                         }}
                                         onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
+                                            if (e.key === 'Enter' && !isComposing(e)) {
                                                 e.preventDefault();
                                                 e.stopPropagation();
                                                 onNodeSelect(node.id);
@@ -283,12 +313,32 @@ export const SearchBar = ({ nodes, onNodeSelect, onHighlight }: SearchBarProps) 
                                         <div className="flex flex-col overflow-hidden text-left flex-1 min-w-0">
                                             <span className="font-medium truncate">{node.text.replace(/\n/g, ' ')}</span>
                                             {path && <span className="text-[10px] text-muted-foreground truncate">{path}</span>}
+                                            {found?.in === 'tag' && (
+                                                <span className="text-[10px] text-muted-foreground truncate">#{found.text}</span>
+                                            )}
+                                            {found?.in === 'notes' && (
+                                                <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0" title={found.text}>
+                                                    <FileText className="w-2.5 h-2.5 flex-shrink-0" />
+                                                    <span className="truncate italic">{found.text}</span>
+                                                </span>
+                                            )}
                                         </div>
-                                        {node.priority && (
-                                            <span className="text-xs opacity-70 flex-shrink-0" title={`Priority: ${node.priority}`}>
-                                                {node.priority === 'high' ? '🔴' : node.priority === 'medium' ? '🟡' : '🟢'}
-                                            </span>
-                                        )}
+                                        {(() => {
+                                            const priority = node.priority ? priorityStyles[node.priority] : undefined;
+                                            return priority && (
+                                                <span className="flex-shrink-0" title={`Priority: ${priority.label}`}>
+                                                    <Flag className={`w-3.5 h-3.5 fill-current ${priority.color}`} />
+                                                </span>
+                                            );
+                                        })()}
+                                        {(() => {
+                                            const status = statusOptions.find(s => s.value === node.status);
+                                            return status && (
+                                                <span className="flex-shrink-0" title={`Status: ${status.label}`}>
+                                                    <status.icon className={`w-3.5 h-3.5 ${status.color}`} />
+                                                </span>
+                                            );
+                                        })()}
                                     </button>
                                 );
                             })}

@@ -1,5 +1,14 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
-import * as THREE from 'three';
 
 export type LayoutType = '2d-projection' | 'sphere' | 'grid' | 'force';
 
@@ -92,8 +101,14 @@ export const calculateLayout = (
                 };
             });
 
-            const iterations = 150;
+            const iterations = Math.max(20, Math.min(150, Math.round(150 * (300 / Math.max(count, 1)) ** 2)));
             const repulsion = 80 * scale * scale;
+            const indexById = new Map(tempNodes.map((n, i) => [n.id, i]));
+            const links = nodes.flatMap(node => {
+                const childIndex = indexById.get(node.id);
+                const parentIndex = node.parentId ? indexById.get(node.parentId) : undefined;
+                return childIndex !== undefined && parentIndex !== undefined ? [[childIndex, parentIndex] as const] : [];
+            });
             const attraction = 0.2;
             const centerPull = 0.02;
             const springTargetDist = 4 * scale;
@@ -118,32 +133,28 @@ export const calculateLayout = (
                     }
                 }
 
-                nodes.forEach(node => {
-                    if (node.parentId) {
-                        const child = tempNodes.find(n => n.id === node.id);
-                        const parent = tempNodes.find(n => n.id === node.parentId);
-                        if (child && parent) {
-                            const dx = parent.x - child.x;
-                            const dy = parent.y - child.y;
-                            const dz = parent.z - child.z;
+                links.forEach(([childIndex, parentIndex]) => {
+                    const child = tempNodes[childIndex];
+                    const parent = tempNodes[parentIndex];
+                    const dx = parent.x - child.x;
+                    const dy = parent.y - child.y;
+                    const dz = parent.z - child.z;
 
-                            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-                            const springForce = (dist - springTargetDist) * attraction;
+                    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
+                    const springForce = (dist - springTargetDist) * attraction;
 
-                            const fx = (dx / dist) * springForce;
-                            const fy = (dy / dist) * springForce;
-                            const fz = (dz / dist) * springForce;
+                    const fx = (dx / dist) * springForce;
+                    const fy = (dy / dist) * springForce;
+                    const fz = (dz / dist) * springForce;
 
-                            child.vx += fx;
-                            child.vy += fy;
-                            child.vz += fz;
+                    child.vx += fx;
+                    child.vy += fy;
+                    child.vz += fz;
 
-                            if (!parent.isRoot) {
-                                parent.vx -= fx;
-                                parent.vy -= fy;
-                                parent.vz -= fz;
-                            }
-                        }
+                    if (!parent.isRoot) {
+                        parent.vx -= fx;
+                        parent.vy -= fy;
+                        parent.vz -= fz;
                     }
                 });
 

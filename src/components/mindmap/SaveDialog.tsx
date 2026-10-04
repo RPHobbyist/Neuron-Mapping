@@ -1,92 +1,92 @@
-import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Save } from 'lucide-react';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { useState, useEffect, useRef } from 'react';
+import { Save } from 'lucide-react';
+
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface SaveDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (name: string) => void;
   defaultName?: string;
+  isSaving?: boolean;
 }
 
-export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '' }: SaveDialogProps) => {
+export const SaveDialog = ({ isOpen, onClose, onSave, defaultName = '', isSaving = false }: SaveDialogProps) => {
   const [name, setName] = useState(defaultName);
+  const defaultNameRef = useRef(defaultName);
+  defaultNameRef.current = defaultName;
+
+  useEffect(() => {
+    if (isOpen) setName(defaultNameRef.current);
+  }, [isOpen]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (name.trim()) {
+    if (name.trim() && !isSaving) {
       onSave(name.trim());
     }
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-          />
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-md sm:rounded-2xl bg-card">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-bold">Save Mind Map</DialogTitle>
+          <DialogDescription>Saved maps are kept in this browser, on this device.</DialogDescription>
+        </DialogHeader>
 
-          <motion.div
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md"
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          >
-            <div className="bg-card rounded-2xl shadow-2xl border border-border p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-foreground">Save Mind Map</h2>
-                <button
-                  onClick={onClose}
-                  className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-all hover:rotate-90 duration-300"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-6">
+            <label htmlFor="mapName" className="block text-sm font-medium text-foreground mb-2">
+              Name
+            </label>
+            <input
+              id="mapName"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onFocus={(e) => e.target.select()}
+              placeholder="Enter a name for your mind map"
+              className="w-full px-4 py-3 rounded-xl border-2 border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
+              autoFocus
+            />
+          </div>
 
-              <form onSubmit={handleSubmit}>
-                <div className="mb-6">
-                  <label htmlFor="mapName" className="block text-sm font-medium text-foreground mb-2">
-                    Name
-                  </label>
-                  <input
-                    id="mapName"
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter a name for your mind map"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-4 focus:ring-primary/10 focus:border-primary transition-all"
-                    autoFocus
-                  />
-                </div>
-
-                <div className="flex gap-3">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 px-4 py-3 rounded-xl text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!name.trim()}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Save className="w-4 h-4" />
-                    Save
-                  </button>
-                </div>
-              </form>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-3 rounded-xl text-sm font-medium text-foreground bg-secondary hover:bg-secondary/80 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={!name.trim() || isSaving}
+              className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Save className="w-4 h-4" />
+              {isSaving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 };
- 

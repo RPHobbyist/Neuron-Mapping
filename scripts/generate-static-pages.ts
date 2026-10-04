@@ -1,6 +1,6 @@
 /*
  * Neuron Mapping
- * Copyright (C) 2026 Rp Hobbyist
+ * Copyright (C) 2026 RP Hobbyist
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -8,23 +8,30 @@
  * (at your option) any later version.
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { templates } from "../src/data/templates";
 import {
-  landingFaqs,
-  templateDetailFaqs,
+  TEMPLATES_PATH,
+  INDEXABLE_TEMPLATE_IDS,
   homeSeo,
   templatesIndexSeo,
-  templateSeoTitle,
-  templateSeoDescription
+  homeJsonLd,
+  templatesIndexJsonLd,
+  templatePath,
+  templatePreviewPath,
+  templateOgImagePath,
+  absoluteUrl
 } from "../src/data/seoContent";
+import { getTemplateSeo, templateContent } from "../src/data/templateContent";
+import { getSitemapEntries, generateSitemap } from "./sitemap";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const DIST = path.join(ROOT, "dist");
-const BASE_URL = "https://neuron-mapping.rphobbyist.com";
+const SSR_ENTRY = path.join(ROOT, "dist-ssr", "entry-server.js");
 
 function escapeAttr(str: string): string {
   return str
@@ -46,7 +53,7 @@ function replaceOnce(html: string, pattern: RegExp, replacement: string, label: 
       `Update the regex in scripts/generate-static-pages.ts.`
     );
   }
-  return html.replace(pattern, replacement);
+  return html.replace(pattern, () => replacement);
 }
 
 interface RouteSEO {
@@ -55,11 +62,16 @@ interface RouteSEO {
   description: string;
   ogTitle?: string;
   ogDescription?: string;
+  robots?: string;
+  ogImage?: string;
+  ogImageAlt?: string;
   jsonLd: object[];
 }
 
-function renderPage(base: string, seo: RouteSEO): string {
-  const canonical = `${BASE_URL}${seo.routePath}`;
+type RenderFn = (url: string) => string;
+
+function renderPage(base: string, seo: RouteSEO, bodyHtml: string): string {
+  const canonical = absoluteUrl(seo.routePath);
   const ogTitle = seo.ogTitle ?? seo.title;
   const ogDescription = seo.ogDescription ?? seo.description;
 
@@ -67,17 +79,20 @@ function renderPage(base: string, seo: RouteSEO): string {
 
   html = replaceOnce(html, /<title>[\s\S]*?<\/title>/, `<title>${escapeAttr(seo.title)}</title>`, "title");
 
+  const descriptionTag = `<meta name="description" content="${escapeAttr(seo.description)}" />`;
   html = replaceOnce(
     html,
     /<meta name="description"[\s\S]*?content="[^"]*"\s*\/>/,
-    `<meta name="description" content="${escapeAttr(seo.description)}" />`,
+    seo.robots
+      ? `${descriptionTag}\n  <meta name="robots" content="${escapeAttr(seo.robots)}" />`
+      : descriptionTag,
     "meta description"
   );
 
   html = replaceOnce(
     html,
-    /<link rel="canonical" href="[^"]*"\s*\/>/,
-    `<link rel="canonical" href="${canonical}" />`,
+    /\n?[ \t]*<link rel="canonical" href="[^"]*"\s*\/>/,
+    seo.robots?.includes("noindex") ? "" : `\n  <link rel="canonical" href="${canonical}" />`,
     "canonical link"
   );
 
@@ -116,6 +131,15 @@ function renderPage(base: string, seo: RouteSEO): string {
     "twitter:description"
   );
 
+  if (seo.ogImage) {
+    const image = absoluteUrl(seo.ogImage);
+    const alt = escapeAttr(seo.ogImageAlt ?? ogTitle);
+    html = replaceOnce(html, /<meta property="og:image" content="[^"]*"\s*\/>/, `<meta property="og:image" content="${image}" />`, "og:image");
+    html = replaceOnce(html, /<meta property="og:image:alt" content="[^"]*"\s*\/>/, `<meta property="og:image:alt" content="${alt}" />`, "og:image:alt");
+    html = replaceOnce(html, /<meta name="twitter:image" content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${image}" />`, "twitter:image");
+    html = replaceOnce(html, /<meta name="twitter:image:alt" content="[^"]*"\s*\/>/, `<meta name="twitter:image:alt" content="${alt}" />`, "twitter:image:alt");
+  }
+
   html = replaceOnce(
     html,
     /<script id="structured-data-script" type="application\/ld\+json">[\s\S]*?<\/script>/,
@@ -123,164 +147,194 @@ function renderPage(base: string, seo: RouteSEO): string {
     "structured-data-script"
   );
 
+  html = replaceOnce(
+    html,
+    /<div id="root"><\/div>/,
+    `<div id="root" data-prerendered="${escapeAttr(seo.routePath)}">${bodyHtml}</div>`,
+    "root container"
+  );
+
   return html;
 }
 
-function writeRoute(base: string, seo: RouteSEO): void {
-  const html = renderPage(base, seo);
-  const outPath =
-    seo.routePath === "/"
-      ? path.join(DIST, "index.html")
-      : path.join(DIST, seo.routePath.replace(/^\//, ""), "index.html");
+function withFontPreload(base: string): string {
+  const fontFile = readdirSync(path.join(DIST, "assets")).find((f) => /^inter-latin-wght-normal-.*\.woff2$/.test(f));
+  if (!fontFile) {
+    throw new Error("generate-static-pages: Inter latin woff2 not found in dist/assets — did the @fontsource-variable/inter import move?");
+  }
+  return replaceOnce(
+    base,
+    /<\/head>/,
+    `  <link rel="preload" href="/assets/${fontFile}" as="font" type="font/woff2" crossorigin />\n</head>`,
+    "font preload"
+  );
+}
+
+function render404(base: string): string {
+  let html = replaceOnce(base, /<title>[\s\S]*?<\/title>/, "<title>Page Not Found | Neuron Mapping</title>", "404 title");
+  html = replaceOnce(html, /<link rel="canonical" href="[^"]*"\s*\/>\s*/, "", "404 canonical");
+  return replaceOnce(
+    html,
+    /<meta name="description"[\s\S]*?content="[^"]*"\s*\/>/,
+    `<meta name="description" content="The page you requested does not exist." />\n  <meta name="robots" content="noindex" />`,
+    "404 meta description"
+  );
+}
+
+function renderWorkspace(base: string): string {
+  let html = replaceOnce(base, /<title>[\s\S]*?<\/title>/, "<title>Mind Map Workspace | Neuron Mapping</title>", "workspace title");
+  html = replaceOnce(html, /<link rel="canonical" href="[^"]*"\s*\/>\s*/, "", "workspace canonical");
+  return replaceOnce(
+    html,
+    /<meta name="description"[\s\S]*?content="[^"]*"\s*\/>/,
+    `<meta name="description" content="The Neuron Mapping editor, where you make and edit mind maps." />\n  <meta name="robots" content="noindex, nofollow" />`,
+    "workspace meta description"
+  );
+}
+
+function writeRoute(base: string, render: RenderFn, seo: RouteSEO): void {
+  const bodyHtml = render(seo.routePath);
+  if (!bodyHtml.includes("<h1")) {
+    throw new Error(`generate-static-pages: prerendered ${seo.routePath} has no <h1> — did the route fail to match?`);
+  }
+
+  const html = renderPage(base, seo, bodyHtml);
+  const outPath = path.join(DIST, seo.routePath, "index.html");
 
   mkdirSync(path.dirname(outPath), { recursive: true });
   writeFileSync(outPath, html, "utf-8");
-  console.log(`  wrote ${path.relative(DIST, outPath)}`);
+  console.log(`  wrote ${path.relative(DIST, outPath)}${seo.robots ? ` (${seo.robots})` : ""}`);
 }
 
-function breadcrumb(items: Array<{ name: string; item: string }>) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "BreadcrumbList",
-    itemListElement: items.map((entry, i) => ({
-      "@type": "ListItem",
-      position: i + 1,
-      name: entry.name,
-      item: entry.item
-    }))
-  };
-}
-
-function faqPage(faqs: { q: string; a: string }[]) {
-  return {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    mainEntity: faqs.map((faq) => ({
-      "@type": "Question",
-      name: faq.q,
-      acceptedAnswer: { "@type": "Answer", text: faq.a }
-    }))
-  };
-}
-
-function generateSitemap(): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const urls: Array<{ loc: string; changefreq: string; priority: string }> = [
-    { loc: `${BASE_URL}/`, changefreq: "weekly", priority: "1.0" },
-    { loc: `${BASE_URL}/templates`, changefreq: "weekly", priority: "0.9" },
-    ...templates.map((t) => ({
-      loc: `${BASE_URL}/templates/${t.id}`,
-      changefreq: "monthly",
-      priority: "0.8"
-    }))
-  ];
-
-  const body = urls
-    .map(
-      (u) => `  <url>
-    <loc>${u.loc}</loc>
-    <lastmod>${today}</lastmod>
-    <changefreq>${u.changefreq}</changefreq>
-    <priority>${u.priority}</priority>
-  </url>`
+function assertIndexableTemplatesConsistent(): void {
+  const templateIds = new Set(templates.map((t) => t.id));
+  const contentIds = Object.keys(templateContent);
+  const problems = [
+    ...INDEXABLE_TEMPLATE_IDS.filter((id) => !templateIds.has(id)).map((id) => `"${id}" is not a template id`),
+    ...INDEXABLE_TEMPLATE_IDS.filter((id) => !contentIds.includes(id)).map((id) => `"${id}" has no templateContent entry`),
+    ...contentIds.filter((id) => !(INDEXABLE_TEMPLATE_IDS as readonly string[]).includes(id)).map((id) => `templateContent "${id}" is not in INDEXABLE_TEMPLATE_IDS`),
+    ...Object.entries(templateContent).flatMap(([id, c]) =>
+      c.related.filter((r) => !templateIds.has(r)).map((r) => `"${id}" lists unknown related template "${r}"`)
     )
-    .join("\n");
-
-  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${body}\n</urlset>\n`;
+  ];
+  if (problems.length > 0) {
+    throw new Error(`generate-static-pages: indexable template config is inconsistent:\n  ${problems.join("\n  ")}`);
+  }
 }
 
-function main() {
-  const base = readFileSync(path.join(DIST, "index.html"), "utf-8");
+function decodeAttr(str: string): string {
+  return str.replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+}
+
+function readBuiltPage(routePath: string): string {
+  return readFileSync(path.join(DIST, routePath, "index.html"), "utf-8");
+}
+
+function assertIndexingConsistent(sitemapPaths: string[]): void {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  const robotsOf = (html: string) => html.match(/<meta name="robots" content="([^"]*)"/)?.[1] ?? "";
+
+  for (const routePath of sitemapPaths) {
+    const html = readBuiltPage(routePath);
+    const canonical = html.match(/<link rel="canonical" href="([^"]*)"/)?.[1];
+    const robots = robotsOf(html);
+    if (canonical !== absoluteUrl(routePath)) {
+      errors.push(`${routePath}: canonical is ${canonical ?? "missing"}, sitemap says ${absoluteUrl(routePath)}`);
+    }
+    if (robots.includes("noindex")) errors.push(`${routePath}: listed in sitemap.xml but has robots "${robots}"`);
+    if (!html.includes("<h1")) errors.push(`${routePath}: no <h1>`);
+
+    const title = decodeAttr(html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "");
+    const description = decodeAttr(html.match(/<meta name="description" content="([^"]*)"/)?.[1] ?? "");
+    if (title.length > 60) warnings.push(`${routePath}: title is ${title.length} chars (over 60)`);
+    if (description.length < 70 || description.length > 160) {
+      warnings.push(`${routePath}: description is ${description.length} chars (want 70-160)`);
+    }
+  }
+
+  const inSitemap = new Set(sitemapPaths);
+  for (const template of templates) {
+    const routePath = templatePath(template.id);
+    if (inSitemap.has(routePath)) continue;
+    const robots = robotsOf(readBuiltPage(routePath));
+    if (!robots.includes("noindex")) errors.push(`${routePath}: not in sitemap.xml but indexable (robots "${robots}")`);
+  }
+
+  for (const w of warnings) console.warn(`  warning: ${w}`);
+  if (errors.length > 0) {
+    throw new Error(`generate-static-pages: sitemap and page indexing disagree:\n  ${errors.join("\n  ")}`);
+  }
+}
+
+function assertTemplatePreviewsExist(): void {
+  const missing = templates
+    .flatMap((t) => [templatePreviewPath(t.id), templateOgImagePath(t.id)])
+    .filter((p) => !existsSync(path.join(DIST, p)));
+  if (missing.length > 0) {
+    throw new Error(`generate-static-pages: missing template previews (run "npm run previews"):\n  ${missing.join("\n  ")}`);
+  }
+}
+
+async function main() {
+  assertIndexableTemplatesConsistent();
+  assertTemplatePreviewsExist();
+
+  if (!existsSync(SSR_ENTRY)) {
+    throw new Error(`generate-static-pages: ${path.relative(ROOT, SSR_ENTRY)} not found — run "vite build --ssr src/entry-server.tsx --outDir dist-ssr" first (npm run build does).`);
+  }
+  const { render } = (await import(pathToFileURL(SSR_ENTRY).href)) as { render: RenderFn };
+
+  const base = withFontPreload(readFileSync(path.join(DIST, "index.html"), "utf-8"));
 
   console.log("Generating prerendered SEO pages...");
 
-  writeRoute(base, {
+  writeFileSync(path.join(DIST, "workspace.html"), renderWorkspace(base), "utf-8");
+  console.log("  wrote workspace.html (client-only, noindex)");
+
+  writeFileSync(path.join(DIST, "404.html"), render404(base), "utf-8");
+  console.log("  wrote 404.html (noindex)");
+
+  writeRoute(base, render, {
     routePath: "/",
     title: homeSeo.title,
     description: homeSeo.description,
     ogTitle: homeSeo.ogTitle,
     ogDescription: homeSeo.ogDescription,
-    jsonLd: [
-      faqPage(landingFaqs),
-      breadcrumb([
-        { name: "RP Hobbyist", item: "https://rphobbyist.com" },
-        { name: "Neuron Mapping", item: `${BASE_URL}/` }
-      ])
-    ]
+    jsonLd: homeJsonLd
   });
 
-  writeRoute(base, {
-    routePath: "/templates",
+  writeRoute(base, render, {
+    routePath: TEMPLATES_PATH,
     title: templatesIndexSeo.title,
     description: templatesIndexSeo.description,
     ogDescription: templatesIndexSeo.ogDescription,
-    jsonLd: [
-      {
-        "@context": "https://schema.org",
-        "@type": "CollectionPage",
-        name: "Neuron Mapping Template Gallery",
-        description: "Free, pre-built mind mapping templates for visual brainstorming and business strategy.",
-        url: `${BASE_URL}/templates`,
-        isPartOf: { "@type": "WebSite", name: "Neuron Mapping", url: `${BASE_URL}/` }
-      },
-      breadcrumb([
-        { name: "Home", item: `${BASE_URL}/` },
-        { name: "Templates", item: `${BASE_URL}/templates` }
-      ])
-    ]
+    jsonLd: templatesIndexJsonLd
   });
 
   for (const template of templates) {
-    const title = templateSeoTitle(template.name);
-    const description = templateSeoDescription(template.name, template.nodes.length);
-
-    writeRoute(base, {
-      routePath: `/templates/${template.id}`,
-      title,
-      description,
-      jsonLd: [
-        {
-          "@context": "https://schema.org",
-          "@type": "HowTo",
-          name: `How to Create a ${template.name} Mind Map`,
-          description: template.description,
-          step: [
-            {
-              "@type": "HowToStep",
-              position: 1,
-              name: "Open Template",
-              text: `Click 'Launch Template in Editor' to pre-load the ${template.name} framework.`
-            },
-            {
-              "@type": "HowToStep",
-              position: 2,
-              name: "Customize Nodes",
-              text: "Add your ideas, customize branch colors, edit markdown notes, and format connectors."
-            },
-            {
-              "@type": "HowToStep",
-              position: 3,
-              name: "Export & Save",
-              text: "Export your completed mind map as a PDF, high-resolution PNG image, or local .nmm backup file."
-            }
-          ]
-        },
-        breadcrumb([
-          { name: "Home", item: `${BASE_URL}/` },
-          { name: "Templates", item: `${BASE_URL}/templates` },
-          { name: template.name, item: `${BASE_URL}/templates/${template.id}` }
-        ]),
-        faqPage(templateDetailFaqs)
-      ]
+    const seo = getTemplateSeo(template);
+    writeRoute(base, render, {
+      routePath: seo.path,
+      title: seo.title,
+      description: seo.description,
+      robots: seo.robots,
+      ogImage: seo.ogImage,
+      ogImageAlt: seo.imageAlt,
+      jsonLd: seo.jsonLd
     });
   }
 
-  const sitemapPath = path.join(DIST, "sitemap.xml");
-  writeFileSync(sitemapPath, generateSitemap(), "utf-8");
-  console.log(`  wrote sitemap.xml (${templates.length + 2} urls)`);
+  const sitemapEntries = getSitemapEntries();
+  writeFileSync(path.join(DIST, "sitemap.xml"), generateSitemap(sitemapEntries), "utf-8");
+  console.log(`  wrote sitemap.xml (${sitemapEntries.length} urls)`);
 
-  console.log(`Done: ${templates.length + 2} routes prerendered.`);
+  assertIndexingConsistent(sitemapEntries.map((e) => e.path));
+
+  console.log(`Done: ${templates.length + 2} routes prerendered, ${sitemapEntries.length} indexable.`);
 }
 
-main();
- 
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

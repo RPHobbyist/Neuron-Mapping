@@ -6,18 +6,7 @@
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
-
-import { SYSTEM_CONFIG } from "./core/core-system";
 
 export const AGPL_LICENSE_TEXT = `GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
@@ -643,12 +632,27 @@ copy of the Program in return for a fee.
 export const GITHUB_URL = "https://github.com/RPHobbyist/neuron-mapping.git";
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
+export const MAX_MAP_FILE_SIZE = 50 * 1024 * 1024;
+export const MAX_ARCHIVE_FILE_SIZE = 25 * 1024 * 1024;
 
 export const DEFAULT_RELATION_TYPE = 'dashed';
 export const DEFAULT_RELATION_COLOR = '#ef4444';
 
-export const MIN_ZOOM = 0.1;
+export const MIN_ZOOM = 0.02;
 export const MAX_ZOOM = 2;
+export const ZOOM_STEP = 1.2;
 
 export const DETACHED_PARENT_ID = '__detached__';
+
+export const snapshotStorageKey = (mapId: string) => `mindmap_snapshots:${mapId}`;
+
+export const BOX_AREA_COLORS = [
+  '#eab308', '#3b82f6', '#22c55e', '#a855f7',
+  '#f97316', '#ec4899', '#14b8a6', '#6b7280'
+];
+export const BOX_AREA_PADDING = 40;
+export const BOX_AREA_LABEL_SPACE = 36;
+export const BOX_AREA_MIN_WIDTH = 120;
+export const BOX_AREA_MIN_HEIGHT = 80;
+export const BOX_AREA_DEFAULT_LABEL = 'Box Area';
  

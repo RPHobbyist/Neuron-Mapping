@@ -1,6 +1,6 @@
 /*
  * Neuron Mapping
- * Copyright (C) 2026 Rp Hobbyist
+ * Copyright (C) 2026 RP Hobbyist
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
@@ -9,21 +9,8 @@
  */
 
 import { useEffect } from "react";
-
-interface TrustedTypePolicy {
-  name: string;
-  createScript: (input: string) => string;
-}
-
-interface TrustedTypes {
-  createPolicy: (name: string, rules: { createScript?: (s: string) => string }) => TrustedTypePolicy;
-  defaultPolicy?: TrustedTypePolicy;
-  getPolicies?: () => TrustedTypePolicy[];
-}
-
-interface WindowWithTrustedTypes {
-  trustedTypes?: TrustedTypes;
-}
+import { SITE_URL } from "@/data/seoContent";
+import { jsonLdScript } from "@/lib/trustedTypes";
 
 interface SEOConfig {
   title: string;
@@ -37,7 +24,7 @@ interface SEOConfig {
 }
 
 const BRAND_SUFFIX = " | Neuron Mapping";
-const BASE_URL = import.meta.env.VITE_BASE_URL || window.location.origin;
+const BASE_URL = SITE_URL;
 
 export function useDocumentSEO({ 
   title, 
@@ -82,12 +69,14 @@ export function useDocumentSEO({
       updateMetaTag("robots", "index, follow");
     }
     
-    const fullCanonical = canonical 
+    const fullCanonical = canonical
       ? (canonical.startsWith("http") ? canonical : `${BASE_URL}${canonical}`)
-      : window.location.origin + window.location.pathname;
-    
+      : BASE_URL + window.location.pathname;
+
     let linkCanonical = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
-    if (linkCanonical) {
+    if (robots?.includes("noindex")) {
+      linkCanonical?.remove();
+    } else if (linkCanonical) {
       linkCanonical.setAttribute("href", fullCanonical);
     } else {
       linkCanonical = document.createElement("link");
@@ -124,32 +113,10 @@ export function useDocumentSEO({
         script.type = "application/ld+json";
         document.head.appendChild(script);
       }
-      const jsonString = JSON.stringify(payload);
-      const win = window as unknown as WindowWithTrustedTypes;
-      if (win.trustedTypes && win.trustedTypes.createPolicy) {
-        try {
-          let policy = win.trustedTypes.defaultPolicy;
-          if (!policy) {
-            try {
-              policy = win.trustedTypes.createPolicy("seo-jsonld", {
-                createScript: (s: string) => s
-              });
-            } catch (err) {
-              if (win.trustedTypes.getPolicies) {
-                policy = win.trustedTypes.getPolicies().find((p) => p.name === "seo-jsonld");
-              }
-            }
-          }
-          if (policy) {
-            script.text = policy.createScript(jsonString);
-          } else {
-            script.text = jsonString;
-          }
-        } catch (e) {
-          script.text = jsonString;
-        }
-      } else {
-        script.text = jsonString;
+      try {
+        script.text = jsonLdScript(JSON.stringify(payload));
+      } catch (e) {
+        console.error("Failed to set structured data:", e);
       }
     } else if (script) {
       script.remove();

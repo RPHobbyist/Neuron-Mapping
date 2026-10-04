@@ -1,3 +1,13 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   const path = url.pathname;
@@ -38,8 +48,12 @@ export async function onRequest(context) {
   newHeaders.set('X-Content-Type-Options', 'nosniff');
   newHeaders.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   newHeaders.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  newHeaders.set('Content-Security-Policy', "default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' 'sha256-uyHSLTF3+0mQXC7qJNwtcNvjw/F8Vq8xUYQ7jabjbpc=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; require-trusted-types-for 'script';");
+  newHeaders.set('Content-Security-Policy', "default-src 'self'; base-uri 'none'; object-src 'none'; script-src 'self' 'sha256-uyHSLTF3+0mQXC7qJNwtcNvjw/F8Vq8xUYQ7jabjbpc=' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https://cloudflareinsights.com; frame-ancestors 'none'; trusted-types node-editor-html xml-import seo-jsonld service-worker-url dompurify 'allow-duplicates'; require-trusted-types-for 'script';");
   newHeaders.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
+  if (url.hostname !== 'neuron-mapping.rphobbyist.com') {
+    newHeaders.set('X-Robots-Tag', 'noindex');
+  }
 
   const knownRoutes = [
     /^\/$/,

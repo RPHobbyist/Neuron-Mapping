@@ -1,13 +1,23 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
 const customerJourneyNodes: MindMapNode[] = [
-    { id: 'root', text: 'JOURNEY MAP', x: 0, y: -150, color: 'root', parentId: null },
-    { id: 'aware', text: 'AWARENESS', x: -400, y: -50, color: 'blue', parentId: 'root' },
-    { id: 'cons', text: 'CONSIDERATION', x: -200, y: -50, color: 'purple', parentId: 'root' },
+    { id: 'root', text: 'JOURNEY MAP', x: 0, y: -220, color: 'root', parentId: null },
+    { id: 'aware', text: 'AWARENESS', x: -400, y: -50, color: 'blue', parentId: 'root', lineParentSide: 'left', lineChildSide: 'top' },
+    { id: 'cons', text: 'CONSIDERATION', x: -200, y: -50, color: 'purple', parentId: 'root', lineParentSide: 'left', lineChildSide: 'top' },
     { id: 'purch', text: 'PURCHASE', x: 0, y: -50, color: 'orange', parentId: 'root' },
-    { id: 'ret', text: 'RETENTION', x: 200, y: -50, color: 'green', parentId: 'root' },
-    { id: 'adv', text: 'ADVOCACY', x: 400, y: -50, color: 'pink', parentId: 'root' },
+    { id: 'ret', text: 'RETENTION', x: 200, y: -50, color: 'green', parentId: 'root', lineParentSide: 'right', lineChildSide: 'top' },
+    { id: 'adv', text: 'ADVOCACY', x: 400, y: -50, color: 'pink', parentId: 'root', lineParentSide: 'right', lineChildSide: 'top' },
 
     { id: 'a1', text: 'Ads', x: -400, y: 50, color: 'blue', parentId: 'aware' },
     { id: 'a2', text: 'Social', x: -400, y: 130, color: 'blue', parentId: 'aware' },

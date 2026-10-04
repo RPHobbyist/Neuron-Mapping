@@ -1,9 +1,18 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { useRef, useState, useMemo } from 'react';
 import { useThree, useFrame, ThreeEvent } from '@react-three/fiber';
 import { Float, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { MindMapNode } from '@/types/mindmap';
-import { colorStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
 
 const SCALE_FACTOR = 15;
@@ -15,9 +24,12 @@ const colorToHex: Record<string, { bg: string; text: string; border: string }> =
     blue: { bg: '#bfdbfe', text: '#1e40af', border: '#3b82f6' },
     sky: { bg: '#bae6fd', text: '#0369a1', border: '#0ea5e9' },
     cyan: { bg: '#a5f3fc', text: '#0e7490', border: '#06b6d4' },
-    teal: { bg: '#a5f3fc', text: '#0e7490', border: '#06b6d4' },
+    teal: { bg: '#99f6e4', text: '#0f766e', border: '#14b8a6' },
     violet: { bg: '#ddd6fe', text: '#5b21b6', border: '#8b5cf6' },
     purple: { bg: '#e9d5ff', text: '#7e22ce', border: '#a855f7' },
+    indigo: { bg: '#c7d2fe', text: '#4338ca', border: '#6366f1' },
+    pink: { bg: '#fbcfe8', text: '#be185d', border: '#ec4899' },
+    red: { bg: '#fecaca', text: '#b91c1c', border: '#ef4444' },
     yellow: { bg: '#fef08a', text: '#a16207', border: '#facc15' },
     green: { bg: '#bbf7d0', text: '#15803d', border: '#22c55e' },
     emerald: { bg: '#a7f3d0', text: '#047857', border: '#10b981' },
@@ -48,7 +60,6 @@ export const GalaxyNode = ({
 }: GalaxyNodeProps) => {
     const groupRef = useRef<THREE.Group>(null);
     const [hovered, setHovered] = useState(false);
-    const [active, setActive] = useState(false);
 
     const { camera, raycaster, controls } = useThree();
     const isDragging = useRef(false);
@@ -70,7 +81,6 @@ export const GalaxyNode = ({
         isDragging.current = true;
         hasSavedSnapshot.current = false;
         (e.target as unknown as HTMLElement).setPointerCapture(e.pointerId);
-        setActive(true);
         if (controls) (controls as unknown as { enabled: boolean }).enabled = false;
         onClick?.(e as unknown as ThreeEvent<MouseEvent>);
     };
@@ -78,7 +88,6 @@ export const GalaxyNode = ({
     const handlePointerUp = (e: ThreeEvent<PointerEvent>) => {
         isDragging.current = false;
         (e.target as unknown as HTMLElement).releasePointerCapture(e.pointerId);
-        setActive(false);
         if (controls) (controls as unknown as { enabled: boolean }).enabled = true;
     };
 

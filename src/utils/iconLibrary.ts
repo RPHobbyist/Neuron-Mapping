@@ -1,67 +1,74 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import {
   Code, Terminal, GitBranch, GitCommit, GitMerge, GitPullRequest, Bug, Binary, Braces, FileCode,
   FileJson, FileCog, Blocks, Component, Package, Puzzle, Webhook, Workflow, Cpu, Microchip,
 
   Database, Server, HardDrive, ServerCog, DatabaseBackup, Archive, Folder, FolderOpen, FolderTree, File,
-  FileText, Files, Save, Download, Upload, CloudDownload, CloudUpload, FolderArchive, FolderCheck, FolderClosed,
+  FileText, Files, Save, Download, Upload, CloudDownload, CloudUpload,
 
-  Network, Wifi, WifiOff, Bluetooth, BluetoothConnected, Signal, Globe, Globe2, Cloud, CloudOff,
-  Antenna, Satellite, Radio, Rss, Router, Cast, Airplay, Share, Share2, ExternalLink,
+  Network, Wifi, WifiOff, Bluetooth, Signal, Globe, Globe2, Cloud, CloudOff,
+  Antenna, Satellite, Radio, Rss, Router, Cast, Share, ExternalLink,
 
-  Laptop, Laptop2, Monitor, MonitorSmartphone, Smartphone, Tablet, TabletSmartphone, Keyboard, Mouse, MousePointer,
-  Printer, Camera, Video, Webcam, Tv, Tv2, Watch, Headphones, Speaker, ScreenShare,
+  Laptop, Monitor, Smartphone, Tablet, Keyboard, Mouse,
+  Printer, Camera, Video, Webcam, Tv, Watch, Headphones, Speaker,
 
-  Lock, LockOpen, Unlock, Key, KeyRound, Shield, ShieldCheck, ShieldAlert, ShieldOff, ShieldQuestion,
-  Fingerprint, Scan, ScanLine, ScanFace, Eye, EyeOff, Verified, BadgeCheck, UserCheck, Lock as LockIcon,
+  Lock, LockOpen, Unlock, Key, KeyRound, Shield, ShieldCheck, ShieldAlert,
+  Fingerprint, Scan, ScanLine, ScanFace, Eye, EyeOff, Verified, BadgeCheck,
 
-  BarChart, BarChart2, BarChart3, BarChart4, LineChart, PieChart, TrendingUp, TrendingDown, Activity, Gauge,
-  Calculator, Percent, Hash, Binary as BinaryIcon, Table, Table2, Sigma, Infinity as InfinityIcon, Diff, Equal,
+  BarChart, BarChart2, BarChart3, LineChart, PieChart, TrendingUp, TrendingDown, Activity, Gauge,
+  Calculator, Percent, Hash, Table, Sigma,
 
-  Layout, LayoutDashboard, LayoutGrid, LayoutList, LayoutTemplate, Grid, Grid2x2, Grid3x3, List, ListOrdered,
-  ListTree, Menu, MenuSquare, Sidebar, SidebarClose, SidebarOpen, PanelLeft, PanelRight, PanelTop, PanelBottom,
+  Layout, LayoutDashboard, LayoutGrid, LayoutList, Grid, List, ListOrdered,
+  ListTree, Menu, Sidebar, PanelLeft, PanelRight,
 
-  ArrowUp, ArrowDown, ArrowLeft, ArrowRight, ArrowUpRight, ArrowDownLeft, ArrowUpLeft, ArrowDownRight,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ChevronsUp, ChevronsDown, ChevronsLeft, ChevronsRight,
-  MoveUp, MoveDown, MoveLeft, MoveRight, Maximize, Minimize, Maximize2, Minimize2,
+  ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
+  MoveUp, MoveDown, Maximize, Minimize,
 
-  Circle, CircleDot, CircleOff, Square, SquareDot, Hexagon, Pentagon, Octagon, Triangle, Diamond,
-  Star, Heart, HeartOff, Box, Boxes, Cylinder, Gem,
+  Circle, CircleDot, Square, Hexagon, Pentagon, Octagon, Triangle, Diamond,
+  Star, Heart, Box, Cylinder, Gem,
 
-  Play, Pause, PlayCircle, PauseCircle, StopCircle, SkipForward, SkipBack, FastForward, Rewind,
-  Volume, Volume1, Volume2, VolumeX, Music, Music2, Music3, Music4, Image, ImagePlus,
+  Play, Pause, PlayCircle, StopCircle, SkipForward, SkipBack,
+  Volume, Volume2, VolumeX, Music, Music2, Image, ImagePlus,
 
-  Mail, MailOpen, MailPlus, Inbox, Send, SendHorizontal, MessageCircle, MessageSquare, MessagesSquare,
-  Phone, PhoneCall, PhoneIncoming, PhoneOutgoing, PhoneMissed, AtSign, Bell, BellRing, BellOff, Voicemail,
+  Mail, MailOpen, MailPlus, Inbox, Send, MessageCircle, MessageSquare,
+  Phone, PhoneCall, AtSign, Bell, BellRing,
 
-  Briefcase, Building, Building2, Landmark, DollarSign, Euro, PoundSterling, Coins, CreditCard, Wallet,
-  Receipt, Banknote, PiggyBank, TrendingUp as Profit, Calculator as Calc, Calendar, CalendarDays, Clock, Timer, Hourglass,
+  Briefcase, Building, Building2, Landmark, DollarSign, Euro, Coins, CreditCard, Wallet,
+  Receipt, Banknote, Calendar, CalendarDays, Clock, Timer,
 
-  User, UserCircle, UserSquare, UserPlus, UserMinus, UserX, UserCheck as UserVerified, Users, Users2, Contact,
-  Contact2, UserCog, Crown, Baby, Accessibility, PersonStanding, Footprints, HeartHandshake, Handshake, Hand,
+  User, UserCircle, UserSquare, UserPlus, UserMinus, UserX, Users, Users2, Contact,
+  Crown, Handshake,
 
-  Sun, Moon, CloudSun, CloudMoon, CloudRain, CloudSnow, CloudLightning, CloudFog, Wind, Snowflake,
-  Thermometer, ThermometerSun, ThermometerSnowflake, Umbrella, Droplet, Droplets, Waves, Mountain, MountainSnow, Trees,
+  Sun, Moon, CloudSun, CloudRain, CloudSnow, CloudLightning, Wind, Snowflake,
+  Thermometer, Umbrella, Droplet, Waves, Mountain, Trees,
 
-  Car, CarFront, Bus, Train, TrainFront, Plane, PlaneTakeoff, PlaneLanding, Ship, Anchor,
-  Bike, Rocket, Navigation, Navigation2, Map, MapPin, MapPinned, Compass, Route, Milestone,
+  Car, CarFront, Bus, Train, Plane, PlaneTakeoff, PlaneLanding, Ship, Anchor,
+  Bike, Rocket, Navigation, Map, MapPin, Compass,
 
-  Coffee, Wine, Beer, UtensilsCrossed, ChefHat, Apple, Banana, Cherry, Citrus, Grape,
-  Carrot, Salad, Sandwich, Pizza, Cookie, Cake, CakeSlice, IceCream, Candy, Popcorn,
+  Check, CheckCircle, CheckSquare, X, XCircle, Plus, PlusCircle,
+  Minus, MinusCircle, Edit, Edit2, Trash, Trash2, Copy,
+  Undo, Redo, RefreshCw,
 
-  Check, CheckCircle, CheckCircle2, CheckSquare, X, XCircle, XSquare, Plus, PlusCircle, PlusSquare,
-  Minus, MinusCircle, MinusSquare, Edit, Edit2, Edit3, Trash, Trash2, Copy, ClipboardCopy,
-  Undo, Undo2, Redo, Redo2, RefreshCw, RefreshCcw, RotateCw, RotateCcw, Replace, Eraser,
+  AlertCircle, AlertTriangle, AlertOctagon, Info, HelpCircle, Loader, Loader2,
+  Zap, ZapOff, Flame,
 
-  AlertCircle, AlertTriangle, AlertOctagon, Info, HelpCircle, CircleHelp, Loader, Loader2, Hourglass as Loading,
-  CheckCircle as Success, XCircle as Error, AlertCircle as Warning, Clock as Pending, Zap, ZapOff, Flame, FlameKindling,
+  Wrench, Settings, Settings2, Cog, SlidersHorizontal, Palette, Paintbrush,
+  Pipette, Ruler, Scissors, Plug, Power,
 
-  Wrench, Settings, Settings2, Cog, SlidersHorizontal, SlidersVertical, Palette, Paintbrush,
-  Brush, Pipette, Ruler, Scissors, Magnet, Flashlight, Plug, PlugZap, Power, PowerOff,
-
-  Bookmark, BookmarkPlus, Tag, Tags, Flag, FlagTriangleRight, Pin, PinOff, Link, Link2,
-  Unlink, Unlink2, QrCode, Barcode, Scan as ScanIcon, Search, SearchX, ZoomIn, ZoomOut, Focus,
-  Home, HomeIcon, Store, ShoppingCart, ShoppingBag, Gift, Award, Trophy, Medal, Target,
-  Lightbulb, LightbulbOff, Sparkles, Wand, Wand2, Bot, Brain, Atom, Dna, Microscope,
+  Bookmark, Tag, Tags, Flag, Pin, Link, Link2,
+  QrCode, Search, ZoomIn, ZoomOut,
+  Home, Store, ShoppingCart, Gift, Award, Trophy, Target,
+  Lightbulb, Sparkles, Wand2, Bot, Brain, Atom, Dna, Microscope,
 
   type LucideIcon
 } from 'lucide-react';

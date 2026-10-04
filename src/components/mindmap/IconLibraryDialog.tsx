@@ -1,4 +1,14 @@
-import { useState, useMemo } from 'react';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { useState, useMemo, useEffect } from 'react';
 import {
     Dialog,
     DialogContent,
@@ -7,9 +17,8 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { iconCategories, totalIconCount } from '@/utils/iconLibrary';
-import { Smile, Search } from 'lucide-react';
+import { Smile, Search, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -18,20 +27,34 @@ import { Input } from "@/components/ui/input";
 interface IconLibraryDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (iconName: string, style: 'plain' | 'boxed') => void;
+    onSubmit: (iconName: string | undefined, style: 'plain' | 'boxed') => void;
+    initialIcon?: string;
+    initialStyle?: 'plain' | 'boxed';
 }
+
+const categoryKeys = Object.keys(iconCategories);
+const categoryOf = (iconName: string | undefined) =>
+    categoryKeys.find(key => iconCategories[key].icons.some(icon => icon.name === iconName));
 
 export const IconLibraryDialog = ({
     isOpen,
     onClose,
-    onSubmit
+    onSubmit,
+    initialIcon,
+    initialStyle,
 }: IconLibraryDialogProps) => {
     const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
-    const [activeCategory, setActiveCategory] = useState<string>(Object.keys(iconCategories)[0] || 'development');
+    const [activeCategory, setActiveCategory] = useState<string>(categoryKeys[0] || 'development');
     const [iconStyle, setIconStyle] = useState<'plain' | 'boxed'>('plain');
     const [searchQuery, setSearchQuery] = useState('');
 
-    const categoryKeys = Object.keys(iconCategories);
+    useEffect(() => {
+        if (!isOpen) return;
+        setSelectedIcon(initialIcon ?? null);
+        setIconStyle(initialStyle ?? 'plain');
+        setActiveCategory(categoryOf(initialIcon) ?? categoryKeys[0] ?? 'development');
+        setSearchQuery('');
+    }, [isOpen, initialIcon, initialStyle]);
 
     const filteredIcons = useMemo(() => {
         if (!searchQuery.trim()) {
@@ -107,7 +130,7 @@ export const IconLibraryDialog = ({
 
                 <div className="flex gap-4 h-[400px]">
                     {!searchQuery && (
-                        <ScrollArea className="w-40 shrink-0 border rounded-lg">
+                        <div className="w-40 shrink-0 border rounded-lg overflow-y-auto">
                             <div className="p-2 space-y-1">
                                 {categoryKeys.map(key => (
                                     <button
@@ -127,10 +150,10 @@ export const IconLibraryDialog = ({
                                     </button>
                                 ))}
                             </div>
-                        </ScrollArea>
+                        </div>
                     )}
 
-                    <ScrollArea className="flex-1 border rounded-lg">
+                    <div className="flex-1 border rounded-lg overflow-y-auto">
                         <div className="p-4">
                             {searchQuery && (
                                 <p className="text-sm text-muted-foreground mb-3">
@@ -147,16 +170,16 @@ export const IconLibraryDialog = ({
                                             key={item.name}
                                             onClick={() => handleIconSelect(item.name)}
                                             className={cn(
-                                                "flex flex-col items-center justify-center p-3 rounded-lg transition-all hover:bg-gray-100 border border-transparent",
-                                                isSelected && "bg-blue-50 border-blue-500 shadow-sm"
+                                                "flex flex-col items-center justify-center p-3 rounded-lg transition-all hover:bg-muted border border-transparent",
+                                                isSelected && "bg-blue-50 dark:bg-blue-950/40 border-blue-500 shadow-sm"
                                             )}
                                             title={item.label}
                                         >
                                             <IconComponent className={cn(
                                                 "w-6 h-6",
-                                                isSelected ? "text-blue-600" : "text-gray-600"
+                                                isSelected ? "text-blue-600 dark:text-blue-400" : "text-muted-foreground"
                                             )} />
-                                            <span className="text-[11px] text-center text-gray-500 mt-1">
+                                            <span className="text-[11px] text-center text-muted-foreground mt-1">
                                                 {item.label}
                                             </span>
                                         </button>
@@ -164,16 +187,31 @@ export const IconLibraryDialog = ({
                                 })}
                             </div>
                         </div>
-                    </ScrollArea>
+                    </div>
                 </div>
 
-                <DialogFooter>
-                    <Button variant="outline" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button onClick={handleSubmit} disabled={!selectedIcon}>
-                        Insert Icon
-                    </Button>
+                <DialogFooter className="sm:justify-between gap-2">
+                    {initialIcon ? (
+                        <Button
+                            variant="ghost"
+                            onClick={() => {
+                                onSubmit(undefined, iconStyle);
+                                onClose();
+                            }}
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                            <Trash2 className="w-4 h-4 mr-1.5" />
+                            Remove Icon
+                        </Button>
+                    ) : <span />}
+                    <div className="flex flex-col-reverse sm:flex-row gap-2">
+                        <Button variant="outline" onClick={onClose}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSubmit} disabled={!selectedIcon}>
+                            {initialIcon ? 'Save' : 'Insert Icon'}
+                        </Button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

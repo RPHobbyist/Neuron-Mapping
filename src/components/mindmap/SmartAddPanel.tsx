@@ -1,6 +1,16 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { X, Send, Wand2, ArrowRight } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { X, Send, ListPlus, ArrowRight } from 'lucide-react';
+import { cn, isComposing } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MindMapNode } from '@/types/mindmap';
 import { findBestParent } from '@/utils/smartPlacement';
@@ -47,7 +57,7 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
     };
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        if (e.key === 'Enter' && !e.shiftKey && !isComposing(e)) {
             e.preventDefault();
             handleSubmit();
         } else if (e.key === 'Escape') {
@@ -63,17 +73,17 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 20, scale: 0.95 }}
                     transition={{ duration: 0.2 }}
-                    className="fixed bottom-24 right-6 z-50 w-80 bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden"
+                    className="fixed bottom-24 right-6 z-50 w-80 bg-card rounded-xl shadow-2xl border border-border flex flex-col overflow-hidden"
                 >
-                    <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/50">
                         <div className="flex items-center gap-2">
-                            <Wand2 className="w-4 h-4 text-emerald-600" />
+                            <ListPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <h3 className="font-semibold text-sm">Smart Add</h3>
                         </div>
                         <button
                             onClick={onClose}
                             aria-label="Close Smart Add"
-                            className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors text-muted-foreground"
+                            className="p-1 hover:bg-muted rounded-lg transition-colors text-muted-foreground"
                         >
                             <X className="w-4 h-4" />
                         </button>
@@ -81,15 +91,15 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
 
                     <form onSubmit={handleSubmit} className="p-4 flex flex-col gap-2">
                         <p className="text-xs text-muted-foreground">
-                            Type anything. We'll find the best place to add it to your map automatically.
+                            Type a topic and it's added under the one it matches best. You can see where before you press Enter.
                         </p>
                         <textarea
                             ref={inputRef}
                             value={text}
                             onChange={(e) => setText(e.target.value)}
                             onKeyDown={handleKeyDown}
-                            placeholder="E.g., 'Project Timeline' or 'Budget Constraints'"
-                            className="w-full min-h-[80px] p-3 text-sm bg-slate-50 dark:bg-slate-950 border border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-slate-200 dark:focus:ring-slate-700 transition-all font-medium"
+                            placeholder="For example: hire a designer"
+                            className="w-full min-h-[80px] p-3 text-sm bg-muted/50 border border-input rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-border transition-all font-medium"
                         />
 
                         <div className="min-h-[18px] flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -117,8 +127,8 @@ export const SmartAddPanel = ({ isOpen, onClose, onAdd, nodes, selectedNodeIds }
                                 className={cn(
                                     "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors shrink-0",
                                     text.trim()
-                                        ? "bg-slate-900 text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
-                                        : "bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-600 cursor-not-allowed"
+                                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                        : "bg-muted text-muted-foreground cursor-not-allowed"
                                 )}
                             >
                                 <Send className="w-3.5 h-3.5" />

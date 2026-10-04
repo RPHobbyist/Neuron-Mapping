@@ -1,14 +1,68 @@
-import { useState, useRef, useEffect, memo } from 'react';
-import { Plus, GripHorizontal, FileText } from 'lucide-react';
-import { MindMapNode as NodeType } from '@/types/mindmap';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { useState, useRef, useEffect, useCallback, memo, Fragment } from 'react';
+import { Plus, Minus, FileText, Flag, Check, CalendarDays } from 'lucide-react';
+import { MindMapNode as NodeType, TextRun } from '@/types/mindmap';
 import { cn } from '@/lib/utils';
-import { motion } from 'framer-motion';
-import { NodeToolbar } from './NodeToolbar';
-import { toast } from 'sonner';
-import { colorStyles, getShapeStyles } from '@/utils/nodeStyles';
+import { NodeToolbar, TextFormatToolbar } from './NodeToolbar';
+import { NodeTextEditor } from './NodeTextEditor';
+import { TextLine, getNodeRichLines, getRunStyle, plainTextToLines } from '@/utils/richText';
+import { colorStyles, getShapeStyles, getTextFormatStyles, statusOptions, priorityStyles } from '@/utils/nodeStyles';
 import { iconMap } from '@/utils/iconLibrary';
-import { sanitizeUrl, getContrastTextColor } from '@/utils/common';
+import { sanitizeUrl, getContrastTextColor, releaseTextFocus } from '@/utils/common';
 import { IRREGULAR_SHAPES, IRREGULAR_SHAPE_PATHS, SHAPE_SVG_INSET, scalePathToBox } from '@/utils/shapePaths';
+import { formatDay, isOverdue, todayAsDay } from '@/utils/tasks';
+import { tagColor } from '@/utils/tagColors';
+import { RuleTone } from '@/utils/styleRules';
+
+const RULE_TONE_CLASS: Record<RuleTone, string> = {
+  done: 'outline outline-2 outline-offset-2 outline-green-500/80',
+  overdue: 'outline outline-2 outline-offset-2 outline-red-500',
+  urgent: 'outline outline-2 outline-offset-2 outline-orange-500/80',
+};
+
+const BADGE_CLASS = 'inline-flex items-center gap-1 rounded-full bg-card/90 px-2 py-0.5 text-[11px] font-medium leading-4 text-foreground ring-1 ring-inset ring-black/10';
+
+const ProgressRing = ({ done, total }: { done: number; total: number }) => {
+  const radius = 5;
+  const length = 2 * Math.PI * radius;
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" className="-rotate-90" aria-hidden="true">
+      <circle cx="7" cy="7" r={radius} fill="none" stroke="currentColor" strokeOpacity={0.2} strokeWidth="2.5" />
+      <circle
+        cx="7" cy="7" r={radius} fill="none" stroke="currentColor" strokeWidth="2.5"
+        strokeDasharray={`${(done / total) * length} ${length}`}
+      />
+    </svg>
+  );
+};
+
+const renderRuns = (line: TextLine) =>
+  line.map((run, i) => <span key={i} style={getRunStyle(run)}>{run.text}</span>);
+
+const AUTO_NODE_MAX_WIDTH = 320;
+
+const measureNodeFootprint = (element: HTMLElement) => {
+  const w = element.offsetWidth;
+  const h = element.offsetHeight;
+  const transform = getComputedStyle(element).transform;
+  if (!transform || transform === 'none') return { w, h };
+
+  const matrix = new DOMMatrixReadOnly(transform);
+  const corners = [[-w / 2, -h / 2], [w / 2, -h / 2], [w / 2, h / 2], [-w / 2, h / 2]]
+    .map(([x, y]) => matrix.transformPoint(new DOMPoint(x, y)));
+  const xs = corners.map(p => p.x);
+  const ys = corners.map(p => p.y);
+  return { w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+};
 
 const SNAKE_TRAIL = [
   { delay: 0, opacity: 1, width: 4 },
@@ -23,20 +77,34 @@ interface MindMapNodeProps {
   selectionCount?: number;
   onSelect: (e: React.MouseEvent, nodeId: string) => void;
   onPositionChange: (id: string, x: number, y: number) => void;
-  onTextChange: (id: string, text: string) => void;
+  onTextChange: (id: string, text: string, textRuns?: TextRun[][]) => void;
+  onTextCommit?: (id: string) => void;
+  onCancelTextEdit?: (id: string, text: string, textRuns?: TextRun[][]) => void;
   onSizeChange?: (id: string, width: number, height: number) => void;
   onMeasureNode?: (id: string, width: number, height: number) => void;
   onAddChild: (id: string) => void;
   onRequestImage?: (id: string) => void;
   onRequestLink?: (id: string) => void;
   onRequestNotes?: (id: string) => void;
-  onDragStart?: () => void;
+  onDragStart?: (id: string) => void;
   onDragEnd?: () => void;
+  onDragMove?: (id: string, clientX: number, clientY: number, altKey: boolean) => void;
+  onDrop?: (id: string) => void;
   editTrigger?: number;
-  zoom: number;
+  getZoom: () => number;
+  isLight?: boolean;
   isDimmed?: boolean;
   isHighlighted?: boolean;
   onAddIcon?: (id: string) => void;
+  onToggleTask?: (id: string) => void;
+  tasksDone?: number;
+  tasksTotal?: number;
+  numberLabel?: string;
+  ruleTone?: RuleTone;
+  onTagClick?: (tag: string) => void;
+  activeTag?: string;
+  hiddenCount?: number;
+  onToggleCollapse?: (id: string) => void;
 }
 
 const MindMapNodeBase = ({
@@ -46,6 +114,8 @@ const MindMapNodeBase = ({
   onSelect,
   onPositionChange,
   onTextChange,
+  onTextCommit,
+  onCancelTextEdit,
   onSizeChange,
   onMeasureNode,
   onAddChild,
@@ -54,35 +124,45 @@ const MindMapNodeBase = ({
   onRequestNotes,
   onDragStart,
   onDragEnd,
+  onDragMove,
+  onDrop,
   editTrigger,
-  zoom,
+  getZoom,
+  isLight = false,
   isDimmed,
   isHighlighted,
   onAddIcon,
+  onToggleTask,
+  tasksDone,
+  tasksTotal,
+  numberLabel,
+  ruleTone,
+  onTagClick,
+  activeTag,
+  hiddenCount,
+  onToggleCollapse,
 }: MindMapNodeProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
   const dragStartRef = useRef<{ x: number; y: number; nodeX: number; nodeY: number } | null>(null);
   const resizeStartRef = useRef<{ x: number; y: number; width: number; height: number } | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const [renderBox, setRenderBox] = useState<{ w: number; h: number } | null>(null);
 
-  useEffect(() => {
-    if (editTrigger !== undefined) {
-      setIsEditing(true);
-    }
-  }, [editTrigger]);
+  const editOriginalRef = useRef<{ text: string; textRuns?: TextRun[][] } | null>(null);
+  const latestNodeRef = useRef(node);
+  latestNodeRef.current = node;
+  const startEditing = useCallback(() => {
+    editOriginalRef.current = { text: latestNodeRef.current.text, textRuns: latestNodeRef.current.textRuns };
+    setIsEditing(true);
+  }, []);
 
   useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.select();
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = inputRef.current.scrollHeight + 'px';
+    if (editTrigger !== undefined) {
+      startEditing();
     }
-  }, [isEditing]);
+  }, [editTrigger, startEditing]);
 
   useEffect(() => {
     if (!nodeRef.current || !onMeasureNode) return;
@@ -91,9 +171,7 @@ const MindMapNodeBase = ({
     let pendingTimeout: ReturnType<typeof setTimeout> | null = null;
 
     const observer = new ResizeObserver(() => {
-      const rect = element.getBoundingClientRect();
-      const w = rect.width / zoom;
-      const h = rect.height / zoom;
+      const { w, h } = measureNodeFootprint(element);
 
       if (!isDragging && !isResizing) {
         if (
@@ -113,7 +191,7 @@ const MindMapNodeBase = ({
       observer.disconnect();
       if (pendingTimeout) clearTimeout(pendingTimeout);
     };
-  }, [node.id, onMeasureNode, node.measuredWidth, node.measuredHeight, isDragging, isResizing, zoom]);
+  }, [node.id, node.shape, onMeasureNode, node.measuredWidth, node.measuredHeight, isDragging, isResizing]);
 
   useEffect(() => {
     if (!nodeRef.current || !IRREGULAR_SHAPES.includes(node.shape || '')) {
@@ -132,25 +210,13 @@ const MindMapNodeBase = ({
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    onDragStart?.();
+    onDragStart?.(node.id);
     onDragEnd?.();
-    setIsEditing(true);
+    startEditing();
   };
 
-  const handleBlur = () => setIsEditing(false);
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      setIsEditing(false);
-    }
-    if (e.key === 'Escape') setIsEditing(false);
-  };
-
-  const handleInput = (e: React.FormEvent<HTMLTextAreaElement>) => {
-    const target = e.currentTarget;
-    target.style.height = 'auto';
-    target.style.height = target.scrollHeight + 'px';
-    onTextChange(node.id, target.value);
+  const handleTextChange = (text: string, textRuns: TextRun[][] | undefined) => {
+    onTextChange(node.id, text, textRuns);
   };
 
   const didDragRef = useRef(false);
@@ -159,7 +225,9 @@ const MindMapNodeBase = ({
   const handleMouseDown = (e: React.MouseEvent) => {
     if (isEditing) return;
     e.stopPropagation();
+    if (e.button !== 0) return;
     e.preventDefault();
+    releaseTextFocus();
 
     dragStartRef.current = { x: e.clientX, y: e.clientY, nodeX: node.x, nodeY: node.y };
     didDragRef.current = false;
@@ -176,13 +244,15 @@ const MindMapNodeBase = ({
         setIsDragging(true);
         if (!snapshotSaved) {
           snapshotSaved = true;
-          onDragStart?.();
+          onDragStart?.(node.id);
         }
       }
 
+      const zoom = getZoom();
       const deltaX = totalDeltaX / zoom;
       const deltaY = totalDeltaY / zoom;
       onPositionChange(node.id, dragStartRef.current.nodeX + deltaX, dragStartRef.current.nodeY + deltaY);
+      onDragMove?.(node.id, moveEvent.clientX, moveEvent.clientY, moveEvent.altKey);
     };
 
     const handleMouseUp = () => {
@@ -190,7 +260,10 @@ const MindMapNodeBase = ({
       setIsDragging(false);
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
-      if (didDragRef.current) onDragEnd?.();
+      if (didDragRef.current) {
+        onDragEnd?.();
+        onDrop?.(node.id);
+      }
       setTimeout(() => { didDragRef.current = false; }, 0);
     };
 
@@ -207,7 +280,7 @@ const MindMapNodeBase = ({
     e.stopPropagation();
     e.preventDefault();
 
-    onDragStart?.();
+    onDragStart?.(node.id);
     const currentWidth = node.width || (nodeRef.current?.offsetWidth || 100);
     const currentHeight = node.height || (nodeRef.current?.offsetHeight || 40);
 
@@ -216,6 +289,7 @@ const MindMapNodeBase = ({
 
     const handleMouseMove = (moveEvent: MouseEvent) => {
       if (!resizeStartRef.current) return;
+      const zoom = getZoom();
       const deltaX = (moveEvent.clientX - resizeStartRef.current.x) / zoom;
       const deltaY = (moveEvent.clientY - resizeStartRef.current.y) / zoom;
       const newWidth = Math.max(60, resizeStartRef.current.width + deltaX);
@@ -258,7 +332,13 @@ const MindMapNodeBase = ({
   } : undefined;
 
   const shapeStyles = getShapeStyles(node.shape, isRoot);
+  const textFormat = getTextFormatStyles(node, isRoot);
+  const textLines: TextLine[] = getNodeRichLines(node) ?? plainTextToLines(node.text);
+  const statusOption = node.status ? statusOptions.find(s => s.value === node.status) : undefined;
+  const priorityStyle = node.priority ? priorityStyles[node.priority] : undefined;
   const effectiveShape = node.shape || (isRoot ? 'circle' : 'rounded');
+  const overdue = isOverdue(node, todayAsDay());
+  const hasProgress = !!tasksTotal;
 
   const contentClipPath = isIrregularShape && renderBox
     ? `path('${scalePathToBox(shapePath, renderBox.w, renderBox.h, SHAPE_SVG_INSET)}')`
@@ -267,22 +347,16 @@ const MindMapNodeBase = ({
   const isIconOnly = node.icon && node.iconStyle === 'plain';
 
   return (
-    <motion.div
-      initial={{ opacity: 0, filter: "blur(10px)", scale: 0.9, translateX: "-50%", translateY: "-50%" }}
-      animate={{
-        opacity: isDimmed ? 0.3 : 1,
-        filter: isDimmed ? "blur(2px)" : "blur(0px)",
-        scale: 1,
-        translateX: "-50%",
-        translateY: "-50%"
-      }}
-      exit={{ opacity: 0, filter: "blur(10px)", scale: 0.9, translateX: "-50%", translateY: "-50%" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+    <div
       className={cn(
-        "absolute flex items-center justify-center cursor-pointer select-none",
-        isDimmed && "pointer-events-none"
+        "absolute flex items-center justify-center cursor-pointer select-none transition-[opacity,filter] duration-500 ease-out",
+        !isLight && "node-enter",
+        isDimmed && "pointer-events-none opacity-30 blur-[2px]"
       )}
-      style={{ left: node.x, top: node.y }}
+      data-node-id={node.id}
+      data-selected={isSelected || undefined}
+      data-rule-tone={ruleTone}
+      style={{ left: node.x, top: node.y, transform: 'translate(-50%, -50%)', width: 'max-content', maxWidth: node.width ? undefined : AUTO_NODE_MAX_WIDTH }}
       onMouseDown={handleMouseDown}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
@@ -300,6 +374,7 @@ const MindMapNodeBase = ({
           ],
           style.text,
           (isSelected && !isIrregularShape) && 'ring-2 ring-primary ring-offset-2 ring-offset-background',
+          ruleTone && !isIrregularShape && !isIconOnly && RULE_TONE_CLASS[ruleTone],
           isHighlighted && 'ring-4 ring-yellow-400 ring-offset-2 ring-offset-background z-10 shadow-[0_0_15px_rgba(250,204,21,0.5)]',
           node.nodeAnimation === 'ring' && 'animate-ring',
           node.nodeAnimation === 'blink' && 'animate-blink',
@@ -378,16 +453,63 @@ const MindMapNodeBase = ({
         )}
 
         <div className="relative z-10 w-full">
+          {(priorityStyle || statusOption || node.dueDate || hasProgress) && (
+            <div className={cn(
+              'flex flex-wrap gap-1.5 mb-2',
+              node.textAlign === 'left' ? 'justify-start' : node.textAlign === 'right' ? 'justify-end' : 'justify-center'
+            )}>
+              {priorityStyle && (
+                <span className={BADGE_CLASS} title={`Priority: ${priorityStyle.label}`}>
+                  <Flag className={cn('w-3 h-3 fill-current', priorityStyle.color)} />
+                  {priorityStyle.label}
+                </span>
+              )}
+              {statusOption && (
+                <span className={BADGE_CLASS} title={`Status: ${statusOption.label}`}>
+                  <statusOption.icon className={cn('w-3 h-3', statusOption.color)} />
+                  {statusOption.label}
+                </span>
+              )}
+              {hasProgress && (
+                <span
+                  className={BADGE_CLASS}
+                  title={`${tasksDone} of ${tasksTotal} tasks below this topic are done`}
+                  data-task-progress={`${tasksDone}/${tasksTotal}`}
+                >
+                  <span className={tasksDone === tasksTotal ? 'text-green-600' : 'text-blue-600'}>
+                    <ProgressRing done={tasksDone ?? 0} total={tasksTotal!} />
+                  </span>
+                  {tasksDone}/{tasksTotal}
+                </span>
+              )}
+              {node.dueDate && (
+                <span
+                  className={cn(BADGE_CLASS, overdue && 'bg-red-50 text-red-700 ring-red-300 dark:bg-red-950 dark:text-red-200')}
+                  title={overdue ? `Overdue: was due ${formatDay(node.dueDate)}` : `Due ${formatDay(node.dueDate)}`}
+                  data-due={overdue ? 'overdue' : 'due'}
+                >
+                  <CalendarDays className={cn('w-3 h-3', overdue ? 'text-red-600' : 'text-muted-foreground')} />
+                  {formatDay(node.dueDate)}
+                </span>
+              )}
+            </div>
+          )}
+
           {isEditing ? (
-            <textarea
-              ref={inputRef}
-              value={node.text}
-              onChange={handleInput}
-              onBlur={handleBlur}
-              onKeyDown={handleKeyDown}
-              className="w-full bg-transparent text-center font-medium outline-none min-w-[50px] resize-none overflow-hidden text-inherit"
-              onClick={(e) => e.stopPropagation()}
-              rows={1}
+            <NodeTextEditor
+              initialLines={textLines}
+              className={cn(isRoot && 'leading-tight', textFormat.className)}
+              style={textFormat.style}
+              onChange={handleTextChange}
+              onDone={() => {
+                setIsEditing(false);
+                onTextCommit?.(node.id);
+              }}
+              onCancel={(changed) => {
+                setIsEditing(false);
+                const original = editOriginalRef.current;
+                if (changed && original) onCancelTextEdit?.(node.id, original.text, original.textRuns);
+              }}
             />
           ) : (
             <div className="flex flex-col items-center gap-2">
@@ -433,35 +555,99 @@ const MindMapNodeBase = ({
                 );
               })()}
 
-              {(!node.icon || node.iconStyle !== 'plain') && (
-                <span className={cn(
-                  'text-center block font-medium break-words whitespace-pre-wrap text-inherit',
-                  isRoot && 'font-bold leading-tight'
-                )}>
-                  {node.text}
-                </span>
-              )}
+              {(!node.icon || node.iconStyle !== 'plain') && (() => {
+                const textClass = cn(
+                  'self-stretch block break-words whitespace-pre-wrap text-inherit',
+                  isRoot && 'leading-tight',
+                  textFormat.className,
+                  node.task === 'done' && 'line-through opacity-60'
+                );
+                const renderText = () => {
+                  if (node.textList) {
+                    const ListTag = node.textList === 'numbered' ? 'ol' : 'ul';
+                    return (
+                      <ListTag
+                        className={cn(
+                          textClass,
+                          node.textList === 'numbered' ? 'list-decimal' : 'list-disc',
+                          node.textAlign === 'left' ? 'list-outside pl-5' : 'list-inside'
+                        )}
+                        style={textFormat.style}
+                      >
+                        {textLines.filter(line => line.some(run => run.text.trim())).map((line, i) => (
+                          <li key={i}>{renderRuns(line)}</li>
+                        ))}
+                      </ListTag>
+                    );
+                  }
 
-              {node.priority && (
-                <span className={cn(
-                  'text-xs px-1.5 py-0.5 rounded-full font-medium',
-                  node.priority === 'high' ? 'bg-red-100 text-red-700' :
-                    node.priority === 'medium' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-green-100 text-green-700'
-                )}>
-                  {node.priority === 'high' ? '🔴 High' : node.priority === 'medium' ? '🟡 Medium' : '🟢 Low'}
-                </span>
-              )}
+                  return (
+                    <span className={textClass} style={textFormat.style}>
+                      {textLines.map((line, i) => (
+                        <Fragment key={i}>
+                          {i > 0 && '\n'}
+                          {renderRuns(line)}
+                        </Fragment>
+                      ))}
+                    </span>
+                  );
+                };
+                const text = renderText();
+                if (!node.task && !numberLabel) return text;
+                const isDone = node.task === 'done';
+                return (
+                  <div className="self-stretch flex items-start gap-2">
+                    {numberLabel && (
+                      <span className="mt-px text-[0.85em] font-semibold tabular-nums opacity-60 flex-shrink-0" data-number={numberLabel}>
+                        {numberLabel}
+                      </span>
+                    )}
+                    {node.task && <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isDone}
+                      aria-label={isDone ? 'Done; mark as to do' : 'To do; mark as done'}
+                      className={cn(
+                        'mt-0.5 w-4 h-4 flex-shrink-0 rounded border-2 flex items-center justify-center transition-colors',
+                        isDone ? 'bg-green-600 border-green-600 text-white' : 'border-current bg-card/70 hover:bg-card'
+                      )}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); onToggleTask?.(node.id); }}
+                    >
+                      {isDone && <Check className="w-3 h-3" strokeWidth={3.5} />}
+                    </button>}
+                    <div className="flex-1 min-w-0">{text}</div>
+                  </div>
+                );
+              })()}
+
 
               {node.tags && node.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1 justify-center mt-1">
-                  {node.tags.slice(0, 3).map((tag, index) => (
-                    <span key={index} className="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">
-                      #{tag}
-                    </span>
-                  ))}
+                  {node.tags.slice(0, 3).map((tag, index) => {
+                    const isActive = !!activeTag && activeTag.toLowerCase() === tag.toLowerCase();
+                    return (
+                      <button
+                        key={index}
+                        type="button"
+                        className={cn(
+                          'inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-muted text-muted-foreground hover:text-foreground',
+                          isActive && 'ring-1 ring-current text-foreground'
+                        )}
+                        title={isActive ? 'Stop highlighting this tag' : `Highlight every topic tagged #${tag}`}
+                        aria-pressed={isActive}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onDoubleClick={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); onTagClick?.(tag); }}
+                      >
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: tagColor(tag) }} aria-hidden="true" />
+                        #{tag}
+                      </button>
+                    );
+                  })}
                   {node.tags.length > 3 && (
-                    <span className="text-xs text-gray-400">+{node.tags.length - 3}</span>
+                    <span className="text-xs text-muted-foreground">+{node.tags.length - 3}</span>
                   )}
                 </div>
               )}
@@ -473,7 +659,7 @@ const MindMapNodeBase = ({
                     href={safeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1 bg-white/80 px-1.5 py-0.5 rounded"
+                    className="text-blue-500 hover:underline text-xs flex items-center gap-1 mt-1 bg-card/80 px-1.5 py-0.5 rounded"
                     onClick={(e) => e.stopPropagation()}
                   >
                     🔗 {(() => {
@@ -500,12 +686,17 @@ const MindMapNodeBase = ({
         </div>
       )}
 
+      {isEditing && <TextFormatToolbar />}
+
       {isSelected && !isEditing && !isDragging && (selectionCount ?? 1) < 2 && (
         <NodeToolbar
           onAddImage={handleAddImage}
           onAddLink={handleAddLink}
           onAddNotes={() => onRequestNotes?.(node.id)}
           onAddIcon={() => onAddIcon?.(node.id)}
+          hasIcon={!!node.icon}
+          hasImage={!!node.image}
+          hasLink={!!node.link}
         />
       )}
 
@@ -513,14 +704,37 @@ const MindMapNodeBase = ({
         <button
           className={cn(
             'absolute -right-6 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full',
-            'flex items-center justify-center text-white',
-            'bg-gray-400 hover:bg-gray-600 transition-colors',
+            'flex items-center justify-center text-background',
+            'bg-muted-foreground hover:bg-foreground transition-colors',
             'shadow-sm'
           )}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); onAddChild(node.id); }}
         >
           <Plus className="w-3 h-3" strokeWidth={3} />
+        </button>
+      )}
+
+      {hiddenCount !== undefined && onToggleCollapse && !isEditing && (hiddenCount > 0 || isSelected) && (
+        <button
+          type="button"
+          className={cn(
+            'absolute -bottom-2.5 left-1/2 -translate-x-1/2 z-20 h-5 min-w-5 px-1 rounded-full border shadow-sm',
+            'flex items-center justify-center text-[10px] font-semibold leading-none tabular-nums transition-colors',
+            hiddenCount > 0
+              ? 'bg-foreground text-background border-foreground hover:bg-foreground/80'
+              : 'bg-card text-muted-foreground border-border hover:text-foreground hover:bg-muted'
+          )}
+          onMouseDown={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onToggleCollapse(node.id); }}
+          title={hiddenCount > 0
+            ? `Show the ${hiddenCount} hidden ${hiddenCount === 1 ? 'topic' : 'topics'} (Ctrl + .)`
+            : 'Collapse this branch (Ctrl + .)'}
+          aria-label={hiddenCount > 0 ? `Expand: ${hiddenCount} hidden` : 'Collapse this branch'}
+          aria-expanded={hiddenCount === 0}
+        >
+          {hiddenCount > 0 ? `+${hiddenCount}` : <Minus className="w-3 h-3" strokeWidth={3} />}
         </button>
       )}
 
@@ -534,14 +748,14 @@ const MindMapNodeBase = ({
           )}
           onMouseDown={handleResizeMouseDown}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 rotate-90">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600 dark:text-blue-400 rotate-90">
             <path d="M21 3L3 21" />
             <path d="M15 3h6v6" />
             <path d="M9 21H3v-6" />
           </svg>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 };
 

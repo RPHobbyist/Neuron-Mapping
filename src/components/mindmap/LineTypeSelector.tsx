@@ -1,3 +1,13 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { ConnectionStyle } from '@/types/mindmap';
 import {
     DropdownMenu,
@@ -26,7 +36,7 @@ const lineTypes: { value: ConnectionStyle; label: string; icon: React.ReactNode 
 export const LineTypeSelector = ({
     currentStyle,
     onStyleChange,
-    label = 'Canva Line Type',
+    label = 'Canvas Line Type',
     showSubtext = true
 }: LineTypeSelectorProps) => {
     return (
@@ -37,7 +47,7 @@ export const LineTypeSelector = ({
                     title="Change line type"
                 >
                     <Spline className="w-4 h-4" />
-                    <span className="hidden sm:inline whitespace-nowrap">{label}</span>
+                    <span className="hidden xl:inline whitespace-nowrap">{label}</span>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">

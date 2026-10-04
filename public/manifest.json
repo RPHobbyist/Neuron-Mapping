@@ -1,22 +1,35 @@
 {
-  "name": "Neuron Mapping — Free Mind Mapping Tool",
+  "id": "/workspace",
+  "name": "Neuron Mapping",
   "short_name": "Neuron Mapping",
-  "description": "Free open-source mind mapping tool. 20+ templates, 3D Galaxy View, PDF export — 100% private, no signup needed.",
+  "description": "A free, open-source mind map editor with 30+ templates that runs in your browser. Your maps stay on your device, and there is no signup.",
   "start_url": "/workspace",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
   "theme_color": "#6366f1",
+  "categories": ["productivity", "education"],
   "icons": [
     {
-      "src": "/icon.png",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon.png",
+      "src": "/icons/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
     }
   ]
 }
- 

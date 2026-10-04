@@ -1,38 +1,20 @@
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('/fonts/inter-400.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url('/fonts/inter-500.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url('/fonts/inter-600.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('/fonts/inter-700.ttf') format('truetype');
-}
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  .export-light {
     --background: 240 5% 96%;
     --foreground: 222 47% 11%;
 
@@ -64,36 +46,145 @@
     --radius: 0.5rem;
 
 
-    --node-orange-bg: 25 95% 90%;
-    --node-orange-text: 25 100% 35%;
-    --node-orange-border: 25 95% 60%;
+    --node-orange-bg: 30 92% 93%;
+    --node-orange-text: 22 70% 30%;
+    --node-orange-border: 26 75% 66%;
 
-    --node-blue-bg: 210 95% 90%;
-    --node-blue-text: 210 100% 35%;
-    --node-blue-border: 210 95% 60%;
+    --node-blue-bg: 212 88% 94%;
+    --node-blue-text: 215 62% 32%;
+    --node-blue-border: 212 70% 66%;
 
-    --node-cyan-bg: 180 80% 90%;
-    --node-cyan-text: 180 100% 25%;
-    --node-cyan-border: 180 80% 45%;
+    --node-cyan-bg: 188 65% 91%;
+    --node-cyan-text: 190 70% 24%;
+    --node-cyan-border: 188 55% 54%;
 
-    --node-yellow-bg: 45 95% 90%;
-    --node-yellow-text: 45 100% 30%;
-    --node-yellow-border: 45 95% 55%;
+    --node-yellow-bg: 46 92% 90%;
+    --node-yellow-text: 36 75% 27%;
+    --node-yellow-border: 43 80% 58%;
 
-    --node-grey-bg: 220 15% 90%;
-    --node-grey-text: 220 20% 30%;
-    --node-grey-border: 220 15% 60%;
+    --node-grey-bg: 30 10% 92%;
+    --node-grey-text: 220 15% 27%;
+    --node-grey-border: 25 6% 66%;
 
-    --node-purple-bg: 270 80% 92%;
-    --node-purple-text: 270 80% 35%;
-    --node-purple-border: 270 80% 60%;
+    --node-purple-bg: 268 80% 95%;
+    --node-purple-text: 268 48% 36%;
+    --node-purple-border: 266 58% 72%;
 
-    --node-black-bg: 222 47% 11%;
-    --node-black-text: 0 0% 100%;
-    --node-black-border: 222 47% 11%;
+    --node-red-bg: 4 88% 94%;
+    --node-red-text: 0 58% 37%;
+    --node-red-border: 2 70% 68%;
 
-    --canvas-bg: 240 5% 96%;
-    --canvas-dot: 220 10% 85%;
+    --node-pink-bg: 330 82% 95%;
+    --node-pink-text: 332 52% 36%;
+    --node-pink-border: 330 60% 72%;
+
+    --node-green-bg: 140 52% 91%;
+    --node-green-text: 148 58% 23%;
+    --node-green-border: 145 40% 55%;
+
+    --node-teal-bg: 166 50% 90%;
+    --node-teal-text: 172 68% 21%;
+    --node-teal-border: 168 42% 50%;
+
+    --node-lime-bg: 80 62% 89%;
+    --node-lime-text: 85 62% 23%;
+    --node-lime-border: 82 45% 52%;
+
+    --node-indigo-bg: 232 88% 95%;
+    --node-indigo-text: 234 48% 38%;
+    --node-indigo-border: 232 62% 72%;
+
+    --node-black-bg: 224 30% 17%;
+    --node-black-text: 40 33% 97%;
+    --node-black-border: 224 30% 17%;
+
+    --canvas-bg: 40 22% 97%;
+    --canvas-dot: 35 10% 80%;
+  }
+
+  .dark {
+    --background: 222 24% 9%;
+    --foreground: 210 20% 92%;
+
+    --card: 222 20% 12%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 222 20% 13%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 210 20% 92%;
+    --primary-foreground: 222 30% 10%;
+
+    --secondary: 222 16% 19%;
+    --secondary-foreground: 210 20% 92%;
+
+    --muted: 222 16% 19%;
+    --muted-foreground: 215 14% 66%;
+
+    --accent: 210 100% 60%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 56%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 222 14% 24%;
+    --input: 222 14% 24%;
+    --ring: 210 20% 80%;
+
+    --node-orange-bg: 25 55% 19%;
+    --node-orange-text: 25 95% 78%;
+    --node-orange-border: 25 85% 55%;
+
+    --node-blue-bg: 210 55% 20%;
+    --node-blue-text: 210 95% 80%;
+    --node-blue-border: 210 85% 58%;
+
+    --node-cyan-bg: 180 50% 16%;
+    --node-cyan-text: 180 75% 72%;
+    --node-cyan-border: 180 70% 42%;
+
+    --node-yellow-bg: 45 55% 17%;
+    --node-yellow-text: 45 95% 72%;
+    --node-yellow-border: 45 90% 50%;
+
+    --node-grey-bg: 220 12% 20%;
+    --node-grey-text: 220 15% 82%;
+    --node-grey-border: 220 12% 50%;
+
+    --node-purple-bg: 270 45% 22%;
+    --node-purple-text: 270 90% 84%;
+    --node-purple-border: 270 75% 64%;
+
+    --node-red-bg: 0 50% 20%;
+    --node-red-text: 0 90% 82%;
+    --node-red-border: 0 80% 60%;
+
+    --node-pink-bg: 330 45% 20%;
+    --node-pink-text: 330 85% 82%;
+    --node-pink-border: 330 75% 62%;
+
+    --node-green-bg: 142 40% 16%;
+    --node-green-text: 142 65% 72%;
+    --node-green-border: 142 60% 42%;
+
+    --node-teal-bg: 170 45% 15%;
+    --node-teal-text: 170 70% 70%;
+    --node-teal-border: 170 70% 38%;
+
+    --node-lime-bg: 85 45% 15%;
+    --node-lime-text: 85 70% 70%;
+    --node-lime-border: 85 65% 42%;
+
+    --node-indigo-bg: 235 45% 22%;
+    --node-indigo-text: 235 90% 84%;
+    --node-indigo-border: 235 80% 66%;
+
+    --node-black-bg: 210 20% 92%;
+    --node-black-text: 222 30% 10%;
+    --node-black-border: 210 20% 92%;
+
+    --canvas-bg: 222 24% 8%;
+    --canvas-dot: 222 12% 22%;
   }
 }
 
@@ -104,14 +195,117 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .export-light,
+  .export-light * {
+    transition: none !important;
+  }
+}
+
+@layer components {
+  .notes-markdown {
+    @apply text-sm leading-relaxed text-foreground break-words;
+  }
+  .notes-markdown > * + * {
+    @apply mt-3;
+  }
+  .notes-markdown h1 {
+    @apply text-lg font-bold;
+  }
+  .notes-markdown h2 {
+    @apply text-base font-bold;
+  }
+  .notes-markdown h3,
+  .notes-markdown h4,
+  .notes-markdown h5,
+  .notes-markdown h6 {
+    @apply text-sm font-semibold;
+  }
+  .notes-markdown ul {
+    @apply list-disc pl-5 space-y-1;
+  }
+  .notes-markdown ol {
+    @apply list-decimal pl-5 space-y-1;
+  }
+  .notes-markdown li > ul,
+  .notes-markdown li > ol {
+    @apply mt-1;
+  }
+  .notes-markdown li:has(> input[type="checkbox"]) {
+    @apply list-none -ml-5;
+  }
+  .notes-markdown input[type="checkbox"] {
+    @apply mr-1.5 align-middle;
+  }
+  .notes-markdown a {
+    @apply text-blue-600 underline underline-offset-2 dark:text-blue-400;
+  }
+  .notes-markdown code {
+    @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+  }
+  .notes-markdown pre {
+    @apply overflow-x-auto rounded-md bg-muted p-3;
+  }
+  .notes-markdown pre code {
+    @apply bg-transparent p-0;
+  }
+  .notes-markdown blockquote {
+    @apply border-l-2 border-border pl-3 text-muted-foreground;
+  }
+  .notes-markdown hr {
+    @apply border-border;
+  }
+  .notes-markdown table {
+    @apply w-full border-collapse text-xs;
+  }
+  .notes-markdown th,
+  .notes-markdown td {
+    @apply border border-border px-2 py-1 text-left align-top;
+  }
+  .notes-markdown th {
+    @apply bg-muted font-semibold;
+  }
+  .notes-markdown img {
+    @apply max-w-full rounded;
   }
 }
 
 @layer utilities {
   .canvas-dots {
-    background-image: radial-gradient(circle, hsl(var(--canvas-dot)) 1.5px, transparent 1.5px);
-    background-size: 24px 24px;
+    background-image: radial-gradient(circle, hsl(var(--canvas-dot)) 1.1px, transparent 1.3px);
+    background-size: 22px 22px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track,
+  .custom-scrollbar::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 9999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    .custom-scrollbar {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    }
   }
 
   .btn-primary {
@@ -119,11 +313,27 @@
   }
 
   .btn-secondary {
-    @apply bg-white border border-border text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted transition-colors shadow-sm;
+    @apply bg-card border border-border text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted transition-colors shadow-sm;
   }
 
   .heart-beat {
     animation: heartbeat 2s ease-in-out infinite;
+  }
+
+  .node-enter {
+    animation: node-enter 0.4s ease-out;
+  }
+
+  @keyframes node-enter {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .node-enter {
+      animation: none;
+    }
   }
 
   @keyframes heartbeat {

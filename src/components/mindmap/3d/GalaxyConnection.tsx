@@ -1,8 +1,17 @@
-import { useRef, useMemo } from 'react';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Line, QuadraticBezierLine, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { Line2 } from 'three-stdlib';
 import { ConnectionStyle, LineThickness } from '@/types/mindmap';
 
 interface GalaxyConnectionProps {
@@ -46,6 +55,10 @@ export const GalaxyConnection = ({
     const controlPoint = useMemo(() => new THREE.Vector3(), []);
     const tempDir = useMemo(() => new THREE.Vector3(), []);
     const labelGroupRef = useRef<THREE.Group>(null);
+    const hoveredRef = useRef(false);
+    useEffect(() => () => {
+        if (hoveredRef.current) document.body.style.cursor = 'auto';
+    }, []);
     const startArrowRef = useRef<THREE.Mesh>(null);
     const endArrowRef = useRef<THREE.Mesh>(null);
     const tempQuat = useMemo(() => new THREE.Quaternion(), []);
@@ -153,7 +166,6 @@ export const GalaxyConnection = ({
                     lineWidth={LINE_WIDTH[thickness]}
                     transparent
                     opacity={0.1}
-                    segments={20}
                 />
             )}
 
@@ -191,8 +203,8 @@ export const GalaxyConnection = ({
                     e.stopPropagation();
                     onSelect?.(e);
                 }}
-                onPointerOver={() => { document.body.style.cursor = 'pointer'; }}
-                onPointerOut={() => { document.body.style.cursor = 'auto'; }}
+                onPointerOver={() => { hoveredRef.current = true; document.body.style.cursor = 'pointer'; }}
+                onPointerOut={() => { hoveredRef.current = false; document.body.style.cursor = 'auto'; }}
             >
                 <sphereGeometry args={[0.08, 16, 16]} />
                 <meshBasicMaterial

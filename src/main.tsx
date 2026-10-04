@@ -1,33 +1,26 @@
-import { createRoot } from "react-dom/client";
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
+import { createRoot, hydrateRoot } from "react-dom/client";
 import App from "./App.tsx";
+import "@fontsource-variable/inter";
 import "./index.css";
 
-type TrustedTypesLike = {
-  createPolicy: (
-    name: string,
-    rules: {
-      createHTML?: (s: string) => string;
-      createScript?: (s: string) => string;
-      createScriptURL?: (s: string) => string;
-    }
-  ) => unknown;
-};
-const win = window as unknown as { trustedTypes?: TrustedTypesLike };
-if (win.trustedTypes && win.trustedTypes.createPolicy) {
-  try {
-    win.trustedTypes.createPolicy("default", {
-      createHTML: (s: string) => s,
-      createScript: (s: string) => s,
-      createScriptURL: (s: string) => s,
-    });
-  } catch {
-  }
-}
+const container = document.getElementById("root")!;
+const normalizePath = (p: string) => (p.endsWith("/") ? p : `${p}/`);
+const prerenderedFor = container.dataset.prerendered;
 
-const fontLink = document.getElementById("google-fonts-link") as HTMLLinkElement | null;
-if (fontLink) {
-  fontLink.media = "all";
+if (prerenderedFor && normalizePath(prerenderedFor) === normalizePath(window.location.pathname)) {
+  hydrateRoot(container, <App />);
+} else {
+  container.replaceChildren();
+  createRoot(container).render(<App />);
 }
-
-createRoot(document.getElementById("root")!).render(<App />);
  

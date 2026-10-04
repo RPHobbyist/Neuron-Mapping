@@ -1,14 +1,24 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
 const orderFulfillmentNodes: MindMapNode[] = [
     { id: 'root', text: 'Order Fulfillment', x: 0, y: -350, color: 'teal', parentId: null },
 
-    { id: 'start', text: 'Start', x: -560, y: -200, color: 'purple', parentId: 'root', lineTension: 0.75 },
-    { id: 'place', text: 'Place Order', x: -280, y: -200, color: 'purple', parentId: 'root' },
+    { id: 'start', text: 'Start', x: -560, y: -200, color: 'purple', parentId: 'root', lineParentSide: 'left', lineChildSide: 'top' },
+    { id: 'place', text: 'Place Order', x: -280, y: -200, color: 'purple', parentId: 'root', lineParentSide: 'left', lineChildSide: 'top' },
     { id: 'manage', text: 'Manage Stock', x: 0, y: -200, color: 'blue', parentId: 'root' },
-    { id: 'pick', text: 'Pick Ticket', x: 280, y: -200, color: 'blue', parentId: 'root' },
-    { id: 'cargo', text: 'Cargo Coord', x: 560, y: -200, color: 'blue', parentId: 'root', lineTension: 0.75 },
+    { id: 'pick', text: 'Pick Ticket', x: 280, y: -200, color: 'blue', parentId: 'root', lineParentSide: 'right', lineChildSide: 'top' },
+    { id: 'cargo', text: 'Cargo Coord', x: 560, y: -200, color: 'blue', parentId: 'root', lineParentSide: 'right', lineChildSide: 'top' },
 
     { id: 'prep', text: 'Prepare Ship', x: -560, y: 0, color: 'cyan', parentId: 'start' },
 

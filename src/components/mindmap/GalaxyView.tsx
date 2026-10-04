@@ -1,17 +1,29 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { useState, useMemo } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
-import { MindMapNode } from '@/types/mindmap';
+import { MindMapNode, ConnectionStyle } from '@/types/mindmap';
 import { calculateLayout, LayoutType } from '@/utils/layout3d';
 import { GalaxyNode } from './3d/GalaxyNode';
 import { GalaxyConnection } from './3d/GalaxyConnection';
+import { resolveArrowDirection } from './lineRouting';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 
 import { ThreeEvent } from '@react-three/fiber';
 
 interface GalaxyViewProps {
     nodes: MindMapNode[];
+    connectionStyle?: ConnectionStyle;
     selectedNodeIds?: Set<string>;
     onNodeClick?: (nodeId: string, e: ThreeEvent<MouseEvent>) => void;
     onNodeDoubleClick?: (nodeId: string) => void;
@@ -25,6 +37,7 @@ const SCALE_FACTOR = 100;
 
 export function GalaxyView({
     nodes,
+    connectionStyle = 'curved',
     selectedNodeIds,
     onNodeClick,
     onNodeDoubleClick,
@@ -100,7 +113,7 @@ export function GalaxyView({
                                 targetPosition={pos}
                                 isSelected={selectedNodeIds?.has(node.id)}
                                 onClick={(e) => onNodeClick?.(node.id, e)}
-                                onDoubleClick={onNodeDoubleClick ? (e) => onNodeDoubleClick(node.id) : undefined}
+                                onDoubleClick={onNodeDoubleClick ? () => onNodeDoubleClick(node.id) : undefined}
                                 onMove={layoutMode === '2d-projection' ? onNodeMove : undefined}
                                 onDragStart={onNodeDragStart}
                             />
@@ -114,19 +127,20 @@ export function GalaxyView({
 
                         const startPos = targetPositions[parent.id] || origin;
                         const endPos = targetPositions[node.id] || origin;
+                        const type = node.lineType || parent.lineType || connectionStyle;
 
                         return (
                             <GalaxyConnection
                                 key={`${parent.id}-${node.id}`}
                                 startPos={startPos}
                                 endPos={endPos}
-                                color={node.lineColor || parent.lineColor || '#9ca3af'}
-                                type={node.lineType || parent.lineType || 'curved'}
+                                color={node.lineColor || '#9ca3af'}
+                                type={type}
                                 thickness={node.lineThickness || 'medium'}
                                 animated={!!node.lineAnimated}
                                 label={node.lineLabel}
-                                arrowDirection={node.lineArrowDirection ?? 'none'}
-                                onSelect={(e) => onLineSelect?.(parent.id, node.id)}
+                                arrowDirection={resolveArrowDirection({ arrowDirection: node.lineArrowDirection, type })}
+                                onSelect={() => onLineSelect?.(parent.id, node.id)}
                             />
                         );
                     })}
@@ -150,7 +164,7 @@ export function GalaxyView({
                                     animated={!!relation.animated}
                                     label={relation.label}
                                     arrowDirection={relation.arrowDirection ?? 'forward'}
-                                    onSelect={(e) => onLineSelect?.(node.id, target.id, `rel::${node.id}::${target.id}`)}
+                                    onSelect={() => onLineSelect?.(node.id, target.id, `rel::${node.id}::${target.id}`)}
                                 />
                             );
                         })

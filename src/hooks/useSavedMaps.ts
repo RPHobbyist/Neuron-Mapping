@@ -1,83 +1,62 @@
-import { useState, useEffect, useCallback } from 'react';
-import { z } from 'zod';
-import { get, set } from 'idb-keyval';
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
 
-import { MindMapNodeSchema as NodeSchema, DrawingSchema, ConnectionStyleSchema } from '@/lib/schemas';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
-import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing } from '@/types/mindmap';
+import {
+  DeletedMap,
+  SavedMapSummary,
+  deleteMapRecord,
+  duplicateMapRecord,
+  listSavedMaps,
+  loadSavedMap,
+  loadThumbnails,
+  renameMapRecord,
+  restoreDeletedMap,
+  saveMapRecord,
+} from '@/lib/mapStore';
+import { requestPersistentStorage } from '@/utils/storageHealth';
 
-const STORAGE_KEY = 'neuron_saved_maps';
+import { SavedMindMap, MindMapNode, ConnectionStyle, Drawing, BoxArea, Viewport } from '@/types/mindmap';
 
-const SavedMapSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  nodes: z.array(NodeSchema),
-  connectionStyle: ConnectionStyleSchema,
-  templateId: z.string().optional(),
-  createdAt: z.string(),
-  updatedAt: z.string(),
-  thumbnail: z.string().optional(),
-  drawings: z.array(DrawingSchema).optional(),
-});
-
-const SavedMapsArraySchema = z.array(SavedMapSchema);
-
-const generateId = () => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return Math.random().toString(36).substr(2, 9);
-};
+export type { SavedMapSummary } from '@/lib/mapStore';
 
 export const useSavedMaps = () => {
-  const [savedMaps, setSavedMaps] = useState<SavedMindMap[]>([]);
+  const [savedMaps, setSavedMaps] = useState<SavedMapSummary[]>([]);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  const thumbnailCacheRef = useRef(new Map<string, { updatedAt: string; url?: string }>());
+
+  const reload = useCallback(async () => {
+    try {
+      const readable = (await listSavedMaps()).filter(summary => summary.readable);
+      const cache = thumbnailCacheRef.current;
+      const outdated = readable.filter(summary => cache.get(summary.id)?.updatedAt !== summary.updatedAt);
+      if (outdated.length > 0) {
+        const loaded = await loadThumbnails(outdated.map(summary => summary.id));
+        outdated.forEach(summary => cache.set(summary.id, { updatedAt: summary.updatedAt, url: loaded[summary.id] }));
+      }
+      setSavedMaps(readable);
+      setThumbnails(Object.fromEntries(readable.flatMap((summary) => {
+        const url = cache.get(summary.id)?.url;
+        return url ? [[summary.id, url]] : [];
+      })));
+    } catch (e) {
+      console.error('Failed to load saved maps:', e);
+    }
+  }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        let parsed: unknown;
-        let migratingFromLocalStorage = false;
-        const idbData = await get(STORAGE_KEY);
-
-        if (idbData) {
-          parsed = typeof idbData === 'string' ? JSON.parse(idbData) : idbData;
-        } else {
-          const localData = localStorage.getItem(STORAGE_KEY);
-          if (localData) {
-            parsed = JSON.parse(localData);
-            migratingFromLocalStorage = true;
-          }
-        }
-
-        if (Array.isArray(parsed)) {
-          const valid: SavedMindMap[] = [];
-          for (const raw of parsed) {
-            const result = SavedMapSchema.safeParse(raw);
-            if (result.success) {
-              valid.push(result.data as SavedMindMap);
-            } else {
-              console.error('Skipping invalid saved map:', result.error);
-            }
-          }
-          setSavedMaps(valid);
-
-          if (migratingFromLocalStorage) {
-            await set(STORAGE_KEY, valid);
-            localStorage.removeItem(STORAGE_KEY);
-          }
-        }
-      } catch (e) {
-        console.error('Failed to parse or validate saved maps:', e);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  const persistMaps = useCallback(async (maps: SavedMindMap[]) => {
-    await set(STORAGE_KEY, maps);
-    setSavedMaps(maps);
-  }, []);
+    reload();
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [reload]);
 
   const saveMap = useCallback(async (
     name: string,
@@ -86,48 +65,50 @@ export const useSavedMaps = () => {
     templateId?: string,
     existingId?: string,
     thumbnail?: string,
-    drawings?: Drawing[]
+    drawings?: Drawing[],
+    boxAreas?: BoxArea[],
+    viewport?: Viewport
   ): Promise<SavedMindMap> => {
-    const now = new Date().toISOString();
+    const saved = await saveMapRecord({ name, nodes, connectionStyle, templateId, existingId, thumbnail, drawings, boxAreas, viewport });
+    void requestPersistentStorage();
+    await reload();
+    return saved;
+  }, [reload]);
 
-    if (existingId) {
-      const updated = savedMaps.map(map =>
-        map.id === existingId
-          ? { ...map, name, nodes, connectionStyle, updatedAt: now, thumbnail: thumbnail || map.thumbnail, drawings }
-          : map
-      );
-      await persistMaps(updated);
-      return updated.find(m => m.id === existingId)!;
-    } else {
-      const newMap: SavedMindMap = {
-        id: generateId(),
-        name,
-        nodes,
-        connectionStyle,
-        templateId,
-        createdAt: now,
-        updatedAt: now,
-        thumbnail,
-        drawings,
-      };
-      await persistMaps([newMap, ...savedMaps]);
-      return newMap;
-    }
-  }, [savedMaps, persistMaps]);
+  const renameMap = useCallback(async (id: string, name: string): Promise<boolean> => {
+    const renamed = await renameMapRecord(id, name);
+    await reload();
+    return renamed;
+  }, [reload]);
 
-  const deleteMap = useCallback(async (id: string) => {
-    await persistMaps(savedMaps.filter(m => m.id !== id));
-  }, [savedMaps, persistMaps]);
+  const duplicateMap = useCallback(async (id: string, name: string): Promise<SavedMindMap | null> => {
+    const copy = await duplicateMapRecord(id, name);
+    await reload();
+    return copy;
+  }, [reload]);
 
-  const getMap = useCallback((id: string) => {
-    return savedMaps.find(m => m.id === id);
-  }, [savedMaps]);
+  const deleteMap = useCallback(async (id: string): Promise<DeletedMap> => {
+    const deleted = await deleteMapRecord(id);
+    thumbnailCacheRef.current.delete(id);
+    await reload();
+    return deleted;
+  }, [reload]);
+
+  const undoDelete = useCallback(async (deleted: DeletedMap): Promise<boolean> => {
+    const restored = await restoreDeletedMap(deleted);
+    await reload();
+    return restored;
+  }, [reload]);
 
   return {
     savedMaps,
+    thumbnails,
     saveMap,
+    renameMap,
+    duplicateMap,
     deleteMap,
-    getMap,
+    undoDelete,
+    loadMap: loadSavedMap,
+    reload,
   };
 };
- 

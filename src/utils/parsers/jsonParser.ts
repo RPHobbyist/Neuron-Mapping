@@ -1,3 +1,13 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
 import { createRootNode, createChildNode, generateId, getColorByDepth, sanitizeText } from './parserUtils';
 
@@ -23,9 +33,11 @@ export function parseJSON(content: string): MindMapNode[] {
         });
 
         if (rootShape) {
-            processArray(rootShape.children, rootId, 0, nodes);
-        } else {
+            processShapeContents(rootShape, rootId, 0, nodes);
+        } else if (typeof data === 'object' && data !== null) {
             processValue(data, rootId, 0, nodes);
+        } else {
+            nodes.push(createChildNode(String(data), rootId, 0));
         }
         return nodes;
     } catch (error) {
@@ -39,7 +51,13 @@ const MAX_DEPTH = 50;
 const TREE_LABEL_KEYS = ['text', 'name', 'title', 'label'];
 const TREE_CHILDREN_KEYS = ['children', 'items', 'nodes'];
 
-function getTreeNodeShape(value: unknown): { label: string; children: unknown[] } | null {
+interface TreeNodeShape {
+    label: string;
+    children: unknown[] | null;
+    rest: Record<string, unknown>;
+}
+
+function getTreeNodeShape(value: unknown): TreeNodeShape | null {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
     const obj = value as Record<string, unknown>;
 
@@ -47,10 +65,20 @@ function getTreeNodeShape(value: unknown): { label: string; children: unknown[] 
     if (!labelKey) return null;
 
     const childrenKey = TREE_CHILDREN_KEYS.find(key => Array.isArray(obj[key]));
+    const rest = Object.fromEntries(Object.entries(obj).filter(([key]) => key !== labelKey));
     return {
         label: obj[labelKey] as string,
-        children: childrenKey ? (obj[childrenKey] as unknown[]) : []
+        children: childrenKey ? (obj[childrenKey] as unknown[]) : null,
+        rest,
     };
+}
+
+function processShapeContents(shape: TreeNodeShape, nodeId: string, depth: number, nodes: MindMapNode[]): void {
+    if (shape.children) {
+        processArray(shape.children, nodeId, depth, nodes);
+    } else if (Object.keys(shape.rest).length > 0) {
+        processObject(shape.rest, nodeId, depth, nodes);
+    }
 }
 
 function processValue(value: unknown, parentId: string, depth: number, nodes: MindMapNode[]): void {
@@ -76,9 +104,7 @@ function processArray(arr: unknown[], parentId: string, depth: number, nodes: Mi
                 color: getColorByDepth(depth),
                 parentId
             });
-            if (shape.children.length > 0) {
-                processArray(shape.children, nodeId, depth + 1, nodes);
-            }
+            processShapeContents(shape, nodeId, depth + 1, nodes);
             return;
         }
 

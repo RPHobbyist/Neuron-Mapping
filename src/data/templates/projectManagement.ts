@@ -1,3 +1,13 @@
+/*
+ * Neuron Mapping
+ * Copyright (C) 2026 RP Hobbyist
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ */
+
 import { MindMapNode } from '@/types/mindmap';
 import { Template } from '@/types/templates';
 
@@ -47,27 +57,27 @@ const productLaunchRadialNodes: MindMapNode[] = [
 ];
 
 const productDevelopmentNodes: MindMapNode[] = [
-    { id: 'root', text: 'Development Cycle', x: 0, y: 0, color: 'root', parentId: null },
-    { id: 'concept', text: '1. Concept', x: -300, y: -100, color: 'blue', parentId: 'root' },
-    { id: 'design', text: '2. Design', x: -100, y: -100, color: 'purple', parentId: 'root' },
-    { id: 'dev', text: '3. Develop', x: 100, y: -100, color: 'orange', parentId: 'root' },
-    { id: 'test', text: '4. Test', x: 300, y: -100, color: 'pink', parentId: 'root' },
-    { id: 'launch', text: '5. Launch', x: 0, y: 150, color: 'green', parentId: 'root' },
+    { id: 'root', text: 'Development Cycle', x: 0, y: 0, color: 'root', parentId: null, width: 150, height: 150 },
+    { id: 'concept', text: '1. Concept', x: -480, y: -170, color: 'blue', parentId: 'root' },
+    { id: 'design', text: '2. Design', x: -160, y: -170, color: 'purple', parentId: 'root' },
+    { id: 'dev', text: '3. Develop', x: 160, y: -170, color: 'orange', parentId: 'root' },
+    { id: 'test', text: '4. Test', x: 480, y: -170, color: 'pink', parentId: 'root' },
+    { id: 'launch', text: '5. Launch', x: 0, y: 170, color: 'green', parentId: 'root' },
 
-    { id: 'c1', text: 'Research', x: -350, y: -180, color: 'blue', parentId: 'concept' },
-    { id: 'c2', text: 'Feasibility', x: -250, y: -180, color: 'blue', parentId: 'concept' },
+    { id: 'c1', text: 'Research', x: -560, y: -290, color: 'blue', parentId: 'concept' },
+    { id: 'c2', text: 'Feasibility', x: -400, y: -290, color: 'blue', parentId: 'concept' },
 
-    { id: 'd1', text: 'UI/UX', x: -150, y: -180, color: 'purple', parentId: 'design' },
-    { id: 'd2', text: 'Prototype', x: -50, y: -180, color: 'purple', parentId: 'design' },
+    { id: 'd1', text: 'UI/UX', x: -240, y: -290, color: 'purple', parentId: 'design' },
+    { id: 'd2', text: 'Prototype', x: -80, y: -290, color: 'purple', parentId: 'design' },
 
-    { id: 'dv1', text: 'Frontend', x: 50, y: -180, color: 'orange', parentId: 'dev' },
-    { id: 'dv2', text: 'Backend', x: 150, y: -180, color: 'orange', parentId: 'dev' },
+    { id: 'dv1', text: 'Frontend', x: 80, y: -290, color: 'orange', parentId: 'dev' },
+    { id: 'dv2', text: 'Backend', x: 240, y: -290, color: 'orange', parentId: 'dev' },
 
-    { id: 't1', text: 'QA', x: 250, y: -180, color: 'pink', parentId: 'test' },
-    { id: 't2', text: 'UAT', x: 350, y: -180, color: 'pink', parentId: 'test' },
+    { id: 't1', text: 'QA', x: 400, y: -290, color: 'pink', parentId: 'test' },
+    { id: 't2', text: 'UAT', x: 560, y: -290, color: 'pink', parentId: 'test' },
 
-    { id: 'l1', text: 'Deploy', x: -150, y: 230, color: 'green', parentId: 'launch' },
-    { id: 'l2', text: 'Marketing', x: 150, y: 230, color: 'green', parentId: 'launch' },
+    { id: 'l1', text: 'Deploy', x: -200, y: 270, color: 'green', parentId: 'launch' },
+    { id: 'l2', text: 'Marketing', x: 200, y: 270, color: 'green', parentId: 'launch' },
 ];
 
 const projectManagementNodes: MindMapNode[] = [
