@@ -76,6 +76,7 @@ import { SmartAddPanel } from './SmartAddPanel';
 import { BoxAreaLayer, BoxAreaToolbar } from './BoxAreaLayer';
 import { findBestParent } from '@/utils/smartPlacement';
 import { LAYOUTS } from '@/utils/layoutUtils';
+import { parseConnectionStyle, type LineStylePart } from '@/utils/lineStyle';
 import { getArrowheadPointing, generateId, getContentBounds, getNodeDimensions, findRootNode, getDescendantIds, areNodesConnected, isRootNode, sanitizeImageUrl } from '@/utils/common';
 import { DETACHED_PARENT_ID, BOX_AREA_COLORS, BOX_AREA_PADDING, BOX_AREA_LABEL_SPACE, BOX_AREA_DEFAULT_LABEL } from '@/lib/constants';
 
@@ -713,9 +714,13 @@ export const MindMapCanvas = ({
 
   const saveMap = () => (mapId ? handleSave(mapName || 'Untitled') : setShowSaveDialog(true));
 
-  const handleGlobalStyleChange = useCallback((style: ConnectionStyle) => {
-    applyGlobalConnectionStyle(style);
-    toast.success(`Applied ${style} style to all lines`);
+  const handleGlobalStyleChange = useCallback((style: ConnectionStyle, part: LineStylePart) => {
+    applyGlobalConnectionStyle(style, part);
+    const { shape, pattern, arrow } = parseConnectionStyle(style);
+    const shapeWord = shape === 'orthogonal' ? 'stepped' : shape;
+    toast.success(part === 'shape' ? `All lines are now ${shapeWord}`
+      : part === 'pattern' ? `All lines are now ${pattern}`
+      : arrow ? 'All lines now end in an arrowhead' : 'Arrowheads taken off all lines');
   }, [applyGlobalConnectionStyle]);
 
   const handleExportToFile = () => {
@@ -1156,6 +1161,16 @@ export const MindMapCanvas = ({
     setSelectedLineId(null);
     setSelectedBoxAreaId(null);
   }, [setSelectedLineId, setSelectedNodeIds, setSelectedBoxAreaId]);
+
+  const handleDeleteLine = useCallback((connectionId: string) => {
+    if (connectionId.startsWith('rel::')) {
+      deleteRelation(connectionId);
+    } else {
+      const [parentId, childId] = connectionId.split('::');
+      reconnectParentLink(parentId, childId, 'to', null);
+      setSelectedLineId(null);
+    }
+  }, [deleteRelation, reconnectParentLink, setSelectedLineId]);
 
   const handleSetConnectionSide = useCallback((connectionId: string, endpoint: 'from' | 'to', side: Side | null) => {
     if (connectionId.startsWith('rel::')) {
@@ -1887,6 +1902,8 @@ export const MindMapCanvas = ({
                 visibleLineIds={visibleLineIds}
                 onSetConnectionSide={handleSetConnectionSide}
                 onEndpointDragStart={handleEndpointDragStart}
+                routing={routing}
+                onDeleteLine={handleDeleteLine}
               />
 
               {nodeDropTargetId && (() => {
@@ -2039,25 +2056,6 @@ export const MindMapCanvas = ({
             </div>
           </div>}
 
-          {tasks.total > 0 && !isPlaying && !isZen && (
-            <div
-              className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 rounded-full border border-border/60 bg-card/90 backdrop-blur-sm shadow-sm pl-3 pr-1 py-1 text-xs text-foreground"
-              data-testid="task-summary"
-            >
-              <SquareCheck className={cn('w-3.5 h-3.5', tasks.done === tasks.total ? 'text-green-600' : 'text-blue-600')} />
-              <span>{tasks.done} of {tasks.total} {tasks.total === 1 ? 'task' : 'tasks'} done</span>
-              <button
-                className="flex items-center gap-1 rounded-full px-2 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                onClick={() => setHideCompleted(!hideCompleted)}
-                aria-pressed={hideCompleted}
-                title={hideCompleted ? 'Show the tasks that are done' : 'Hide the tasks that are done, with what is below them'}
-              >
-                {hideCompleted ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
-                {hideCompleted ? 'Show done' : 'Hide done'}
-              </button>
-            </div>
-          )}
-
           {!isZen && <div className="absolute bottom-6 right-6 z-50">
             <ZoomControls
               zoom={zoom}
@@ -2135,6 +2133,9 @@ export const MindMapCanvas = ({
 
       {((selectedLineId || selectedNodeIds.size > 0) && !isFocusMode && isPropertiesOpen) && (() => {
         if (selectedLineId) {
+          const lineBox = is3DMode ? undefined : routing.routes.get(selectedLineId)?.box;
+          const linePos = lineBox ? getScreenPos((lineBox.x1 + lineBox.x2) / 2, (lineBox.y1 + lineBox.y2) / 2) : undefined;
+          const lineAnchorWidth = lineBox ? (lineBox.x2 - lineBox.x1) * zoom : 0;
           if (selectedLineId.startsWith('rel::')) {
             const [, sourceId, targetId] = selectedLineId.split('::');
             const sourceNode = nodes.find(n => n.id === sourceId);
@@ -2150,6 +2151,7 @@ export const MindMapCanvas = ({
 
             const values: LineSettings = {
               type: relation?.type || 'dashed',
+              pattern: relation?.pattern,
               thickness: relation?.thickness || 'medium',
               color: relation?.color || '#ef4444',
               label: relation?.label,
@@ -2163,8 +2165,8 @@ export const MindMapCanvas = ({
               <PropertiesPanel
                 key={`line-rel-${sourceId}-${targetId}`}
                 mode="line"
-                position={pos}
-                anchorWidth={0}
+                position={linePos ?? pos}
+                anchorWidth={linePos ? lineAnchorWidth : 0}
                 topInset={TOOLBAR_HEIGHT}
                 lineValues={values}
                 lineArrowPointing={getArrowheadPointing(sourceNode, targetNode, relation?.sourceSide, relation?.targetSide)}
@@ -2196,6 +2198,7 @@ export const MindMapCanvas = ({
             const resolvedLineType = childNode.lineType || parentNode?.lineType || hookConnectionStyle;
             const values: LineSettings = {
               type: resolvedLineType,
+              pattern: childNode.linePattern ?? (childNode.lineType ? undefined : parentNode?.linePattern),
               thickness: childNode.lineThickness || 'medium',
               color: childNode.lineColor,
               label: childNode.lineLabel,
@@ -2204,21 +2207,22 @@ export const MindMapCanvas = ({
               tension: childNode.lineTension ?? 0.5,
               animationDirection: childNode.lineAnimationDirection,
               animationType: childNode.lineAnimationType,
-              arrowDirection: childNode.lineArrowDirection || (resolvedLineType === 'arrow' ? 'forward' : 'none'),
+              arrowDirection: childNode.lineArrowDirection || (parseConnectionStyle(resolvedLineType).arrow ? 'forward' : 'none'),
             };
 
             return (
               <PropertiesPanel
                 key={`line-child-${childId}`}
                 mode="line"
-                position={pos}
-                anchorWidth={0}
+                position={linePos ?? pos}
+                anchorWidth={linePos ? lineAnchorWidth : 0}
                 topInset={TOOLBAR_HEIGHT}
                 lineValues={values}
                 lineArrowPointing={parentNode ? getArrowheadPointing(parentNode, childNode, childNode.lineParentSide, childNode.lineChildSide) : undefined}
                 onLineUpdate={(updates) => {
                   const nodeUpdates: Partial<NodeType> = {};
                   if (updates.type !== undefined) nodeUpdates.lineType = updates.type;
+                  if (updates.pattern !== undefined) nodeUpdates.linePattern = updates.pattern;
                   if (updates.thickness !== undefined) nodeUpdates.lineThickness = updates.thickness;
                   if (updates.color !== undefined) nodeUpdates.lineColor = updates.color;
                   if (updates.label !== undefined) nodeUpdates.lineLabel = updates.label;
@@ -2233,6 +2237,7 @@ export const MindMapCanvas = ({
                 onLineUpdateLive={(updates) => {
                   const nodeUpdates: Partial<NodeType> = {};
                   if (updates.type !== undefined) nodeUpdates.lineType = updates.type;
+                  if (updates.pattern !== undefined) nodeUpdates.linePattern = updates.pattern;
                   if (updates.thickness !== undefined) nodeUpdates.lineThickness = updates.thickness;
                   if (updates.color !== undefined) nodeUpdates.lineColor = updates.color;
                   if (updates.label !== undefined) nodeUpdates.lineLabel = updates.label;
@@ -2276,6 +2281,9 @@ export const MindMapCanvas = ({
               onDelete={nodeId === findRootNode(nodes)?.id ? undefined : () => deleteNode(nodeId)}
               onCopyStyle={() => handleCopyStyle(node)}
               onPasteStyle={copiedStyle ? handlePasteStyle : undefined}
+              taskTotals={tasks}
+              hideDoneTasks={hideCompleted}
+              onToggleHideDoneTasks={() => setHideCompleted(!hideCompleted)}
               onClose={() => { setIsPropertiesOpen(false); }}
               is3DMode={is3DMode}
             />
@@ -2312,6 +2320,9 @@ export const MindMapCanvas = ({
               onLiveEditStart={checkpoint}
               onDelete={deleteSelectedNodes}
               onPasteStyle={copiedStyle ? handlePasteStyle : undefined}
+              taskTotals={tasks}
+              hideDoneTasks={hideCompleted}
+              onToggleHideDoneTasks={() => setHideCompleted(!hideCompleted)}
               onClose={() => { setIsPropertiesOpen(false); }}
               is3DMode={is3DMode}
             />

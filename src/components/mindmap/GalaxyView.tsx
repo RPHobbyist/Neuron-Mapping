@@ -136,6 +136,7 @@ export function GalaxyView({
                                 endPos={endPos}
                                 color={node.lineColor || '#9ca3af'}
                                 type={type}
+                                pattern={node.linePattern ?? (node.lineType ? undefined : parent.linePattern)}
                                 thickness={node.lineThickness || 'medium'}
                                 animated={!!node.lineAnimated}
                                 label={node.lineLabel}

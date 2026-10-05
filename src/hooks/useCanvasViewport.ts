@@ -131,21 +131,26 @@ export const useCanvasViewport = ({ canvasRef, contentRef, nodes, drawings, boxA
       const dx = e.deltaX * unit;
       const dy = e.deltaY * unit;
 
-      if (e.ctrlKey || e.metaKey) {
-        const rect = el.getBoundingClientRect();
-        const step = Math.min(Math.abs(dy) * WHEEL_ZOOM_RATE, Math.log(ZOOM_STEP));
-        const factor = Math.exp(-Math.sign(dy) * step);
-        setViewport(view => zoomedAround(
-          view,
-          e.clientX - (rect.left + rect.width / 2),
-          e.clientY - (rect.top + rect.height / 2),
-          factor
-        ));
+      if (e.shiftKey) {
+        const sideways = dx === 0;
+        setViewport(view => ({ ...view, x: view.x - (sideways ? dy : dx), y: view.y - (sideways ? 0 : dy) }));
         return;
       }
 
-      const sideways = e.shiftKey && dx === 0;
-      setViewport(view => ({ ...view, x: view.x - (sideways ? dy : dx), y: view.y - (sideways ? 0 : dy) }));
+      if (dy === 0) {
+        setViewport(view => ({ ...view, x: view.x - dx }));
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const step = Math.min(Math.abs(dy) * WHEEL_ZOOM_RATE, Math.log(ZOOM_STEP));
+      const factor = Math.exp(-Math.sign(dy) * step);
+      setViewport(view => zoomedAround(
+        view,
+        e.clientX - (rect.left + rect.width / 2),
+        e.clientY - (rect.top + rect.height / 2),
+        factor
+      ));
     };
 
     let gestureScale = 1;

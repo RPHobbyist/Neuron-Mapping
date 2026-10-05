@@ -18,6 +18,7 @@ import { siblingLine, siblingsOf, swapWithSibling } from '@/utils/siblings';
 import { carryHiddenBranches, collapseToLevel, expandAll, expandAncestorsOf, hiddenNodeIds, toggleCollapsed } from '@/utils/collapse';
 import { canMoveBranchTo, insertParentNode, moveBranchTo, outdentBranch } from '@/utils/restructure';
 import { withSmartText } from '@/utils/smartText';
+import { withGlobalLinePart, type LineStylePart } from '@/utils/lineStyle';
 import {
     DEFAULT_NODE_WIDTH, DEFAULT_NODE_HEIGHT, NODE_PLACEMENT_GAP, getNodeSize, rectsOverlap, findClearPosition, findClearPositionAlong,
 } from '@/utils/placement';
@@ -156,17 +157,27 @@ export const useMindMapNodes = (
         set((prev) => ({ ...prev, connectionStyle: style }));
     }, [set]);
 
-    const applyGlobalConnectionStyle = useCallback((style: ConnectionStyle) => {
+    const applyGlobalConnectionStyle = useCallback((style: ConnectionStyle, part?: LineStylePart) => {
+        if (part) {
+            set((prev) => ({
+                ...prev,
+                connectionStyle: style,
+                nodes: prev.nodes.map(node => withGlobalLinePart(node, part)),
+            }));
+            return;
+        }
         set((prev) => ({
             ...prev,
             connectionStyle: style,
             nodes: prev.nodes.map(node => {
                 const newNode = { ...node };
                 if (newNode.lineType) delete newNode.lineType;
+                if (newNode.linePattern) delete newNode.linePattern;
                 if (newNode.relations) {
                     newNode.relations = newNode.relations.map(r => {
                         const newRel = { ...r };
                         if (newRel.type) delete newRel.type;
+                        if (newRel.pattern) delete newRel.pattern;
                         return newRel;
                     });
                 }

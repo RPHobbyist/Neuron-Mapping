@@ -30,19 +30,36 @@ const ctrlWheel = async (page: Page, deltaY: number) => {
     await page.keyboard.up('Control');
 };
 
-test('the wheel pans, and sideways with Shift', async ({ page }) => {
+test('Shift + wheel pans, and sideways when there is no sideways scroll', async ({ page }) => {
     await openNewMap(page);
     const canvas = (await page.getByTestId('mindmap-canvas').boundingBox())!;
     await page.mouse.move(canvas.x + 60, canvas.y + 60);
 
     const [x0, y0] = await roundedPan(page);
+    await page.keyboard.down('Shift');
     await page.mouse.wheel(30, 80);
     await expect.poll(() => roundedPan(page)).toEqual([x0 - 30, y0 - 80]);
 
-    await page.keyboard.down('Shift');
     await page.mouse.wheel(0, 50);
     await page.keyboard.up('Shift');
     await expect.poll(() => roundedPan(page)).toEqual([x0 - 80, y0 - 80]);
+    await expect(page.getByText('100%')).toBeVisible();
+});
+
+test('the wheel zooms on the point under the pointer', async ({ page }) => {
+    await openNewMap(page);
+    const topic = node(page, 'Topic 3');
+    const before = await settledBox(topic);
+    const pointer = { x: before.x + before.width / 2, y: before.y + before.height / 2 };
+    await page.mouse.move(pointer.x, pointer.y);
+
+    await page.mouse.wheel(0, -100);
+    await expect(page.getByText('120%')).toBeVisible();
+    const after = (await topic.boundingBox())!;
+    expect(Math.abs(after.x + after.width / 2 - pointer.x)).toBeLessThan(1.5);
+    expect(Math.abs(after.y + after.height / 2 - pointer.y)).toBeLessThan(1.5);
+
+    await page.mouse.wheel(0, 100);
     await expect(page.getByText('100%')).toBeVisible();
 });
 
@@ -104,7 +121,9 @@ test('a saved map opens with the view it was saved with', async ({ page }) => {
     await openNewMap(page);
     const canvas = (await page.getByTestId('mindmap-canvas').boundingBox())!;
     await page.mouse.move(canvas.x + 60, canvas.y + 60);
+    await page.keyboard.down('Shift');
     await page.mouse.wheel(140, -90);
+    await page.keyboard.up('Shift');
     await page.keyboard.press('Control+=');
     await page.keyboard.press('Control+=');
     await expect(page.getByText('144%')).toBeVisible();

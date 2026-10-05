@@ -108,7 +108,9 @@ test(`a map of ${COUNT} topics stays usable`, async ({ page }) => {
     const domZoomed = await domSize(page);
 
     await measure('pan 30 steps', async () => {
+        await page.keyboard.down('Shift');
         for (let i = 0; i < 30; i++) await page.mouse.wheel(0, 120);
+        await page.keyboard.up('Shift');
     });
 
     const target = page.locator('[data-node-id]').filter({ hasNotText: 'Stress test' }).first();

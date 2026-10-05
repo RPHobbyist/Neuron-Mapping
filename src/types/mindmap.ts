@@ -12,7 +12,13 @@ export type NodeColor = 'teal' | 'purple' | 'orange' | 'pink' | 'blue' | 'green'
 
 export type NodeShape = 'rounded' | 'rectangle' | 'pill' | 'diamond' | 'hexagon' | 'circle' | 'parallelogram' | 'isometric' | 'cloud';
 
-export type ConnectionStyle = 'curved' | 'straight' | 'orthogonal' | 'dashed' | 'dotted' | 'arrow';
+export type LineShape = 'curved' | 'orthogonal' | 'straight';
+
+export type LinePattern = 'solid' | 'dashed' | 'dotted';
+
+export type ConnectionStyle =
+  | 'dashed' | 'dotted' | 'arrow'
+  | `${LineShape}${'' | '-dashed' | '-dotted'}${'' | '-arrow'}`;
 
 export type LineThickness = 'thin' | 'medium' | 'thick';
 
@@ -23,6 +29,7 @@ export interface Relation {
   sourceId?: string;
   label?: string;
   type?: ConnectionStyle;
+  pattern?: LinePattern;
   thickness?: LineThickness;
   color?: string;
   animated?: boolean;
@@ -70,6 +77,7 @@ export interface MindMapNode {
   shape?: NodeShape;
   nodeAnimation?: NodeAnimation;
   lineType?: ConnectionStyle;
+  linePattern?: LinePattern;
   lineThickness?: LineThickness;
   lineColor?: string;
   lineLabel?: string;

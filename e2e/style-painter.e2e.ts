@@ -10,7 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { node, preparePage } from './helpers';
+import { node, openPanelSection, preparePage } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -28,6 +28,7 @@ const deselect = (page: Page) => page.getByTestId('mindmap-canvas').click({ posi
 
 test('a copied style is given to other blocks with the keys or the panel, in one undo step each', async ({ page }) => {
     await node(page, 'Topic 1').click();
+    await openPanelSection(page, 'Shape');
     await page.getByRole('button', { name: 'Pill', exact: true }).click();
     await deselect(page);
     const look = await lookOf(page, 'Topic 1');

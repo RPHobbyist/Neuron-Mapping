@@ -19,6 +19,12 @@ export const preparePage = async (page: Page) => {
 
 export const node = (page: Page, text: string) => page.getByTestId('mindmap-canvas').getByText(text, { exact: true });
 
+export const openPanelSection = async (page: Page, name: string) => {
+    const header = page.locator(`button[data-section="${name}"]`);
+    if (await header.getAttribute('aria-expanded') === 'false') await header.click();
+    await expect(header).toHaveAttribute('aria-expanded', 'true');
+};
+
 export const commandPalette = (page: Page) => page.getByRole('dialog', { name: 'Command palette' });
 
 export const searchPalette = async (page: Page, search: string) => {

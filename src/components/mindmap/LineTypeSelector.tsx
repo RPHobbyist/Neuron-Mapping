@@ -8,30 +8,46 @@
  * (at your option) any later version.
  */
 
-import { ConnectionStyle } from '@/types/mindmap';
+import { ConnectionStyle, LinePattern, LineShape } from '@/types/mindmap';
 import {
     DropdownMenu,
+    DropdownMenuCheckboxItem,
     DropdownMenuContent,
-    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuRadioGroup,
+    DropdownMenuRadioItem,
+    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Spline } from 'lucide-react';
+import { composeConnectionStyle, parseConnectionStyle, type LineStylePart } from '@/utils/lineStyle';
 
 export interface LineTypeSelectorProps {
     currentStyle: ConnectionStyle;
-    onStyleChange: (style: ConnectionStyle) => void;
+    onStyleChange: (style: ConnectionStyle, part: LineStylePart) => void;
     label?: string;
     showSubtext?: boolean;
 }
 
-const lineTypes: { value: ConnectionStyle; label: string; icon: React.ReactNode }[] = [
-    { value: 'curved', label: 'Curve', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20 Q 12 4, 20 20" /></svg> },
-    { value: 'straight', label: 'Straight', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="20" x2="20" y2="4" /></svg> },
-    { value: 'orthogonal', label: 'Step', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20 L 4 4 L 20 4" /></svg> },
-    { value: 'dashed', label: 'Dashed', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 2"><path d="M4 20 Q 12 4, 20 20" /></svg> },
-    { value: 'dotted', label: 'Dotted', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="2 2"><path d="M4 20 Q 12 4, 20 20" /></svg> },
-    { value: 'arrow', label: 'Arrow', icon: <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20 L 20 4 M 16 4 L 20 4 L 20 8" /></svg> },
+const lineShapes: { value: LineShape; label: string; path: string }[] = [
+    { value: 'curved', label: 'Curve', path: 'M4 20 Q 12 4, 20 20' },
+    { value: 'orthogonal', label: 'Step', path: 'M4 20 L 4 4 L 20 4' },
+    { value: 'straight', label: 'Straight', path: 'M4 20 L 20 4' },
 ];
+
+const linePatterns: { value: LinePattern; label: string; dash?: string }[] = [
+    { value: 'solid', label: 'Solid' },
+    { value: 'dashed', label: 'Dashed', dash: '4 3' },
+    { value: 'dotted', label: 'Dotted', dash: '0.5 3.5' },
+];
+
+const LineIcon = ({ path, dash }: { path: string; dash?: string }) => (
+    <svg className="w-4 h-4 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray={dash} aria-hidden="true">
+        <path d={path} />
+    </svg>
+);
+
+const keepOpen = (e: Event) => e.preventDefault();
 
 export const LineTypeSelector = ({
     currentStyle,
@@ -39,6 +55,10 @@ export const LineTypeSelector = ({
     label = 'Canvas Line Type',
     showSubtext = true
 }: LineTypeSelectorProps) => {
+    const current = parseConnectionStyle(currentStyle);
+    const change = (part: LineStylePart, next: Partial<typeof current>) =>
+        onStyleChange(composeConnectionStyle({ ...current, ...next }), part);
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -50,24 +70,42 @@ export const LineTypeSelector = ({
                     <span className="hidden xl:inline whitespace-nowrap">{label}</span>
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-52">
                 {showSubtext && (
                     <div className="px-2 py-1.5 text-[10px] text-muted-foreground border-b mb-1">
-                        This changes all lines of canvas
+                        Changes every line on the canvas
                     </div>
                 )}
-                {lineTypes.map((type) => (
-                    <DropdownMenuItem
-                        key={type.value}
-                        onClick={() => onStyleChange(type.value)}
-                        className={`cursor-pointer flex items-center gap-3 ${currentStyle === type.value ? 'bg-muted' : ''}`}
-                    >
-                        <span className="text-muted-foreground">{type.icon}</span>
-                        <span>{type.label}</span>
-                    </DropdownMenuItem>
-                ))}
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground py-1">Shape</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={current.shape} onValueChange={(value) => change('shape', { shape: value as LineShape })}>
+                    {lineShapes.map((shape) => (
+                        <DropdownMenuRadioItem key={shape.value} value={shape.value} onSelect={keepOpen} className="cursor-pointer gap-3">
+                            <LineIcon path={shape.path} />
+                            {shape.label}
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground py-1">Pattern</DropdownMenuLabel>
+                <DropdownMenuRadioGroup value={current.pattern} onValueChange={(value) => change('pattern', { pattern: value as LinePattern })}>
+                    {linePatterns.map((pattern) => (
+                        <DropdownMenuRadioItem key={pattern.value} value={pattern.value} onSelect={keepOpen} className="cursor-pointer gap-3">
+                            <LineIcon path="M4 12 L 20 12" dash={pattern.dash} />
+                            {pattern.label}
+                        </DropdownMenuRadioItem>
+                    ))}
+                </DropdownMenuRadioGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuCheckboxItem
+                    checked={current.arrow}
+                    onCheckedChange={(checked) => change('arrow', { arrow: checked === true })}
+                    onSelect={keepOpen}
+                    className="cursor-pointer gap-3"
+                >
+                    <LineIcon path="M4 12 L 19 12 M 14 7 L 19 12 L 14 17" />
+                    Arrowhead at the end
+                </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
         </DropdownMenu>
     );
 };
- 

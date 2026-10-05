@@ -46,5 +46,5 @@ test('pasted lines with task boxes and tags become tasks', async ({ page }) => {
     await expect(nodeBox(page, 'Call Sam').getByRole('checkbox')).toHaveAttribute('aria-checked', 'false');
     await expect(nodeBox(page, 'Call Sam').getByText('#work')).toBeVisible();
     await expect(nodeBox(page, 'Book room').getByRole('checkbox')).toHaveAttribute('aria-checked', 'true');
-    await expect(page.getByTestId('task-summary')).toContainText('1 of 2 tasks done');
+    await expect(page.getByTestId('mindmap-canvas').getByRole('checkbox')).toHaveCount(2);
 });

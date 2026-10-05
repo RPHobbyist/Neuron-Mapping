@@ -12,7 +12,8 @@ import { useRef, useMemo, useEffect } from 'react';
 import { useFrame, ThreeEvent } from '@react-three/fiber';
 import { Line, QuadraticBezierLine, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { ConnectionStyle, LineThickness } from '@/types/mindmap';
+import { ConnectionStyle, LinePattern, LineThickness } from '@/types/mindmap';
+import { lineShapeOf, linePatternOf } from '@/utils/lineStyle';
 
 interface GalaxyConnectionProps {
     startPos: THREE.Vector3;
@@ -20,6 +21,7 @@ interface GalaxyConnectionProps {
     color?: string;
     thickness?: LineThickness;
     type?: ConnectionStyle;
+    pattern?: LinePattern;
     animated?: boolean;
     label?: string;
     arrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
@@ -43,6 +45,7 @@ export const GalaxyConnection = ({
     color = '#94a3b8',
     thickness = 'medium',
     type = 'curved',
+    pattern,
     animated = true,
     label,
     arrowDirection = 'none',
@@ -65,8 +68,9 @@ export const GalaxyConnection = ({
     const tempDir2 = useMemo(() => new THREE.Vector3(), []);
     const upAxis = useMemo(() => new THREE.Vector3(0, 1, 0), []);
 
-    const isStraight = type === 'straight';
-    const isDashed = type === 'dashed' || type === 'dotted';
+    const isStraight = lineShapeOf(type) === 'straight';
+    const resolvedPattern = linePatternOf(type, pattern);
+    const isDashed = resolvedPattern !== 'solid';
     const showStartArrow = arrowDirection === 'reverse' || arrowDirection === 'both';
     const showEndArrow = arrowDirection === 'forward' || arrowDirection === 'both';
     const dotScale = DOT_SCALE[thickness];
@@ -154,8 +158,8 @@ export const GalaxyConnection = ({
                     transparent
                     opacity={0.35}
                     dashed
-                    dashSize={type === 'dotted' ? 0.08 : 0.4}
-                    gapSize={type === 'dotted' ? 0.18 : 0.25}
+                    dashSize={resolvedPattern === 'dotted' ? 0.08 : 0.4}
+                    gapSize={resolvedPattern === 'dotted' ? 0.18 : 0.25}
                 />
             ) : (
                 <QuadraticBezierLine

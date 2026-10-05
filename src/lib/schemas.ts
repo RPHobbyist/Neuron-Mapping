@@ -13,9 +13,12 @@ import { z } from 'zod';
 import { DETACHED_PARENT_ID } from '@/lib/constants';
 import { generateId, sanitizeUrl, sanitizeImageUrl } from '@/utils/common';
 import { sanitizeText } from '@/utils/parsers/parserUtils';
+import { isConnectionStyle } from '@/utils/lineStyle';
+import type { ConnectionStyle } from '@/types/mindmap';
 
-export const CONNECTION_STYLES = ['curved', 'straight', 'orthogonal', 'dashed', 'dotted', 'arrow'] as const;
-export const ConnectionStyleSchema = z.enum(CONNECTION_STYLES);
+export const ConnectionStyleSchema = z.custom<ConnectionStyle>(isConnectionStyle);
+const optionalConnectionStyle = ConnectionStyleSchema.optional().catch(undefined);
+const LINE_PATTERNS = ['solid', 'dashed', 'dotted'] as const;
 
 const SIDES = ['left', 'right', 'top', 'bottom'] as const;
 const THICKNESSES = ['thin', 'medium', 'thick'] as const;
@@ -56,7 +59,8 @@ export const RelationSchema = z.object({
     targetId: z.string().min(1),
     sourceId: optionalString,
     label: optionalText,
-    type: optionalEnum(CONNECTION_STYLES),
+    type: optionalConnectionStyle,
+    pattern: optionalEnum(LINE_PATTERNS),
     thickness: optionalEnum(THICKNESSES),
     color: optionalColor,
     animated: optionalBoolean,
@@ -87,7 +91,8 @@ export const MindMapNodeSchema = z.object({
     parentId: z.union([z.string(), z.null()]).optional().transform(v => v ?? null).catch(DETACHED_PARENT_ID),
     shape: optionalEnum(SHAPES),
     nodeAnimation: optionalEnum(['ring', 'snake', 'blink'] as const),
-    lineType: optionalEnum(CONNECTION_STYLES),
+    lineType: optionalConnectionStyle,
+    linePattern: optionalEnum(LINE_PATTERNS),
     lineThickness: optionalEnum(THICKNESSES),
     lineColor: optionalColor,
     lineLabel: optionalText,

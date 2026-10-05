@@ -11,6 +11,7 @@
 import type { LineRouting, ResolvedConnection } from '@/components/mindmap/lineRouting';
 import { BoxArea, Drawing, MindMapNode } from '@/types/mindmap';
 import { getNodeDimensions, isRootNode } from '@/utils/common';
+import { linePatternOf } from '@/utils/lineStyle';
 import { getPaletteName } from '@/utils/nodeStyles';
 import { Box, SpatialIndex, boxesOverlap } from '@/utils/spatialIndex';
 
@@ -154,7 +155,7 @@ export const drawMap = (ctx: CanvasRenderingContext2D, options: DrawMapOptions):
         const route = routing.routes.get(conn.id);
         if (!route || !boxesOverlap(route.box, viewBox)) return;
         const lineWidth = Math.max(STROKE[conn.thickness] ?? 2, minWidth);
-        const dashed = conn.type === 'dashed' || conn.type === 'dotted' || !!conn.isRelation;
+        const dashed = linePatternOf(conn.type, conn.pattern) !== 'solid';
         const key = `${conn.color}|${lineWidth}|${dashed}`;
         let group = groups.get(key);
         if (!group) {

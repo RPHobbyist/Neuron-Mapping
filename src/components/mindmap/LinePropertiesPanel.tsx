@@ -9,8 +9,8 @@
  */
 
 import { useState, useRef, useEffect, useLayoutEffect } from 'react';
-import { ConnectionStyle, LineThickness, NodeColor, NodeShape, NodePriority, NodeStatus, NodeTask, NodeAnimation, TextAlign, TextHeading, TextList, TextFont } from '@/types/mindmap';
-import { Spline, Minus, Equal, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Pilcrow, Heading1, Heading2, Heading3, List, ListOrdered, Palette, Type, GripHorizontal, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ArrowLeftRight, ArrowUpDown, MoveHorizontal, MoveVertical, Activity, Shapes, AlertCircle, ListChecks, SquareCheck, CalendarDays, Tag, Trash2, Paintbrush, PaintRoller, Plus, X, AArrowDown, AArrowUp, ChevronDown, type LucideIcon } from 'lucide-react';
+import { ConnectionStyle, LinePattern, LineShape, LineThickness, NodeColor, NodeShape, NodePriority, NodeStatus, NodeTask, NodeAnimation, TextAlign, TextHeading, TextList, TextFont } from '@/types/mindmap';
+import { Spline, Minus, Equal, Bold, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Pilcrow, Heading1, Heading2, Heading3, List, ListOrdered, Palette, Type, GripHorizontal, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, ArrowLeftRight, ArrowUpDown, MoveHorizontal, MoveVertical, Activity, Shapes, AlertCircle, ListChecks, SquareCheck, CalendarDays, Eye, EyeOff, Tag, Trash2, Paintbrush, PaintRoller, Plus, X, AArrowDown, AArrowUp, ChevronDown, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ArrowPointing } from '@/utils/common';
 import { statusOptions } from '@/utils/nodeStyles';
@@ -21,11 +21,14 @@ import {
 } from '@/utils/richText';
 import { useEditorSelectionFormat } from '@/hooks/useEditorSelectionFormat';
 import { getCustomColors, saveCustomColors, withCustomColor } from '@/utils/customColors';
+import { getOpenSections, saveOpenSections, toggleSection, SHORT_SCREEN_HEIGHT } from '@/utils/panelSections';
 import { ColorPicker } from './ColorPicker';
+import { lineShapeOf, linePatternOf, parseConnectionStyle } from '@/utils/lineStyle';
 import { TagEditor } from './TagEditor';
 
 export interface LineSettings {
     type?: ConnectionStyle;
+    pattern?: LinePattern;
     thickness?: LineThickness;
     color?: string;
     label?: string;
@@ -50,6 +53,8 @@ export interface NodeSettings {
     task?: NodeTask;
     dueDate?: string;
     lineType?: ConnectionStyle;
+    linePattern?: LinePattern;
+    lineArrowDirection?: 'none' | 'forward' | 'reverse' | 'both';
     nodeAnimation?: NodeAnimation;
     icon?: string;
     iconStyle?: 'plain' | 'boxed';
@@ -87,6 +92,9 @@ interface PropertiesPanelProps {
     onDelete?: () => void;
     onCopyStyle?: () => void;
     onPasteStyle?: () => void;
+    taskTotals?: { done: number; total: number };
+    hideDoneTasks?: boolean;
+    onToggleHideDoneTasks?: () => void;
 
     onLiveEditStart?: () => void;
 
@@ -94,14 +102,29 @@ interface PropertiesPanelProps {
     is3DMode?: boolean;
 }
 
-const lineTypes: { value: ConnectionStyle; label: string }[] = [
+const lineShapes: { value: LineShape; label: string }[] = [
     { value: 'curved', label: 'Curve' },
     { value: 'orthogonal', label: 'Step' },
     { value: 'straight', label: 'Straight' },
+];
+
+const linePatterns: { value: LinePattern; label: string }[] = [
+    { value: 'solid', label: 'Solid' },
     { value: 'dashed', label: 'Dashed' },
     { value: 'dotted', label: 'Dotted' },
-    { value: 'arrow', label: 'Arrow' },
 ];
+
+const PatternSwatch = ({ pattern }: { pattern: LinePattern }) => (
+    <svg width="16" height="4" viewBox="0 0 16 4" className="flex-shrink-0" aria-hidden="true">
+        <line
+            x1="2" y1="2" x2="14" y2="2"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray={pattern === 'dashed' ? '4 3' : pattern === 'dotted' ? '0 4' : undefined}
+        />
+    </svg>
+);
 
 const arrowheadOptions: { value: NonNullable<LineSettings['arrowDirection']>; label: string }[] = [
     { value: 'none', label: 'None' },
@@ -253,6 +276,63 @@ const TextDropdown = ({ label, title, className, children }: {
     );
 };
 
+const PanelSection = ({ icon: Icon, label, summary, open, onToggle, keepEditorFocus, children }: {
+    icon: LucideIcon;
+    label: string;
+    summary?: React.ReactNode;
+    open: boolean;
+    onToggle: () => void;
+    keepEditorFocus?: boolean;
+    children: React.ReactNode;
+}) => (
+    <div>
+        <button
+            type="button"
+            onClick={onToggle}
+            onMouseDown={(e) => e.preventDefault()}
+            aria-expanded={open}
+            data-section={label}
+            className="group w-[calc(100%+0.75rem)] -mx-1.5 px-1.5 py-1 flex items-center gap-1.5 rounded-md text-left hover:bg-muted/60 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+            <span className="flex items-center gap-1.5 flex-shrink-0 text-xs font-medium text-foreground/80 group-hover:text-foreground">
+                <Icon className="w-3.5 h-3.5 text-muted-foreground" /> {label}
+            </span>
+            <span
+                className={cn(
+                    "ml-auto min-w-0 max-w-[60%] h-6 pl-2 pr-1 flex items-center gap-1 rounded-md border text-[11px] transition-colors",
+                    open
+                        ? "bg-muted border-foreground/20 text-foreground"
+                        : "bg-background text-muted-foreground group-hover:border-foreground/25 group-hover:text-foreground"
+                )}
+            >
+                <span className="min-w-0 truncate flex items-center">{summary}</span>
+                <ChevronDown className={cn("w-3.5 h-3.5 flex-shrink-0 transition-transform duration-200", open && "rotate-180")} />
+            </span>
+        </button>
+        {open && (
+            <div
+                className="pt-1.5 pb-2 animate-in fade-in slide-in-from-top-1 duration-200"
+                onMouseDown={keepEditorFocus ? (e) => e.preventDefault() : undefined}
+            >
+                {children}
+            </div>
+        )}
+    </div>
+);
+
+const ColorSummary = ({ color }: { color: string }) => (
+    <span className="inline-block w-3 h-3 rounded-full ring-1 ring-border" style={{ backgroundColor: color }} />
+);
+
+const NODE_SECTIONS = ['text', 'color', 'shape', 'priority', 'status', 'task', 'tags', 'effect', 'line'] as const;
+const LINE_SECTIONS = ['line-type', 'line-arrows', 'line-thickness', 'line-color', 'line-label', 'line-effect'] as const;
+
+const nodeAnimationOptions: { value: NonNullable<NodeAnimation>; label: string }[] = [
+    { value: 'ring', label: 'Ring' },
+    { value: 'snake', label: 'Snake' },
+    { value: 'blink', label: 'Blink' },
+];
+
 const taskOptions: { value: NodeTask | undefined; label: string }[] = [
     { value: undefined, label: 'Not a task' },
     { value: 'open', label: 'To do' },
@@ -281,6 +361,9 @@ export const PropertiesPanel = ({
     onDelete,
     onCopyStyle,
     onPasteStyle,
+    taskTotals,
+    hideDoneTasks = false,
+    onToggleHideDoneTasks,
     onLiveEditStart,
     onClose,
     is3DMode = false,
@@ -315,6 +398,18 @@ export const PropertiesPanel = ({
     useEffect(() => {
         saveCustomColors(customColors);
     }, [customColors]);
+
+    const [openSections, setOpenSections] = useState(getOpenSections);
+
+    useEffect(() => {
+        saveOpenSections(openSections);
+    }, [openSections]);
+
+    const sectionProps = (id: string, siblings: readonly string[]) => ({
+        open: !!openSections[id],
+        onToggle: () => setOpenSections(prev =>
+            toggleSection(prev, id, viewport.height < SHORT_SCREEN_HEIGHT ? siblings : undefined)),
+    });
 
     const closePicker = () => {
         setIsPickerOpen(false);
@@ -435,60 +530,94 @@ export const PropertiesPanel = ({
     const renderLineContent = () => {
         if (!lineValues || !onLineUpdate) return null;
 
+        const arrowDirection = lineValues.arrowDirection || 'none';
+        const thickness = lineValues.thickness || 'medium';
+        const shape = lineShapeOf(lineValues.type);
+        const pattern = linePatternOf(lineValues.type, lineValues.pattern);
+        const setLineStyle = (next: { type?: LineShape; pattern?: LinePattern }) => onLineUpdate({
+            type: next.type ?? shape,
+            pattern: next.pattern ?? pattern,
+            ...(parseConnectionStyle(lineValues.type).arrow ? { arrowDirection } : {}),
+        });
+
         return (
-            <div className="space-y-3">
-                <div>
-                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block">Type</label>
+            <div className="space-y-0.5">
+                <PanelSection
+                    icon={Spline}
+                    label="Type"
+                    summary={`${lineShapes.find(s => s.value === shape)?.label} · ${linePatterns.find(p => p.value === pattern)?.label}`}
+                    {...sectionProps('line-type', LINE_SECTIONS)}
+                >
                     <div className="grid grid-cols-3 gap-1">
-                        {lineTypes.map((type) => (
+                        {lineShapes.map((option) => (
                             <button
-                                key={type.value}
-                                onClick={() => onLineUpdate({ type: type.value })}
+                                key={option.value}
+                                onClick={() => setLineStyle({ type: option.value })}
+                                aria-pressed={shape === option.value}
                                 className={cn(
                                     "px-2 py-1.5 text-xs rounded transition-all border",
-                                    lineValues.type === type.value
+                                    shape === option.value
                                         ? "bg-primary text-primary-foreground border-primary font-medium"
                                         : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
                                 )}
                             >
-                                {type.label}
+                                {option.label}
                             </button>
                         ))}
                     </div>
-                </div>
-
-                {lineValues.tension !== undefined && lineValues.type !== 'straight' && (
-                    <div>
-                        <label htmlFor="line-tension-input" className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 flex items-center justify-between">
-                            <span className="flex items-center gap-1">
-                                <Spline className="w-3 h-3" /> {lineValues.type === 'orthogonal' ? 'Bend' : 'Tension'}
-                            </span>
-                            <span className="tabular-nums normal-case tracking-normal">{Math.round(lineValues.tension * 100)}%</span>
-                        </label>
-                        <input
-                            id="line-tension-input"
-                            name="line-tension"
-                            type="range"
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            value={lineValues.tension}
-                            onChange={(e) => {
-                                beginLiveEdit();
-                                (onLineUpdateLive || onLineUpdate)({ tension: Number(e.target.value) });
-                            }}
-                            onPointerDown={() => window.addEventListener('pointerup', endLiveEdit, { once: true })}
-                            onKeyUp={endLiveEdit}
-                            onBlur={endLiveEdit}
-                            className="w-full h-4 accent-primary cursor-pointer"
-                        />
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                        {linePatterns.map((option) => (
+                            <button
+                                key={option.value}
+                                onClick={() => setLineStyle({ pattern: option.value })}
+                                aria-pressed={pattern === option.value}
+                                className={cn(
+                                    "px-2 py-1.5 text-xs rounded flex items-center justify-center gap-1.5 transition-all border",
+                                    pattern === option.value
+                                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                )}
+                            >
+                                <PatternSwatch pattern={option.value} /> {option.label}
+                            </button>
+                        ))}
                     </div>
-                )}
 
-                <div>
-                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                        <ArrowLeftRight className="w-3 h-3" /> Arrowheads
-                    </label>
+                    {lineValues.tension !== undefined && shape !== 'straight' && (
+                        <div className="mt-2">
+                            <label htmlFor="line-tension-input" className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
+                                    <Spline className="w-3 h-3" /> {shape === 'orthogonal' ? 'Bend' : 'Tension'}
+                                </span>
+                                <span className="tabular-nums normal-case tracking-normal">{Math.round(lineValues.tension * 100)}%</span>
+                            </label>
+                            <input
+                                id="line-tension-input"
+                                name="line-tension"
+                                type="range"
+                                min={0}
+                                max={1}
+                                step={0.05}
+                                value={lineValues.tension}
+                                onChange={(e) => {
+                                    beginLiveEdit();
+                                    (onLineUpdateLive || onLineUpdate)({ tension: Number(e.target.value) });
+                                }}
+                                onPointerDown={() => window.addEventListener('pointerup', endLiveEdit, { once: true })}
+                                onKeyUp={endLiveEdit}
+                                onBlur={endLiveEdit}
+                                className="w-full h-4 accent-primary cursor-pointer"
+                            />
+                        </div>
+                    )}
+                </PanelSection>
+
+                <PanelSection
+                    icon={ArrowLeftRight}
+                    label="Arrowheads"
+                    summary={arrowheadOptions.find(o => o.value === arrowDirection)?.label}
+                    {...sectionProps('line-arrows', LINE_SECTIONS)}
+                >
                     <div className="grid grid-cols-4 gap-1">
                         {arrowheadOptions.map((opt) => (
                             <button
@@ -497,7 +626,7 @@ export const PropertiesPanel = ({
                                 title={opt.label}
                                 className={cn(
                                     "px-2 py-1.5 text-[10px] rounded flex flex-col items-center justify-center gap-0.5 transition-all border",
-                                    (lineValues.arrowDirection || 'none') === opt.value
+                                    arrowDirection === opt.value
                                         ? "bg-primary text-primary-foreground border-primary font-medium"
                                         : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
                                 )}
@@ -507,12 +636,14 @@ export const PropertiesPanel = ({
                             </button>
                         ))}
                     </div>
-                </div>
+                </PanelSection>
 
-                <div>
-                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                        <Bold className="w-3 h-3" /> Thickness
-                    </label>
+                <PanelSection
+                    icon={Bold}
+                    label="Thickness"
+                    summary={thicknessOptions.find(o => o.value === thickness)?.label}
+                    {...sectionProps('line-thickness', LINE_SECTIONS)}
+                >
                     <div className="grid grid-cols-3 gap-1">
                         {thicknessOptions.map((opt) => (
                             <button
@@ -520,7 +651,7 @@ export const PropertiesPanel = ({
                                 onClick={() => onLineUpdate({ thickness: opt.value })}
                                 className={cn(
                                     "px-2 py-1.5 text-xs rounded flex items-center justify-center gap-1.5 transition-all border",
-                                    (lineValues.thickness || 'medium') === opt.value
+                                    thickness === opt.value
                                         ? "bg-primary text-primary-foreground border-primary font-medium"
                                         : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
                                 )}
@@ -529,12 +660,14 @@ export const PropertiesPanel = ({
                             </button>
                         ))}
                     </div>
-                </div>
+                </PanelSection>
 
-                <div>
-                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                        <Palette className="w-3 h-3" /> Color
-                    </label>
+                <PanelSection
+                    icon={Palette}
+                    label="Color"
+                    summary={lineValues.color ? <ColorSummary color={lineValues.color} /> : 'Default'}
+                    {...sectionProps('line-color', LINE_SECTIONS)}
+                >
                     <div className="flex gap-1.5 flex-wrap">
                         {lineColorOptions.map((opt) => (
                             <button
@@ -570,31 +703,35 @@ export const PropertiesPanel = ({
                             </span>
                         </label>
                     )}
-                </div>
+                </PanelSection>
 
-                <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                            <Type className="w-3 h-3" /> Label
-                        </label>
-                        <input
-                            id="line-label-input"
-                            name="line-label"
-                            type="text"
-                            value={lineValues.label || ''}
-                            onFocus={beginLiveEdit}
-                            onBlur={endLiveEdit}
-                            onChange={(e) => (onLineUpdateLive || onLineUpdate)({ label: e.target.value })}
-                            placeholder="Label..."
-                            className="w-full px-2 py-1.5 text-xs border rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                        />
-                    </div>
+                <PanelSection
+                    icon={Type}
+                    label="Label"
+                    summary={lineValues.label || 'None'}
+                    {...sectionProps('line-label', LINE_SECTIONS)}
+                >
+                    <input
+                        id="line-label-input"
+                        name="line-label"
+                        type="text"
+                        value={lineValues.label || ''}
+                        onFocus={beginLiveEdit}
+                        onBlur={endLiveEdit}
+                        onChange={(e) => (onLineUpdateLive || onLineUpdate)({ label: e.target.value })}
+                        placeholder="Label..."
+                        className="w-full px-2 py-1.5 text-xs border rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                </PanelSection>
 
-                    <div className="col-span-2 space-y-2">
-                        <div className="flex items-center justify-between">
-                            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground flex items-center gap-1">
-                                <Activity className="w-3 h-3" /> Effect
-                            </label>
+                <PanelSection
+                    icon={Activity}
+                    label="Effect"
+                    summary={lineValues.animated ? 'Animated' : 'Off'}
+                    {...sectionProps('line-effect', LINE_SECTIONS)}
+                >
+                    <div className="space-y-2">
+                        <div className="flex items-center">
                             <label className="flex items-center gap-2 text-xs cursor-pointer select-none">
                                 <input
                                     id="line-animated-checkbox"
@@ -678,7 +815,7 @@ export const PropertiesPanel = ({
                             </div>
                         )}
                     </div>
-                </div>
+                </PanelSection>
 
                 {onDelete && (
                     <div className="pt-2">
@@ -714,13 +851,39 @@ export const PropertiesPanel = ({
             else onNodeUpdate({ textFont: font === 'default' ? undefined : font });
         };
 
+        const mixedSummary = (key: keyof NodeSettings, summary: React.ReactNode) => isMixed(key) ? 'Mixed' : summary;
+        const nodeColor = nodeValues.color;
+        const nodeColorSummary = mixedSummary('color', !nodeColor || nodeColor === 'root'
+            ? 'Default'
+            : <ColorSummary color={nodeColor.startsWith('#') ? nodeColor : `hsl(var(--node-${nodeColor}-border))`} />);
+        const textSizeSummary = !sel && (isMixed('textSize') || isMixed('textHeading')) ? '–' : currentSize;
+        const textFontSummary = !sel && isMixed('textFont') ? 'Mixed' : TEXT_FONTS.find(f => f.value === currentFont)?.label ?? 'Default';
+        const taskSummary = mixedSummary('task', taskOptions.find(t => t.value === nodeValues.task)?.label);
+        const blockShape = isMixed('lineType') || !nodeValues.lineType ? undefined : lineShapeOf(nodeValues.lineType);
+        const blockPattern = isMixed('linePattern') || isMixed('lineType') || !(nodeValues.lineType || nodeValues.linePattern)
+            ? undefined
+            : linePatternOf(nodeValues.lineType, nodeValues.linePattern);
+        const setBlockLineStyle = (next: { lineType?: LineShape; linePattern?: LinePattern }) => {
+            const lineType = next.lineType ?? blockShape;
+            const linePattern = next.linePattern ?? blockPattern;
+            onNodeUpdate({
+                ...(lineType ? { lineType } : {}),
+                ...(linePattern ? { linePattern } : {}),
+                ...(!isMixed('lineType') && parseConnectionStyle(nodeValues.lineType).arrow && !nodeValues.lineArrowDirection ? { lineArrowDirection: 'forward' as const } : {}),
+            });
+        };
+        const tagCount = tags?.length ?? 0;
+
         return (
-            <div className="space-y-3">
+            <div className="space-y-0.5">
                 {!(nodeValues.icon && nodeValues.iconStyle === 'plain') && (
-                    <div onMouseDown={(e) => e.preventDefault()}>
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1 block flex items-center gap-1">
-                            <Type className="w-3 h-3" /> Text
-                        </label>
+                    <PanelSection
+                        icon={Type}
+                        label="Text"
+                        summary={`${textSizeSummary} · ${textFontSummary}`}
+                        keepEditorFocus
+                        {...sectionProps('text', NODE_SECTIONS)}
+                    >
                         <p className={cn(
                             "text-[10px] leading-snug mb-1.5",
                             sel ? "text-primary font-medium" : "text-muted-foreground"
@@ -834,13 +997,15 @@ export const PropertiesPanel = ({
                                 </button>
                             </div>
                         </div>
-                    </div>
+                    </PanelSection>
                 )}
 
-                <div>
-                    <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                        <Palette className="w-3 h-3" /> Color
-                    </label>
+                <PanelSection
+                    icon={Palette}
+                    label="Color"
+                    summary={nodeColorSummary}
+                    {...sectionProps('color', NODE_SECTIONS)}
+                >
                     <div className="flex flex-wrap gap-1.5">
                         {nodeColorOptions.map((opt) => (
                             <button
@@ -861,13 +1026,15 @@ export const PropertiesPanel = ({
                             (color) => onNodeUpdate({ color: color as unknown as NodeColor }),
                         )}
                     </div>
-                </div>
+                </PanelSection>
 
                 {!(nodeValues.icon && nodeValues.iconStyle === 'plain') && (
-                    <div>
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                            <Shapes className="w-3 h-3" /> Shape
-                        </label>
+                    <PanelSection
+                        icon={Shapes}
+                        label="Shape"
+                        summary={mixedSummary('shape', shapes.find(s => s.value === nodeValues.shape)?.label ?? 'Rounded')}
+                        {...sectionProps('shape', NODE_SECTIONS)}
+                    >
                         <div className="grid grid-cols-3 gap-1">
                             {shapes.map((shape) => (
                                 <button
@@ -885,203 +1052,251 @@ export const PropertiesPanel = ({
                                 </button>
                             ))}
                         </div>
-                    </div>
+                    </PanelSection>
                 )}
 
-                <div className="space-y-3">
-                    <div>
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> Priority
-                        </label>
-                        <div className="grid grid-cols-4 gap-1">
-                            {priorities.map((p) => (
+                <PanelSection
+                    icon={AlertCircle}
+                    label="Priority"
+                    summary={mixedSummary('priority', priorities.find(p => p.value === nodeValues.priority)?.label.split(' ')[1] ?? 'None')}
+                    {...sectionProps('priority', NODE_SECTIONS)}
+                >
+                    <div className="grid grid-cols-4 gap-1">
+                        {priorities.map((p) => (
+                            <button
+                                key={p.value}
+                                onClick={() => onNodeUpdate({ priority: p.value })}
+                                className={cn(
+                                    "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                    nodeValues.priority === p.value
+                                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                )}
+                            >
+                                {p.label.split(' ')[1]}
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => onNodeUpdate({ priority: undefined })}
+                            className={cn(
+                                "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                !isMixed('priority') && !nodeValues.priority
+                                    ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
+                                    : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                            )}
+                        >
+                            None
+                        </button>
+                    </div>
+                </PanelSection>
+
+                <PanelSection
+                    icon={ListChecks}
+                    label="Status"
+                    summary={mixedSummary('status', statusOptions.find(s => s.value === nodeValues.status)?.label ?? 'None')}
+                    {...sectionProps('status', NODE_SECTIONS)}
+                >
+                    <div className="grid grid-cols-3 gap-1">
+                        {statusOptions.map((s) => (
+                            <button
+                                key={s.value}
+                                onClick={() => onNodeUpdate({ status: s.value })}
+                                className={cn(
+                                    "px-2 py-1.5 text-[10px] rounded flex items-center gap-1 transition-all border",
+                                    nodeValues.status === s.value
+                                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                )}
+                            >
+                                <s.icon className={cn("w-3 h-3 flex-shrink-0", nodeValues.status !== s.value && s.color)} />
+                                <span className="truncate">{s.label}</span>
+                            </button>
+                        ))}
+                        <button
+                            onClick={() => onNodeUpdate({ status: undefined })}
+                            className={cn(
+                                "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                !isMixed('status') && !nodeValues.status
+                                    ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
+                                    : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                            )}
+                        >
+                            None
+                        </button>
+                    </div>
+                </PanelSection>
+
+                <PanelSection
+                    icon={SquareCheck}
+                    label="Task"
+                    summary={taskSummary}
+                    {...sectionProps('task', NODE_SECTIONS)}
+                >
+                    <div className="grid grid-cols-3 gap-1">
+                        {taskOptions.map((t) => {
+                            const isChosen = !isMixed('task') && nodeValues.task === t.value;
+                            return (
                                 <button
-                                    key={p.value}
-                                    onClick={() => onNodeUpdate({ priority: p.value })}
+                                    key={t.label}
+                                    onClick={() => onNodeUpdate({ task: t.value })}
+                                    aria-pressed={isChosen}
                                     className={cn(
                                         "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                        nodeValues.priority === p.value
+                                        isChosen && t.value
                                             ? "bg-primary text-primary-foreground border-primary font-medium"
-                                            : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                    )}
-                                >
-                                    {p.label.split(' ')[1]}
-                                </button>
-                            ))}
-                            <button
-                                onClick={() => onNodeUpdate({ priority: undefined })}
-                                className={cn(
-                                    "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                    !isMixed('priority') && !nodeValues.priority
-                                        ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
-                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                )}
-                            >
-                                None
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                            <ListChecks className="w-3 h-3" /> Status
-                        </label>
-                        <div className="grid grid-cols-3 gap-1">
-                            {statusOptions.map((s) => (
-                                <button
-                                    key={s.value}
-                                    onClick={() => onNodeUpdate({ status: s.value })}
-                                    className={cn(
-                                        "px-2 py-1.5 text-[10px] rounded flex items-center gap-1 transition-all border",
-                                        nodeValues.status === s.value
-                                            ? "bg-primary text-primary-foreground border-primary font-medium"
-                                            : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                    )}
-                                >
-                                    <s.icon className={cn("w-3 h-3 flex-shrink-0", nodeValues.status !== s.value && s.color)} />
-                                    <span className="truncate">{s.label}</span>
-                                </button>
-                            ))}
-                            <button
-                                onClick={() => onNodeUpdate({ status: undefined })}
-                                className={cn(
-                                    "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                    !isMixed('status') && !nodeValues.status
-                                        ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
-                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                )}
-                            >
-                                None
-                            </button>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                            <SquareCheck className="w-3 h-3" /> Task
-                        </label>
-                        <div className="grid grid-cols-3 gap-1">
-                            {taskOptions.map((t) => {
-                                const isChosen = !isMixed('task') && nodeValues.task === t.value;
-                                return (
-                                    <button
-                                        key={t.label}
-                                        onClick={() => onNodeUpdate({ task: t.value })}
-                                        aria-pressed={isChosen}
-                                        className={cn(
-                                            "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                            isChosen && t.value
-                                                ? "bg-primary text-primary-foreground border-primary font-medium"
-                                                : isChosen
-                                                    ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
-                                                    : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                        )}
-                                    >
-                                        {t.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                            <CalendarDays className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                            <input
-                                type="date"
-                                aria-label="Due date"
-                                value={isMixed('dueDate') ? '' : (nodeValues.dueDate ?? '')}
-                                onChange={(e) => onNodeUpdate({ dueDate: e.target.value || undefined })}
-                                className="flex-1 min-w-0 h-7 px-1.5 text-[11px] rounded border bg-background text-foreground"
-                            />
-                            {(nodeValues.dueDate || isMixed('dueDate')) && (
-                                <button
-                                    onClick={() => onNodeUpdate({ dueDate: undefined })}
-                                    className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
-                                    title="Remove the due date"
-                                    aria-label="Remove the due date"
-                                >
-                                    <X className="w-3 h-3" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-
-                    {onAddTag && onRemoveTag && (
-                        <div>
-                            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                                <Tag className="w-3 h-3" /> Tags
-                            </label>
-                            <TagEditor tags={tags ?? []} suggestions={tagSuggestions} onAdd={onAddTag} onRemove={onRemoveTag} />
-                            {selectionCount > 1 && (
-                                <p className="text-[10px] leading-snug text-muted-foreground mt-1">
-                                    The tags all {selectionCount} blocks have. A tag added here goes on each of them.
-                                </p>
-                            )}
-                        </div>
-                    )}
-
-                    <div>
-                        <div className="flex items-center justify-between mb-1.5">
-                            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground flex items-center gap-1">
-                                <Activity className="w-3 h-3" /> Effect
-                            </label>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1">
-                            <button
-                                onClick={() => onNodeUpdate({ nodeAnimation: undefined })}
-                                className={cn(
-                                    "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                    !isMixed('nodeAnimation') && !nodeValues.nodeAnimation
-                                        ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
-                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                )}
-                            >
-                                None
-                            </button>
-
-                            {[
-                                { value: 'ring', label: 'Ring' },
-                                { value: 'snake', label: 'Snake' },
-                                { value: 'blink', label: 'Blink' }
-                            ].map((anim) => (
-                                <button
-                                    key={anim.value}
-                                    onClick={() => onNodeUpdate({ nodeAnimation: anim.value as NodeAnimation })}
-                                    className={cn(
-                                        "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                        nodeValues.nodeAnimation === anim.value
-                                            ? "bg-primary text-primary-foreground border-primary font-medium"
-                                            : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                    )}
-                                >
-                                    {anim.label}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {!is3DMode && (
-                        <div>
-                            <label className="text-[10px] uppercase tracking-wider font-semibold text-muted-foreground mb-1.5 block flex items-center gap-1">
-                                <Spline className="w-3 h-3" /> Line Connection
-                            </label>
-                            <div className="grid grid-cols-3 gap-1">
-                                {lineTypes.slice(0, 6).map((type) => (
-                                    <button
-                                        key={type.value}
-                                        onClick={() => onNodeUpdate({ lineType: type.value })}
-                                        className={cn(
-                                            "px-2 py-1.5 text-[10px] rounded transition-all border",
-                                            nodeValues.lineType === type.value
-                                                ? "bg-primary text-primary-foreground border-primary font-medium"
+                                            : isChosen
+                                                ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
                                                 : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
-                                        )}
-                                    >
-                                        {type.label}
-                                    </button>
-                                ))}
-                            </div>
+                                    )}
+                                >
+                                    {t.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                        <CalendarDays className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        <input
+                            type="date"
+                            aria-label="Due date"
+                            value={isMixed('dueDate') ? '' : (nodeValues.dueDate ?? '')}
+                            onChange={(e) => onNodeUpdate({ dueDate: e.target.value || undefined })}
+                            className="flex-1 min-w-0 h-7 px-1.5 text-[11px] rounded border bg-background text-foreground"
+                        />
+                        {(nodeValues.dueDate || isMixed('dueDate')) && (
+                            <button
+                                onClick={() => onNodeUpdate({ dueDate: undefined })}
+                                className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                                title="Remove the due date"
+                                aria-label="Remove the due date"
+                            >
+                                <X className="w-3 h-3" />
+                            </button>
+                        )}
+                    </div>
+                    {taskTotals && taskTotals.total > 0 && (
+                        <div
+                            className="flex items-center justify-between gap-2 mt-2 pt-2 border-t text-[11px] text-foreground"
+                            data-testid="task-summary"
+                        >
+                            <span className="flex items-center gap-1.5 min-w-0">
+                                <SquareCheck className={cn('w-3.5 h-3.5 flex-shrink-0', taskTotals.done === taskTotals.total ? 'text-green-600' : 'text-blue-600')} />
+                                <span className="truncate">
+                                    {taskTotals.done} of {taskTotals.total} {taskTotals.total === 1 ? 'task' : 'tasks'} done in this map
+                                </span>
+                            </span>
+                            {onToggleHideDoneTasks && (
+                                <button
+                                    onClick={onToggleHideDoneTasks}
+                                    aria-pressed={hideDoneTasks}
+                                    title={hideDoneTasks ? 'Show the tasks that are done' : 'Hide the tasks that are done, with what is below them'}
+                                    className="flex-shrink-0 flex items-center gap-1 rounded px-1.5 py-0.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                                >
+                                    {hideDoneTasks ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                                    {hideDoneTasks ? 'Show done' : 'Hide done'}
+                                </button>
+                            )}
                         </div>
                     )}
-                </div>
+                </PanelSection>
+
+                {onAddTag && onRemoveTag && (
+                    <PanelSection
+                        icon={Tag}
+                        label="Tags"
+                        summary={tagCount === 0 ? 'None' : tagCount === 1 ? tags![0] : `${tagCount} tags`}
+                        {...sectionProps('tags', NODE_SECTIONS)}
+                    >
+                        <TagEditor tags={tags ?? []} suggestions={tagSuggestions} onAdd={onAddTag} onRemove={onRemoveTag} />
+                        {selectionCount > 1 && (
+                            <p className="text-[10px] leading-snug text-muted-foreground mt-1">
+                                The tags all {selectionCount} blocks have. A tag added here goes on each of them.
+                            </p>
+                        )}
+                    </PanelSection>
+                )}
+
+                <PanelSection
+                    icon={Activity}
+                    label="Effect"
+                    summary={mixedSummary('nodeAnimation', nodeAnimationOptions.find(a => a.value === nodeValues.nodeAnimation)?.label ?? 'None')}
+                    {...sectionProps('effect', NODE_SECTIONS)}
+                >
+                    <div className="grid grid-cols-4 gap-1">
+                        <button
+                            onClick={() => onNodeUpdate({ nodeAnimation: undefined })}
+                            className={cn(
+                                "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                !isMixed('nodeAnimation') && !nodeValues.nodeAnimation
+                                    ? "bg-muted text-foreground border-muted-foreground/20 font-medium"
+                                    : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                            )}
+                        >
+                            None
+                        </button>
+
+                        {nodeAnimationOptions.map((anim) => (
+                            <button
+                                key={anim.value}
+                                onClick={() => onNodeUpdate({ nodeAnimation: anim.value })}
+                                className={cn(
+                                    "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                    nodeValues.nodeAnimation === anim.value
+                                        ? "bg-primary text-primary-foreground border-primary font-medium"
+                                        : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                )}
+                            >
+                                {anim.label}
+                            </button>
+                        ))}
+                    </div>
+                </PanelSection>
+
+                {!is3DMode && (
+                    <PanelSection
+                        icon={Spline}
+                        label="Line Connection"
+                        summary={isMixed('lineType') || isMixed('linePattern') ? 'Mixed' : blockShape
+                            ? `${lineShapes.find(s => s.value === blockShape)?.label} · ${linePatterns.find(p => p.value === blockPattern)?.label}`
+                            : 'Default'}
+                        {...sectionProps('line', NODE_SECTIONS)}
+                    >
+                        <div className="grid grid-cols-3 gap-1">
+                            {lineShapes.map((option) => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => setBlockLineStyle({ lineType: option.value })}
+                                    aria-pressed={blockShape === option.value}
+                                    className={cn(
+                                        "px-2 py-1.5 text-[10px] rounded transition-all border",
+                                        blockShape === option.value
+                                            ? "bg-primary text-primary-foreground border-primary font-medium"
+                                            : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                    )}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 mt-1">
+                            {linePatterns.map((option) => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => setBlockLineStyle({ linePattern: option.value })}
+                                    aria-pressed={blockPattern === option.value}
+                                    className={cn(
+                                        "px-2 py-1.5 text-[10px] rounded flex items-center justify-center gap-1.5 transition-all border",
+                                        blockPattern === option.value
+                                            ? "bg-primary text-primary-foreground border-primary font-medium"
+                                            : "bg-background hover:bg-muted text-muted-foreground border-transparent hover:border-border"
+                                    )}
+                                >
+                                    <PatternSwatch pattern={option.value} /> {option.label}
+                                </button>
+                            ))}
+                        </div>
+                    </PanelSection>
+                )}
 
                 {(onCopyStyle || onPasteStyle) && (
                     <div className="grid grid-cols-2 gap-1 pt-3">

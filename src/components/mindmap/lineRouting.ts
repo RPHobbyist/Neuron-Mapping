@@ -10,7 +10,8 @@
 
 import { useMemo, useRef } from 'react';
 
-import { MindMapNode, ConnectionStyle, LineThickness, Side } from '@/types/mindmap';
+import { MindMapNode, ConnectionStyle, LinePattern, LineThickness, Side } from '@/types/mindmap';
+import { lineShapeOf, linePatternOf, parseConnectionStyle } from '@/utils/lineStyle';
 import { DEFAULT_RELATION_TYPE, DEFAULT_RELATION_COLOR } from '@/lib/constants';
 import { getAutoConnectionSides, getNodeDimensions, clamp } from '@/utils/common';
 import { Point, isCircle, samplePath, getShapePolygon, polygonRayIntersection } from '@/utils/nodeOutline';
@@ -272,7 +273,7 @@ export function resolveConnection(
   findObstacles: ObstacleFinder = NO_OBSTACLES,
   laneAdjustment?: LaneAdjustment,
 ): ResolvedConnection {
-  const base = style === 'dashed' || style === 'dotted' ? 'curved' : style;
+  const base = lineShapeOf(style);
   const auto = getSides(p, c);
   const from = fromOverride ?? auto.from;
   const to = toOverride ?? auto.to;
@@ -302,8 +303,11 @@ export function pathLength(path: string): number {
   return len;
 }
 
-export function getDash(s: ConnectionStyle): string | undefined {
-  return s === 'dashed' ? '8 4' : s === 'dotted' ? '0 8' : undefined;
+export { lineShapeOf, linePatternOf };
+
+export function getDash(s: ConnectionStyle, pattern?: LinePattern): string | undefined {
+  const resolved = linePatternOf(s, pattern);
+  return resolved === 'dashed' ? '8 4' : resolved === 'dotted' ? '0 8' : undefined;
 }
 
 export function resolveArrowDirection(conn: {
@@ -312,7 +316,7 @@ export function resolveArrowDirection(conn: {
   type: ConnectionStyle;
 }): 'none' | 'forward' | 'reverse' | 'both' {
   if (conn.arrowDirection) return conn.arrowDirection;
-  return conn.isRelation || conn.type === 'arrow' ? 'forward' : 'none';
+  return conn.isRelation || parseConnectionStyle(conn.type).arrow ? 'forward' : 'none';
 }
 
 
@@ -327,6 +331,7 @@ export interface VisualConnection {
   label?: string;
   isRelation?: boolean;
   type: ConnectionStyle;
+  pattern?: LinePattern;
   color: string;
   startColor?: string;
   thickness: LineThickness;
@@ -361,6 +366,7 @@ export function useVisualConnections(nodes: MindMapNode[], connectionStyle: Conn
         label: c.lineLabel,
         isRelation: false,
         type: c.lineType || p.lineType || connectionStyle,
+        pattern: c.linePattern ?? (c.lineType ? undefined : p.linePattern),
         color: c.lineColor || (c.lineGradient ? blockColor(c) : '#9ca3af'),
         startColor: c.lineGradient ? blockColor(p) : undefined,
         thickness: c.lineThickness || 'medium',
@@ -386,6 +392,7 @@ export function useVisualConnections(nodes: MindMapNode[], connectionStyle: Conn
           label: r.label,
           isRelation: true,
           type: r.type || DEFAULT_RELATION_TYPE,
+          pattern: r.pattern,
           color: r.color || DEFAULT_RELATION_COLOR,
           thickness: r.thickness || 'medium',
           animated: !!r.animated,
@@ -443,7 +450,7 @@ function applyLaneSplits(group: LaneMember[], result: Map<string, LaneAdjustment
 
 function computeOrthogonalLaneSplits(connections: VisualConnection[]): Map<string, LaneAdjustment> {
   const resolved: LaneMember[] = connections
-    .filter(conn => conn.type === 'orthogonal')
+    .filter(conn => lineShapeOf(conn.type) === 'orthogonal')
     .map(conn => {
       const auto = getSides(conn.p, conn.c);
       const from = conn.fromOverride ?? auto.from;
@@ -547,7 +554,7 @@ function useConnectionRoutes(nodes: MindMapNode[], connections: VisualConnection
         && !(cached.route.query && touchesChange(cached.route.query));
       const route = reusable
         ? cached.route
-        : resolveConnection(p, c, type, tension, fromOverride, toOverride, type === 'orthogonal' ? findObstacles : NO_OBSTACLES, lane);
+        : resolveConnection(p, c, type, tension, fromOverride, toOverride, lineShapeOf(type) === 'orthogonal' ? findObstacles : NO_OBSTACLES, lane);
       entries.set(id, { p, c, type, tension, fromOverride, toOverride, lane, route });
       routes.set(id, route);
     });
@@ -566,6 +573,33 @@ export function useLineRouting(nodes: MindMapNode[], connectionStyle: Connection
   const orthogonalLaneSplits = useMemo(() => computeOrthogonalLaneSplits(connections), [connections]);
   const routes = useConnectionRoutes(nodes, connections, orthogonalLaneSplits);
   return useMemo(() => ({ connections, routes }), [connections, routes]);
+}
+
+function cutFromStart(points: Point[], distance: number): Point[] {
+  if (distance <= 0 || points.length < 2) return points;
+  let left = distance;
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const next = points[i];
+    const seg = Math.hypot(next.x - prev.x, next.y - prev.y);
+    if (seg >= left) {
+      const t = seg === 0 ? 0 : left / seg;
+      return [{ x: prev.x + (next.x - prev.x) * t, y: prev.y + (next.y - prev.y) * t }, ...points.slice(i)];
+    }
+    left -= seg;
+  }
+  return [points[points.length - 1]];
+}
+
+export function trimPolyline(points: Point[], fromStart: number, fromEnd: number): Point[] {
+  return cutFromStart(cutFromStart(points, fromStart).reverse(), fromEnd).reverse();
+}
+
+export function arrowheadAt(points: Point[], atEnd: boolean, length: number): { x: number; y: number; angle: number } {
+  const ordered = atEnd ? [...points].reverse() : points;
+  const tip = ordered[0];
+  const base = cutFromStart(ordered, length)[0];
+  return { x: tip.x, y: tip.y, angle: Math.atan2(tip.y - base.y, tip.x - base.x) * 180 / Math.PI };
 }
 
 export function routePolyline(route: ResolvedConnection, step: number): Point[] {

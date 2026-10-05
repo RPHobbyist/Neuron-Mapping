@@ -13,7 +13,7 @@ import { MindMapNode } from '@/types/mindmap';
 export const STYLE_FIELDS = [
     'color', 'shape', 'nodeAnimation',
     'textBold', 'textItalic', 'textUnderline', 'textStrike', 'textAlign', 'textHeading', 'textList', 'textSize', 'textFont',
-    'lineType', 'lineThickness', 'lineColor', 'lineAnimated', 'lineGradient', 'lineTension',
+    'lineType', 'linePattern', 'lineThickness', 'lineColor', 'lineAnimated', 'lineGradient', 'lineTension',
     'lineAnimationDirection', 'lineAnimationType', 'lineArrowDirection',
 ] as const satisfies readonly (keyof MindMapNode)[];
 

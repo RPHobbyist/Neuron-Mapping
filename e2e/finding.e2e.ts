@@ -56,7 +56,7 @@ test('right-clicking a topic offers what can be done with it', async ({ page }) 
     await expect(menu).toBeVisible();
     await expect(selected(page)).toContainText('Topic 2');
     await menu.getByRole('menuitem', { name: /Make a Task/ }).click();
-    await expect(page.getByTestId('task-summary')).toContainText('0 of 1 task done');
+    await expect(page.getByTestId('mindmap-canvas').getByRole('checkbox')).toHaveCount(1);
 
     await page.getByTestId('mindmap-canvas').click({ button: 'right', position: { x: 30, y: 30 } });
     await expect(menu.getByRole('menuitem', { name: /Fit to Screen/ })).toBeVisible();

@@ -19,6 +19,8 @@ export const nodeSettingsOf = (node: MindMapNode): NodeSettings => ({
     task: node.task,
     dueDate: node.dueDate,
     lineType: node.lineType,
+    linePattern: node.linePattern,
+    lineArrowDirection: node.lineArrowDirection,
     nodeAnimation: node.nodeAnimation,
     icon: node.icon,
     iconStyle: node.iconStyle,

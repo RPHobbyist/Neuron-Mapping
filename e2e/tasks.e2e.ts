@@ -10,7 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { node, preparePage } from './helpers';
+import { node, openPanelSection, preparePage } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -24,6 +24,7 @@ const nodeBox = (page: Page, text: string) =>
 
 const makeTask = async (page: Page, text: string) => {
     await node(page, text).click();
+    await openPanelSection(page, 'Task');
     await page.getByRole('button', { name: 'To do', exact: true }).click();
     await expect(nodeBox(page, text).getByRole('checkbox')).toBeVisible();
 };

@@ -10,7 +10,7 @@
 
 import { expect, test, type Page } from '@playwright/test';
 
-import { node, preparePage, saveAs } from './helpers';
+import { node, openPanelSection, preparePage, saveAs } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -36,6 +36,7 @@ const drawPng = (page: Page) => page.evaluate(() => {
 
 test('tags are added and removed as chips, on one node or on several', async ({ page }) => {
     await node(page, 'Topic 1').click();
+    await openPanelSection(page, 'Tags');
     const tagInput = page.getByLabel('Add a tag');
     await tagInput.fill('urgent');
     await tagInput.press('Enter');
@@ -61,6 +62,7 @@ test('tags are added and removed as chips, on one node or on several', async ({ 
 
 test('search finds nodes by their tags and notes, and filters by tag', async ({ page }) => {
     await node(page, 'Topic 1').click();
+    await openPanelSection(page, 'Tags');
     const tagInput = page.getByLabel('Add a tag');
     await tagInput.fill('urgent');
     await tagInput.press('Enter');

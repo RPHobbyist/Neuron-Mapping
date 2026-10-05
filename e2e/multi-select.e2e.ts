@@ -10,7 +10,7 @@
 
 import { expect, test } from '@playwright/test';
 
-import { node, preparePage } from './helpers';
+import { node, openPanelSection, preparePage } from './helpers';
 
 test.beforeEach(async ({ page }) => {
     await preparePage(page);
@@ -26,6 +26,7 @@ test('several selected blocks are edited together, in one undo step', async ({ p
     await expect(page.getByRole('heading', { name: '2 Blocks' })).toBeVisible();
 
     const fill = (text: string) => page.locator(`[data-node-id]:has-text("${text}") > div`).first();
+    await openPanelSection(page, 'Color');
     await page.getByTitle('Green', { exact: true }).click();
     await expect(fill('Topic 1')).toHaveClass(/node-green-bg/);
     await expect(fill('Topic 2')).toHaveClass(/node-green-bg/);

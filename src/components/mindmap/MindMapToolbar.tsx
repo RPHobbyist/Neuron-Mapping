@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Save, LayoutGrid, Link, Undo2, Redo2, History, CircleHelp, Focus, Play, StopCircle, Box, Globe, ChevronDown, ListPlus, BookmarkPlus, SquareDashed, Eye, Newspaper, ChevronsUpDown, ChevronsDownUp, ListTree, Command, Crosshair, Maximize2, Map as MapIcon, ListOrdered, Palette } from 'lucide-react';
 import { MindMapNode, ConnectionStyle, Drawing, BoxArea } from '@/types/mindmap';
+import type { LineStylePart } from '@/utils/lineStyle';
 import { cn } from '@/lib/utils';
 import { MOD_KEY, withShortcut } from '@/utils/shortcuts';
 import {
@@ -59,7 +60,7 @@ interface MindMapToolbarProps {
     onAddRelation: () => void;
     onAddBoxArea: () => void;
 
-    onConnectionStyleChange: (style: ConnectionStyle) => void;
+    onConnectionStyleChange: (style: ConnectionStyle, part: LineStylePart) => void;
     onAutoLayout: (direction: LayoutDirection) => void;
     onBranchLayout?: (direction: LayoutDirection) => void;
     onNodeSelect: (nodeId: string) => void;

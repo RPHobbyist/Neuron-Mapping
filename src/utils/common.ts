@@ -36,7 +36,44 @@ export const getContrastTextColor = (hexColor: string): string => {
     return luminance > 0.6 ? '#000000' : '#ffffff';
 };
 
-export const sanitizeImageUrl = (url: string | undefined): string | undefined => {
+const resolvedColors = new Map<string, [number, number, number] | null>();
+
+const resolveColor = (color: string): [number, number, number] | null => {
+    const cacheKey = `${document.documentElement.className}|${color}`;
+    const cached = resolvedColors.get(cacheKey);
+    if (cached !== undefined) return cached;
+    const probe = document.createElement('span');
+    probe.style.color = color;
+    probe.style.display = 'none';
+    document.body.appendChild(probe);
+    const match = getComputedStyle(probe).color.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/);
+    probe.remove();
+    const rgb = match ? [Number(match[1]), Number(match[2]), Number(match[3])] as [number, number, number] : null;
+    resolvedColors.set(cacheKey, rgb);
+    return rgb;
+};
+
+const relativeLuminance = ([r, g, b]: [number, number, number]) => {
+    const channel = (value: number) => {
+        const c = value / 255;
+        return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+};
+
+export const DARK_TEXT = '#111827';
+export const LIGHT_TEXT = '#ffffff';
+
+export const readableTextOn = (color: string): string => {
+    const rgb = resolveColor(color);
+    if (!rgb) return DARK_TEXT;
+    const luminance = relativeLuminance(rgb);
+    const darkContrast = (luminance + 0.05) / (relativeLuminance([17, 24, 39]) + 0.05);
+    const lightContrast = 1.05 / (luminance + 0.05);
+    return darkContrast >= lightContrast ? DARK_TEXT : LIGHT_TEXT;
+};
+
+export const sanitizeImageUrl =(url: string | undefined): string | undefined => {
     if (!url) return undefined;
     const trimmed = url.trim();
     if (DATA_IMAGE_URI_RE.test(trimmed)) {
